@@ -142,6 +142,45 @@ int load_cfg_clt(json_t *root, const char *key, nw_clt_cfg *cfg)
     return 0;
 }
 
+int load_cfg_rpc_clt(json_t *root, const char *key, rpc_clt_cfg *cfg)
+{
+    json_t *node = json_object_get(root, key);
+    if (!node || !json_is_object(node))
+        return -__LINE__;
+
+    ERR_RET(read_cfg_str(node, "name", &cfg->name, NULL));
+
+    json_t *addr = json_object_get(node, "addr");
+    if (json_is_string(addr)) {
+        cfg->addr_count = 1;
+        cfg->addr_arr = malloc(sizeof(nw_addr_t));
+        if (nw_sock_cfg_parse(json_string_value(addr), &cfg->addr_arr[0], &cfg->sock_type) < 0)
+            return -__LINE__;
+    } else if (json_is_array(addr)) {
+        cfg->addr_count = json_array_size(addr);
+        if (cfg->addr_count == 0)
+            return -__LINE__;
+        cfg->addr_arr = malloc(sizeof(nw_addr_t) * cfg->addr_count);
+        for (uint32_t i = 0; i < cfg->addr_count; ++i) {
+            json_t *row = json_array_get(addr, i);
+            if (!json_is_string(row))
+                return -__LINE__;
+            if (nw_sock_cfg_parse(json_string_value(row), &cfg->addr_arr[i], &cfg->sock_type) < 0)
+                return -__LINE__;
+        }
+    } else {
+        return -__LINE__;
+    }
+
+    ERR_RET(read_cfg_uint32(node, "max_pkg_size", &cfg->max_pkg_size, true, 0));
+    ERR_RET(read_cfg_uint32(node, "read_mem", &cfg->read_mem, false, 0));
+    ERR_RET(read_cfg_uint32(node, "write_mem", &cfg->read_mem, false, 0));
+    ERR_RET(read_cfg_real(node, "reconnect_timeout", &cfg->reconnect_timeout, false, 0));
+    ERR_RET(read_cfg_real(node, "heartbeat_timeout", &cfg->heartbeat_timeout, false, 0));
+
+    return 0;
+}
+
 int load_cfg_cli_svr(json_t *root, const char *key, cli_svr_cfg *cfg)
 {
     json_t *node = json_object_get(root, key);
@@ -151,7 +190,6 @@ int load_cfg_cli_svr(json_t *root, const char *key, cli_svr_cfg *cfg)
 
     return 0;
 }
-
 
 int load_cfg_inetv4_list(json_t *root, const char *key, inetv4_list *cfg)
 {

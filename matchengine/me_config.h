@@ -33,10 +33,21 @@
 # include "ut_rpc_svr.h"
 # include "ut_rpc_cmd.h"
 
+struct market {
+    char                *name;
+    char                *stock;
+    char                *money;
+};
+
 struct settings {
     process_cfg         process;
     log_cfg             log;
     nw_svr_cfg          svr;
+
+    size_t              asset_num;
+    char                **assets;
+    size_t              market_num;
+    struct market       *markets;
 };
 
 extern struct settings settings;

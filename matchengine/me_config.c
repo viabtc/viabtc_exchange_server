@@ -8,6 +8,46 @@
 struct settings settings;
 mpd_context_t mpd_ctx;
 
+static int load_assets(json_t *root, const char *key)
+{
+    json_t *node = json_object_get(root, key);
+    if (!node || !json_is_array(node)) {
+        return -__LINE__;
+    }
+
+    settings.asset_num = json_array_size(node);
+    settings.assets = malloc(sizeof(char *) * settings.asset_num);
+    for (size_t i = 0; i < settings.asset_num; ++i) {
+        json_t *row = json_array_get(node, i);
+        if (!json_is_string(row))
+            return -__LINE__;
+        settings.assets[i] = strdup(json_string_value(row));
+    }
+
+    return 0;
+}
+
+static int load_markets(json_t *root, const char *key)
+{
+    json_t *node = json_object_get(root, key);
+    if (!node || !json_is_array(node)) {
+        return -__LINE__;
+    }
+
+    settings.market_num = json_array_size(node);
+    settings.markets = malloc(sizeof(struct market) * settings.market_num);
+    for (size_t i = 0; i < settings.market_num; ++i) {
+        json_t *row = json_array_get(node, i);
+        if (!json_is_object(row))
+            return -__LINE__;
+        ERR_RET_LN(read_cfg_str(row, "name", &settings.markets[i].name, NULL));
+        ERR_RET_LN(read_cfg_str(row, "stock", &settings.markets[i].stock, NULL));
+        ERR_RET_LN(read_cfg_str(row, "money", &settings.markets[i].money, NULL));
+    }
+
+    return 0;
+}
+
 static int read_config_from_json(json_t *root)
 {
     int ret;
@@ -24,6 +64,16 @@ static int read_config_from_json(json_t *root)
     ret = load_cfg_svr(root, "svr", &settings.svr);
     if (ret < 0) {
         printf("load svr config fail: %d\n", ret);
+        return -__LINE__;
+    }
+    ret = load_assets(root, "assets");
+    if (ret < 0) {
+        printf("load assets config fail: %d\n", ret);
+        return -__LINE__;
+    }
+    ret = load_markets(root, "markets");
+    if (ret < 0) {
+        printf("load markets config fail: %d\n", ret);
         return -__LINE__;
     }
 

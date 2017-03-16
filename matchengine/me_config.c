@@ -7,6 +7,7 @@
 
 struct settings settings;
 mpd_context_t mpd_ctx;
+mpd_t *mpd_zero;
 
 static int load_assets(json_t *root, const char *key)
 {
@@ -16,13 +17,14 @@ static int load_assets(json_t *root, const char *key)
     }
 
     settings.asset_num = json_array_size(node);
-    settings.assets = malloc(sizeof(char *) * settings.asset_num);
+    settings.assets = malloc(sizeof(struct asset) * settings.asset_num);
     for (size_t i = 0; i < settings.asset_num; ++i) {
         json_t *row = json_array_get(node, i);
-        if (!json_is_string(row))
+        if (!json_is_object(row))
             return -__LINE__;
-        settings.assets[i] = strdup(json_string_value(row));
-        if (strlen(settings.assets[i]) > ASSET_NAME_MAX_LEN)
+        ERR_RET_LN(read_cfg_str(row, "name", &settings.assets[i].name, NULL));
+        ERR_RET_LN(read_cfg_uint32(row, "prec", &settings.assets[i].prec, true, 0));
+        if (strlen(settings.assets[i].name) > ASSET_NAME_MAX_LEN)
             return -__LINE__;
     }
 
@@ -107,6 +109,19 @@ int init_config(const char *path)
 
 int init_mpd(void)
 {
-    return mpd_ieee_context(&mpd_ctx, MPD_DECIMAL128);
+    mpd_ieee_context(&mpd_ctx, MPD_DECIMAL128);
+    mpd_zero = mpd_new(&mpd_ctx);
+    mpd_set_string(mpd_zero, "0", &mpd_ctx);
+
+    return 0;
+}
+
+mpd_t *quantize(mpd_t *val, int num)
+{
+    mpd_t *tmp = mpd_new(&mpd_ctx);
+    mpd_copy(tmp, val, &mpd_ctx);
+    mpd_rescale(val, tmp, -num, &mpd_ctx);
+    mpd_del(tmp);
+    return val;
 }
 

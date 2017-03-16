@@ -35,6 +35,11 @@
 
 # define ASSET_NAME_MAX_LEN 7
 
+struct asset {
+    char                *name;
+    uint32_t            prec;
+};
+
 struct market {
     char                *name;
     char                *stock;
@@ -47,16 +52,21 @@ struct settings {
     nw_svr_cfg          svr;
 
     size_t              asset_num;
-    char                **assets;
+    struct asset        *assets;
     size_t              market_num;
     struct market       *markets;
 };
 
 extern struct settings settings;
+
 int init_config(const char *path);
 
 extern mpd_context_t mpd_ctx;
+extern mpd_t *mpd_zero;
+
 int init_mpd(void);
+mpd_t *quantize(mpd_t *val, int num);
+
 
 # endif
 

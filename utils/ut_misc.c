@@ -26,7 +26,6 @@
 # include <sys/time.h>
 # include <sys/file.h>
 # include <sys/resource.h>
-# include <openssl/sha.h>
 
 # include "ut_misc.h"
 # include "ut_signal.h"
@@ -270,21 +269,6 @@ double to_fixed(double val, int num)
         multiplier *= 10;
     }
     return round(val * multiplier) / multiplier;
-}
-
-void sha256(const void *mem, size_t len, char *hash)
-{
-    SHA256_CTX c;
-    SHA256_Init(&c);
-    SHA256_Update(&c, mem, len);
-    SHA256_Final((unsigned char *)hash, &c);
-}
-
-void sha256d(const void *mem, size_t len, char *hash)
-{
-    char tmp[32];
-    sha256(mem, len, tmp);
-    sha256(tmp, 32, hash);
 }
 
 void reverse_mem(char *mem, size_t len)

@@ -29,9 +29,6 @@ char *human_number(double num);
 double to_fixed(double val, int num);
 void reverse_mem(char *mem, size_t len);
 
-void sha256(const void *mem, size_t len, char *hash);
-void sha256d(const void *mem, size_t len, char *hash);
-
 void strtolower(char *str);
 void strtoupper(char *str);
 void strclearblank(char *str);

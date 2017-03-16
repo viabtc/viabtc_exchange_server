@@ -33,6 +33,8 @@
 # include "ut_rpc_svr.h"
 # include "ut_rpc_cmd.h"
 
+# define ASSET_NAME_MAX_LEN 7
+
 struct market {
     char                *name;
     char                *stock;

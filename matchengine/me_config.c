@@ -22,6 +22,8 @@ static int load_assets(json_t *root, const char *key)
         if (!json_is_string(row))
             return -__LINE__;
         settings.assets[i] = strdup(json_string_value(row));
+        if (strlen(settings.assets[i]) > ASSET_NAME_MAX_LEN)
+            return -__LINE__;
     }
 
     return 0;

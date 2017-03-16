@@ -14,5 +14,16 @@
         ],
         "buf_limit": 100,
         "max_pkg_size": 10240
-    }
+    },
+    "assets": [
+        "CNY",
+        "BTC"
+    ],
+    "markets": [
+        {
+            "name": "BTCCNY",
+            "stock": "BTC",
+            "money": "CNY"
+        }
+    ]
 }

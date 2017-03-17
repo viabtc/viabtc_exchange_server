@@ -132,13 +132,19 @@ static void on_timer(nw_timer *timer, void *privdata)
    }
 }
 
-rpc_svr *rpc_svr_create(nw_svr_cfg *cfg, rpc_svr_type *type)
+rpc_svr *rpc_svr_create(rpc_svr_cfg *cfg, rpc_svr_type *type)
 {
     if (type->on_recv_pkg == NULL)
         return NULL;
 
-    rpc_svr *svr = malloc(sizeof(rpc_svr));
-    assert(svr != NULL);
+    nw_svr_cfg raw_cfg;
+    memset(&raw_cfg, 0, sizeof(raw_cfg));
+    raw_cfg.bind_count = cfg->bind_count;
+    raw_cfg.bind_arr = cfg->bind_arr;
+    raw_cfg.max_pkg_size = cfg->max_pkg_size;
+    raw_cfg.buf_limit = cfg->buf_limit;
+    raw_cfg.read_mem = cfg->read_mem;
+    raw_cfg.write_mem = cfg->write_mem;
 
     nw_svr_type raw_type;
     memset(&raw_type, 0, sizeof(raw_type));
@@ -151,14 +157,20 @@ rpc_svr *rpc_svr_create(nw_svr_cfg *cfg, rpc_svr_type *type)
     raw_type.on_privdata_alloc = on_privdata_alloc;
     raw_type.on_privdata_free = on_privdata_free;
 
-    svr->raw_svr = nw_svr_create(cfg, &raw_type, svr);
+    rpc_svr *svr = malloc(sizeof(rpc_svr));
+    assert(svr != NULL);
+    memset(svr, 0, sizeof(rpc_svr));
+    svr->raw_svr = nw_svr_create(&raw_cfg, &raw_type, svr);
     if (svr->raw_svr == NULL) {
         free(svr);
         return NULL;
     }
-    nw_timer_set(&svr->timer, RPC_HEARTBEAT_INTERVAL, true, on_timer, svr);
+    if (cfg->heartbeat_check) {
+        nw_timer_set(&svr->timer, RPC_HEARTBEAT_INTERVAL, true, on_timer, svr);
+    }
     svr->privdata_cache = nw_cache_create(sizeof(struct clt_info));
     assert(svr->privdata_cache != NULL);
+    svr->heartbeat_check = cfg->heartbeat_check;
     svr->on_recv_pkg = type->on_recv_pkg;
     svr->on_new_connection = type->on_new_connection;
 
@@ -170,7 +182,9 @@ int rpc_svr_start(rpc_svr *svr)
     int ret = nw_svr_start(svr->raw_svr);
     if (ret < 0)
         return ret;
-    nw_timer_start(&svr->timer);
+    if (svr->heartbeat_check) {
+        nw_timer_start(&svr->timer);
+    }
     return 0;
 }
 

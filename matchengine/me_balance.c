@@ -116,6 +116,7 @@ static int init_dict(void)
 int init_balance()
 {
     ERR_RET(init_dict());
+
     for (size_t i = 0; i < settings.asset_num; ++i) {
         struct asset_type type = { .prec = settings.assets[i].prec };
         if (dict_add(dict_asset, settings.assets[i].name, &type) < 0)
@@ -125,21 +126,24 @@ int init_balance()
     return 0;
 }
 
-bool asset_exist(const char *asset)
-{
-    if (dict_find(dict_asset, asset))
-        return true;
-    return false;
-}
-
 static struct asset_type *get_asset_type(const char *asset)
 {
     dict_entry *entry = dict_find(dict_asset, asset);
     if (entry == NULL)
         return NULL;
+
     return entry->val;
 }
-    
+
+int asset_exist(const char *asset)
+{
+    struct asset_type *at = get_asset_type(asset);
+    if (at) {
+        return at->prec;
+    }
+
+    return 0;
+}
 
 mpd_t *balance_get(uint32_t user_id, uint32_t type, const char *asset)
 {
@@ -168,7 +172,8 @@ mpd_t *balance_set(uint32_t user_id, uint32_t type, const char *asset, mpd_t *am
     strncpy(key.asset, asset, sizeof(key.asset));
 
     mpd_t *result;
-    dict_entry *entry = dict_find(dict_balance, &key);
+    dict_entry *entry;
+    entry = dict_find(dict_balance, &key);
     if (entry) {
         result = entry->val;
         mpd_rescale(result, amount, -at->prec, &mpd_ctx);
@@ -177,9 +182,10 @@ mpd_t *balance_set(uint32_t user_id, uint32_t type, const char *asset, mpd_t *am
 
     if (dict_add(dict_balance, &key, amount) < 0)
         return NULL;
-    dict_entry *entry = dict_find(dict_balance, &key);
+    entry = dict_find(dict_balance, &key);
     if (entry == NULL)
         return NULL;
+
     result = entry->val;
     mpd_rescale(result, amount, -at->prec, &mpd_ctx);
     return result;

@@ -142,7 +142,7 @@ int asset_exist(const char *asset)
         return at->prec;
     }
 
-    return 0;
+    return -1;
 }
 
 mpd_t *balance_get(uint32_t user_id, uint32_t type, const char *asset)
@@ -160,11 +160,25 @@ mpd_t *balance_get(uint32_t user_id, uint32_t type, const char *asset)
     return NULL;
 }
 
+void balance_del(uint32_t user_id, uint32_t type, const char *asset)
+{
+    struct balance_key key;
+    key.user_id = user_id;
+    key.type = type;
+    strncpy(key.asset, asset, sizeof(key.asset));
+    dict_delete(dict_balance, &key);
+}
+
 mpd_t *balance_set(uint32_t user_id, uint32_t type, const char *asset, mpd_t *amount)
 {
     struct asset_type *at = get_asset_type(asset);
     if (at == NULL)
         return NULL;
+
+    if (mpd_cmp(amount, mpd_zero, &mpd_ctx) == 0) {
+        balance_del(user_id, type, asset);
+        return mpd_zero;
+    }
 
     struct balance_key key;
     key.user_id = user_id;
@@ -233,6 +247,11 @@ mpd_t *balance_sub(uint32_t user_id, uint32_t type, const char *asset, mpd_t *am
 
     mpd_t *tmp = mpd_new(&mpd_ctx);
     mpd_sub(tmp, result, amount, &mpd_ctx);
+    if (mpd_cmp(tmp, mpd_zero, &mpd_ctx) == 0) {
+        mpd_del(tmp);
+        balance_del(user_id, type, asset);
+        return mpd_zero;
+    }
     mpd_rescale(result, tmp, -at->prec, &mpd_ctx);
     mpd_del(tmp);
 
@@ -287,14 +306,14 @@ mpd_t *balance_unfreeze(uint32_t user_id, const char *asset, mpd_t *amount)
     return freeze;
 }
 
-void balance_traverse(balance_traverse_callback callback)
+void balance_traverse(balance_traverse_callback callback, void *privdata)
 {
     dict_iterator *iter = dict_get_iterator(dict_balance);
     dict_entry *entry;
     while ((entry = dict_next(iter)) != NULL) {
         struct balance_key *key = entry->key;
         mpd_t *val = entry->val;
-        callback(key->user_id, key->type, key->asset, val);
+        callback(key->user_id, key->type, key->asset, val, privdata);
     }
 }
 

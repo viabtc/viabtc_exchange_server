@@ -15,9 +15,15 @@
         "buf_limit": 100,
         "max_pkg_size": 10240
     },
+    "cli": "tcp@127.0.0.1:7317",
     "assets": [
-        "CNY",
-        "BTC"
+        {
+            "name": "CNY",
+            "prec": 2
+        }, {
+            "name": "BTC",
+            "prec": 8
+        }
     ],
     "markets": [
         {

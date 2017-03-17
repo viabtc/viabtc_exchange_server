@@ -17,12 +17,27 @@ int init_mpd(void)
     return 0;
 }
 
-mpd_t *quantize(mpd_t *val, int num)
+mpd_t *quantize(mpd_t *val, int prec)
 {
     mpd_t *tmp = mpd_new(&mpd_ctx);
     mpd_copy(tmp, val, &mpd_ctx);
-    mpd_rescale(val, tmp, -num, &mpd_ctx);
+    mpd_rescale(val, tmp, -prec, &mpd_ctx);
     mpd_del(tmp);
     return val;
+}
+
+mpd_t *decimal(const char *str, int prec)
+{
+    mpd_t *tmp = mpd_new(&mpd_ctx);
+    mpd_ctx.status = 0;
+    mpd_set_string(tmp, str, &mpd_ctx);
+    if (mpd_ctx.status == MPD_Conversion_syntax) {
+        mpd_del(tmp);
+        return NULL;
+    }
+    mpd_t *result = mpd_new(&mpd_ctx);
+    mpd_rescale(result, tmp, -prec, &mpd_ctx);
+    mpd_del(tmp);
+    return result;
 }
 

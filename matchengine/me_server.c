@@ -8,8 +8,38 @@
 
 static rpc_svr *svr;
 
+static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg)
+{
+    return 0;
+}
+
+static int on_cmd_balance_update(nw_ses *ses, rpc_pkg *pkg)
+{
+    return 0;
+}
+
 static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
 {
+    int ret;
+    switch (pkg->command) {
+    case CMD_BALANCE_QUERY:
+        log_trace("from: %s cmd balance query", nw_sock_human_addr(&ses->peer_addr));
+        ret = on_cmd_balance_query(ses, pkg);
+        if (ret < 0) {
+            log_error("on_cmd_balance_query fail: %d", ret);
+        }
+        break;
+    case CMD_BALANCE_UPDATE:
+        log_trace("from: %s cmd balance update", nw_sock_human_addr(&ses->peer_addr));
+        ret = on_cmd_balance_update(ses, pkg);
+        if (ret < 0) {
+            log_error("on_cmd_balance_update fail: %d", ret);
+        }
+        break;
+    default:
+        log_error("from: %s unknown command: %u", nw_sock_human_addr(&ses->peer_addr), pkg->command);
+        break;
+    }
 }
 
 static void svr_on_new_connection(nw_ses *ses)

@@ -17,9 +17,6 @@
 # include <assert.h>
 # include <inttypes.h>
 
-# include <jansson.h>
-# include <mpdecimal.h>
-
 # include "nw_svr.h"
 # include "nw_clt.h"
 # include "nw_timer.h"
@@ -29,6 +26,7 @@
 # include "ut_cli.h"
 # include "ut_misc.h"
 # include "ut_config.h"
+# include "ut_decimal.h"
 # include "ut_rpc_clt.h"
 # include "ut_rpc_svr.h"
 # include "ut_rpc_cmd.h"
@@ -60,13 +58,6 @@ struct settings {
 extern struct settings settings;
 
 int init_config(const char *path);
-
-extern mpd_context_t mpd_ctx;
-extern mpd_t *mpd_zero;
-
-int init_mpd(void);
-mpd_t *quantize(mpd_t *val, int num);
-
 
 # endif
 

@@ -35,7 +35,7 @@
 
 struct asset {
     char                *name;
-    uint32_t            prec;
+    int                 prec;
 };
 
 struct market {

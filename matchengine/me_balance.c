@@ -147,6 +147,7 @@ mpd_t *balance_get(uint32_t user_id, uint32_t type, const char *asset)
     key.user_id = user_id;
     key.type = type;
     strncpy(key.asset, asset, sizeof(key.asset));
+
     dict_entry *entry = dict_find(dict_balance, &key);
     if (entry) {
         return entry->val;
@@ -161,24 +162,26 @@ mpd_t *balance_set(uint32_t user_id, uint32_t type, const char *asset, mpd_t *am
     if (at == NULL)
         return NULL;
 
-    mpd_t *result = balance_get(user_id, type, asset);
-    if (result) {
-        mpd_copy(result, amount, &mpd_ctx);
-        quantize(result, at->prec);
-        return result;
-    }
-
     struct balance_key key;
     key.user_id = user_id;
     key.type = type;
     strncpy(key.asset, asset, sizeof(key.asset));
+
+    mpd_t *result;
+    dict_entry *entry = dict_find(dict_balance, &key);
+    if (entry) {
+        result = entry->val;
+        mpd_rescale(result, amount, -at->prec, &mpd_ctx);
+        return result;
+    }
+
     if (dict_add(dict_balance, &key, amount) < 0)
         return NULL;
     dict_entry *entry = dict_find(dict_balance, &key);
     if (entry == NULL)
         return NULL;
     result = entry->val;
-    quantize(result, at->prec);
+    mpd_rescale(result, amount, -at->prec, &mpd_ctx);
     return result;
 }
 
@@ -190,12 +193,19 @@ mpd_t *balance_add(uint32_t user_id, uint32_t type, const char *asset, mpd_t *am
 
     if (mpd_cmp(amount, mpd_zero, &mpd_ctx) < 0)
         return NULL;
-    mpd_t *result = balance_get(user_id, type, asset);
-    if (result) {
+
+    struct balance_key key;
+    key.user_id = user_id;
+    key.type = type;
+    strncpy(key.asset, asset, sizeof(key.asset));
+
+    mpd_t *result;
+    dict_entry *entry = dict_find(dict_balance, &key);
+    if (entry) {
+        result = entry->val;
         mpd_t *tmp = mpd_new(&mpd_ctx);
         mpd_add(tmp, result, amount, &mpd_ctx);
-        quantize(tmp, at->prec);
-        mpd_copy(result, tmp, &mpd_ctx);
+        mpd_rescale(result, tmp, -at->prec, &mpd_ctx);
         mpd_del(tmp);
         return result;
     }
@@ -217,8 +227,7 @@ mpd_t *balance_sub(uint32_t user_id, uint32_t type, const char *asset, mpd_t *am
 
     mpd_t *tmp = mpd_new(&mpd_ctx);
     mpd_sub(tmp, result, amount, &mpd_ctx);
-    quantize(tmp, at->prec);
-    mpd_copy(result, tmp, &mpd_ctx);
+    mpd_rescale(result, tmp, -at->prec, &mpd_ctx);
     mpd_del(tmp);
 
     return result;
@@ -242,8 +251,7 @@ mpd_t *balance_freeze(uint32_t user_id, const char *asset, mpd_t *amount)
         return NULL;
     mpd_t *tmp = mpd_new(&mpd_ctx);
     mpd_sub(tmp, available, amount, &mpd_ctx);
-    quantize(tmp, at->prec);
-    mpd_copy(available, tmp, &mpd_ctx);
+    mpd_rescale(available, tmp, -at->prec, &mpd_ctx);
     mpd_del(tmp);
 
     return available;
@@ -267,8 +275,7 @@ mpd_t *balance_unfreeze(uint32_t user_id, const char *asset, mpd_t *amount)
         return NULL;
     mpd_t *tmp = mpd_new(&mpd_ctx);
     mpd_sub(tmp, freeze, amount, &mpd_ctx);
-    quantize(tmp, at->prec);
-    mpd_copy(freeze, tmp, &mpd_ctx);
+    mpd_rescale(freeze, tmp, -at->prec, &mpd_ctx);
     mpd_del(tmp);
 
     return freeze;

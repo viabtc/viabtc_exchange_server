@@ -21,7 +21,7 @@ static int load_assets(json_t *root, const char *key)
         if (!json_is_object(row))
             return -__LINE__;
         ERR_RET_LN(read_cfg_str(row, "name", &settings.assets[i].name, NULL));
-        ERR_RET_LN(read_cfg_uint32(row, "prec", &settings.assets[i].prec, true, 0));
+        ERR_RET_LN(read_cfg_int(row, "prec", &settings.assets[i].prec, true, 0));
         if (strlen(settings.assets[i].name) > ASSET_NAME_MAX_LEN)
             return -__LINE__;
     }

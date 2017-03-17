@@ -173,6 +173,7 @@ int load_cfg_rpc_clt(json_t *root, const char *key, rpc_clt_cfg *cfg)
     }
 
     ERR_RET(read_cfg_uint32(node, "max_pkg_size", &cfg->max_pkg_size, true, 0));
+    ERR_RET(read_cfg_uint32(node, "buf_limit", &cfg->buf_limit, false, 0));
     ERR_RET(read_cfg_uint32(node, "read_mem", &cfg->read_mem, false, 0));
     ERR_RET(read_cfg_uint32(node, "write_mem", &cfg->read_mem, false, 0));
     ERR_RET(read_cfg_real(node, "reconnect_timeout", &cfg->reconnect_timeout, false, 0));

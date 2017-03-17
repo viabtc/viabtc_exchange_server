@@ -112,6 +112,7 @@ rpc_clt *rpc_clt_create(rpc_clt_cfg *cfg, rpc_clt_type *type)
     memset(&raw_cfg, 0, sizeof(raw_cfg));
     memcpy(&raw_cfg.addr, &cfg->addr_arr[0], sizeof(nw_addr_t));
     raw_cfg.sock_type = cfg->sock_type;
+    raw_cfg.buf_limit = cfg->buf_limit;
     raw_cfg.read_mem = cfg->read_mem;
     raw_cfg.write_mem = cfg->write_mem;
     raw_cfg.reconnect_timeout = cfg->reconnect_timeout;

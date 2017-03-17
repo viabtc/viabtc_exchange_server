@@ -47,7 +47,7 @@ struct market {
 struct settings {
     process_cfg         process;
     log_cfg             log;
-    nw_svr_cfg          svr;
+    rpc_svr_cfg         svr;
     cli_svr_cfg         cli;
 
     size_t              asset_num;

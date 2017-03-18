@@ -31,7 +31,8 @@
 # include "ut_rpc_svr.h"
 # include "ut_rpc_cmd.h"
 
-# define ASSET_NAME_MAX_LEN 7
+# define ASSET_NAME_MAX_LEN     7
+# define BUSINESS_NAME_MAX_LEN  15
 
 struct asset {
     char                *name;

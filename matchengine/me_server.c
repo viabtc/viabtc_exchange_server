@@ -36,6 +36,7 @@ static int reply_error(nw_ses *ses, rpc_pkg *pkg, int code, const char *message)
 
     json_t *reply = json_object();
     json_object_set_new(reply, "error", error);
+    json_object_set_new(reply, "result", json_null());
 
     int ret = reply_json(ses, pkg, reply);
     json_decref(reply);
@@ -60,11 +61,19 @@ static int reply_result(nw_ses *ses, rpc_pkg *pkg, json_t *result)
     return ret;
 }
 
+static int reply_success(nw_ses *ses, rpc_pkg *pkg)
+{
+    json_t *result = json_object();
+    json_object_set_new(result, "status", json_string("success"));
+    return reply_result(ses, pkg, result);
+}
+
 static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *request)
 {
     size_t request_size = json_array_size(request);
     if (request_size == 0 || request_size > 2)
         return reply_error_invalid_argument(ses, pkg);
+
     if (!json_is_integer(json_array_get(request, 0)))
         return reply_error_invalid_argument(ses, pkg);
     uint32_t user_id = json_integer_value(json_array_get(request, 0));
@@ -75,6 +84,7 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         const char *asset = json_string_value(json_array_get(request, 1));
         if (asset_exist(asset) < 0)
             return reply_error_invalid_argument(ses, pkg);
+
         json_t *unit = json_object();
         mpd_t *available = balance_get(user_id, BALANCE_TYPE_AVAILABLE, asset);
         json_object_set_new(unit, "available", json_string(available == NULL ? "0" : mpd_to_sci(available, 0)));
@@ -82,6 +92,7 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         json_object_set_new(unit, "freeze", json_string(freeze == NULL ? "0" : mpd_to_sci(freeze, 0)));
         json_t *result = json_object();
         json_object_set_new(result, asset, unit);
+
         return reply_result(ses, pkg, result);
     }
 
@@ -95,12 +106,61 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         json_object_set_new(unit, "freeze", json_string(freeze == NULL ? "0" : mpd_to_sci(freeze, 0)));
         json_object_set_new(result, asset, unit);
     }
+
     return reply_result(ses, pkg, result);
 }
 
 static int on_cmd_balance_update(nw_ses *ses, rpc_pkg *pkg, json_t *request)
 {
-    return 0;
+    if (json_array_size(request) != 6)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // user_id
+    if (!json_is_integer(json_array_get(request, 0)))
+        return reply_error_invalid_argument(ses, pkg);
+    uint32_t user_id = json_integer_value(json_array_get(request, 0));
+
+    // type
+    if (!json_is_integer(json_array_get(request, 1)))
+        return reply_error_invalid_argument(ses, pkg);
+    uint32_t type = json_integer_value(json_array_get(request, 1));
+    if (type != BALANCE_TYPE_AVAILABLE && type != BALANCE_TYPE_FREEZE)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // asset
+    if (!json_is_string(json_array_get(request, 2)))
+        return reply_error_invalid_argument(ses, pkg);
+    const char *asset = json_string_value(json_array_get(request, 2));
+    int prec = asset_exist(asset);
+    if (prec < 0)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // business
+    if (!json_is_string(json_array_get(request, 3)))
+        return reply_error_invalid_argument(ses, pkg);
+    const char *business = json_string_value(json_array_get(request, 3));
+
+    // business_id
+    if (!json_is_integer(json_array_get(request, 4)))
+        return reply_error_invalid_argument(ses, pkg);
+    uint64_t business_id = json_integer_value(json_array_get(request, 4));
+
+    // change
+    if (!json_is_string(json_array_get(request, 5)))
+        return reply_error_invalid_argument(ses, pkg);
+    mpd_t *change = decimal(json_string_value(json_array_get(request, 5)), prec);
+    if (change == NULL)
+        return reply_error_invalid_argument(ses, pkg);
+
+    int ret = update_user_balance(user_id, type, asset, business, business_id, change);
+    mpd_del(change);
+    if (ret == -1) {
+        return reply_error(ses, pkg, 10, "repeat update");
+    } else if (ret == -2) {
+        return reply_error(ses, pkg, 11, "balance not enough");
+    }
+
+    return reply_success(ses, pkg);
 }
 
 static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)

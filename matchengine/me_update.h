@@ -8,7 +8,7 @@
 
 int init_update(void);
 int update_user_balance(uint32_t user_id, uint32_t type, const char *asset, \
-        mpd_t *change, const char *business, uint64_t business_id);
+        const char *business, uint64_t business_id, mpd_t *change);
 
 # endif
 

@@ -20,8 +20,8 @@
 
 enum {
     NW_SES_TYPE_COMMON, /* stream connection */
-    NW_SES_TYPE_CLIENT, /* server side */
-    NW_SES_TYPE_SERVER, /* client side */
+    NW_SES_TYPE_CLIENT, /* clinet side */
+    NW_SES_TYPE_SERVER, /* server side */
 };
 
 typedef struct nw_ses {

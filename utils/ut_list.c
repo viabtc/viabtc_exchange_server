@@ -8,29 +8,17 @@
 
 # include "ut_list.h"
 
-list_t *list_create(void)
+list_t *list_create(list_type *type)
 {
     list_t *list = malloc(sizeof(list_t));
     if (list == NULL) {
         return NULL;
     }
     memset(list, 0, sizeof(list_t));
-    return list;
-}
-
-void list_release(list_t *list)
-{
-    unsigned long len = list->len;
-    list_node *curr, *next;
-    curr = list->head;
-    while (len--) {
-        next = curr->next;
-        if (list->free) {
-            list->free(curr->value);
-        }
-        free(curr);
-        curr = next;
+    if (type) {
+        memcpy(&list->type, type, sizeof(list_type));
     }
+    return list;
 }
 
 static list_node *list_create_node(list_t *list, void *value)
@@ -39,8 +27,8 @@ static list_node *list_create_node(list_t *list, void *value)
     if (node == NULL) {
         return NULL;
     }
-    if (list->dup) {
-        node->value = list->dup(value);
+    if (list->type.dup) {
+        node->value = list->type.dup(value);
     } else {
         node->value = value;
     }
@@ -144,11 +132,26 @@ void list_delete(list_t *list, list_node *node)
     } else {
         list->head = node->next;
     }
-    if (list->free) {
-        list->free(node->value);
+    if (list->type.free) {
+        list->type.free(node->value);
     }
     free(node);
     list->len -= 1;
+}
+
+void list_release(list_t *list)
+{
+    unsigned long len = list->len;
+    list_node *curr, *next;
+    curr = list->head;
+    while (len--) {
+        next = curr->next;
+        if (list->type.free) {
+            list->type.free(curr->value);
+        }
+        free(curr);
+        curr = next;
+    }
 }
 
 list_iter *list_get_iterator(list_t *list, int direction)
@@ -203,20 +206,17 @@ list_t *list_dup(list_t *orig)
     if (iter == NULL) {
         return NULL;
     }
-    list_t *copy = list_create();
+    list_t *copy = list_create(&orig->type);
     if (copy == NULL) {
         list_release_iterator(iter);
         return NULL;
     }
-    copy->dup = orig->dup;
-    copy->free = orig->free;
-    copy->compare = orig->compare;
 
     list_node *node;
     while ((node = list_next(iter)) != NULL) {
         void *value = node->value;
-        if (copy->dup) {
-            value = copy->dup(value);
+        if (copy->type.dup) {
+            value = copy->type.dup(value);
             if (value == NULL) {
                 list_release_iterator(iter);
                 list_release(copy);
@@ -241,8 +241,8 @@ list_node *list_search(list_t *list, void *key)
     }
     list_node *node;
     while ((node = list_next(iter)) != NULL) {
-        if (list->compare) {
-            if (list->compare(node->value, key) == 0) {
+        if (list->type.compare) {
+            if (list->type.compare(node->value, key) == 0) {
                 list_release_iterator(iter);
                 return node;
             }

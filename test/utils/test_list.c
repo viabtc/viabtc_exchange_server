@@ -27,10 +27,11 @@ int node_compare(void *obj, void *key)
 
 int main(int argc, char *argv[])
 {
-    list_t *list = list_create();
-    list->dup = node_dup;
-    list->free = node_free;
-    list->compare = node_compare;
+    list_type type;
+    type.dup = node_dup;
+    type.free = node_free;
+    type.compare = node_compare;
+    list_t *list = list_create(&type);
 
     for (int i = 0; i < 10; ++i) {
         sds value = sdsempty();

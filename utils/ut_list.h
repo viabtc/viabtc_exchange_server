@@ -17,12 +17,16 @@ typedef struct list_iter {
     int direction;
 } list_iter;
 
-typedef struct list_t {
-    list_node *head;
-    list_node *tail;
+typedef struct list_type {
     void *(*dup)(void *value);
     void (*free)(void *value);
     int (*compare)(void *value1, void *value2);
+} list_type;
+
+typedef struct list_t {
+    list_node *head;
+    list_node *tail;
+    list_type  type;
     unsigned long len;
 } list_t;
 
@@ -33,13 +37,13 @@ typedef struct list_t {
 # define list_next_node(n)  ((n)->next)
 # define list_node_value(n) ((n)->value)
 
-list_t *list_create(void);
-void list_release(list_t *list);
+list_t *list_create(list_type *type);
 list_t *list_add_node_head(list_t *list, void *value);
 list_t *list_add_node_tail(list_t *list, void *value);
 list_t *list_insert_node(list_t *list, list_node *pos, void *value, int before);
 void list_rotate(list_t *list);
 void list_delete(list_t *list, list_node *node);
+void list_release(list_t *list);
 
 # define LIST_START_HEAD 0
 # define LIST_START_TAIL 1

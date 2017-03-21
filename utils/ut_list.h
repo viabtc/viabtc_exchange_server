@@ -20,9 +20,9 @@ typedef struct list_iter {
 typedef struct list_t {
     list_node *head;
     list_node *tail;
-    void *(*dup)(void *ptr);
-    void (*free)(void *ptr);
-    int (*match)(void *ptr, void *key);
+    void *(*dup)(void *value);
+    void (*free)(void *value);
+    int (*compare)(void *value1, void *value2);
     unsigned long len;
 } list_t;
 

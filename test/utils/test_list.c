@@ -20,7 +20,7 @@ void node_free(void *obj)
     sdsfree(obj);
 }
 
-int node_match(void *obj, void *key)
+int node_compare(void *obj, void *key)
 {
     return strcmp(obj, key);
 }
@@ -30,27 +30,33 @@ int main(int argc, char *argv[])
     list_t *list = list_create();
     list->dup = node_dup;
     list->free = node_free;
-    list->match = node_match;
+    list->compare = node_compare;
 
     for (int i = 0; i < 10; ++i) {
         sds value = sdsempty();
         value = sdscatprintf(value, "%d", i);
         list_add_node_tail(list, value);
+        printf("add %s\n", value);
+        sdsfree(value);
     }
 
     for (int i = 0; i < 10; ++i) {
         sds value = sdsempty();
         value = sdscatprintf(value, "%d", 10 + i);
         list_add_node_head(list, value);
+        printf("add %s\n", value);
+        sdsfree(value);
     }
 
     list_node *node = list_index(list, 10);
     sds value = sdsempty();
     value = sdscatprintf(value, "%d", 100);
     list_insert_node(list, node, value, 1);
+    printf("insert %s\n", value);
 
     node = list_search(list, value);
     printf("search: %s\n", (char *)node->value);
+    sdsfree(value);
 
     for (int i = -10; i < 10; ++i) {
         node = list_index(list, i);

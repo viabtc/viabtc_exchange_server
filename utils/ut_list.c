@@ -33,7 +33,7 @@ void list_release(list_t *list)
     }
 }
 
-list_t *list_add_node_head(list_t *list, void *value)
+static list_node *list_create_node(list_t *list, void *value)
 {
     list_node *node = malloc(sizeof(list_node));
     if (node == NULL) {
@@ -48,7 +48,15 @@ list_t *list_add_node_head(list_t *list, void *value)
         free(node);
         return NULL;
     }
+    return node;
+}
 
+list_t *list_add_node_head(list_t *list, void *value)
+{
+    list_node *node = list_create_node(list, value);
+    if (node == NULL) {
+        return NULL;
+    }
     if (list->len == 0) {
         node->next = node->prev = NULL;
         list->head = list->tail = node;
@@ -59,26 +67,15 @@ list_t *list_add_node_head(list_t *list, void *value)
         list->head = node;
     }
     list->len += 1;
-
     return list;
 }
 
 list_t *list_add_node_tail(list_t *list, void *value)
 {
-    list_node *node = malloc(sizeof(list_node));
+    list_node *node = list_create_node(list, value);
     if (node == NULL) {
         return NULL;
     }
-    if (list->dup) {
-        node->value = list->dup(value);
-    } else {
-        node->value = value;
-    }
-    if (node->value == NULL) {
-        free(node);
-        return NULL;
-    }
-
     if (list->len == 0) {
         node->next = node->prev = NULL;
         list->head = list->tail = node;
@@ -95,20 +92,10 @@ list_t *list_add_node_tail(list_t *list, void *value)
 
 list_t *list_insert_node(list_t *list, list_node *pos, void *value, int before)
 {
-    list_node *node = malloc(sizeof(list_node));
+    list_node *node = list_create_node(list, value);
     if (node == NULL) {
         return NULL;
     }
-    if (list->dup) {
-        node->value = list->dup(value);
-    } else {
-        node->value = value;
-    }
-    if (node->value == NULL) {
-        free(node);
-        return NULL;
-    }
-
     if (before) {
         node->next = pos;
         node->prev = pos->prev;
@@ -129,7 +116,6 @@ list_t *list_insert_node(list_t *list, list_node *pos, void *value, int before)
         node->next->prev = node;
     }
     list->len += 1;
-
     return list;
 }
 

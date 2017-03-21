@@ -243,6 +243,7 @@ list_t *list_dup(list_t *orig)
             return NULL;
         }
     }
+    list_release_iterator(iter);
     return copy;
 }
 

@@ -32,6 +32,8 @@ static void *asset_dict_key_dup(const void *key)
 static void *asset_dict_val_dup(const void *val)
 {
     struct asset_type *obj = malloc(sizeof(struct asset_type));
+    if (obj == NULL)
+        return NULL;
     memcpy(obj, val, sizeof(struct asset_type));
     return obj;
 }
@@ -59,6 +61,8 @@ static uint32_t balance_dict_hash_function(const void *key)
 static void *balance_dict_key_dup(const void *key)
 {
     struct balance_key *obj = malloc(sizeof(struct balance_key));
+    if (obj == NULL)
+        return NULL;
     memcpy(obj, key, sizeof(struct balance_key));
     return obj;
 }

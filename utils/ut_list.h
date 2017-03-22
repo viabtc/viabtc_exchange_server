@@ -20,7 +20,7 @@ typedef struct list_iter {
 typedef struct list_type {
     void *(*dup)(void *value);
     void (*free)(void *value);
-    int (*compare)(void *value1, void *value2);
+    int (*compare)(const void *value1, const void *value2);
 } list_type;
 
 typedef struct list_t {

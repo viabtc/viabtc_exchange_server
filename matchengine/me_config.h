@@ -25,11 +25,13 @@
 # include "ut_sds.h"
 # include "ut_cli.h"
 # include "ut_misc.h"
+# include "ut_list.h"
 # include "ut_config.h"
 # include "ut_decimal.h"
 # include "ut_rpc_clt.h"
 # include "ut_rpc_svr.h"
 # include "ut_rpc_cmd.h"
+# include "ut_skiplist.h"
 
 # define ASSET_NAME_MAX_LEN     7
 # define BUSINESS_NAME_MAX_LEN  15

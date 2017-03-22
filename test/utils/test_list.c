@@ -20,7 +20,7 @@ void node_free(void *obj)
     sdsfree(obj);
 }
 
-int node_compare(void *obj, void *key)
+int node_compare(const void *obj, const void *key)
 {
     return strcmp(obj, key);
 }
@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
     list_insert_node(list, node, value, 1);
     printf("insert %s\n", value);
 
-    node = list_search(list, value);
+    node = list_find(list, value);
     printf("search: %s\n", (char *)node->value);
     sdsfree(value);
 

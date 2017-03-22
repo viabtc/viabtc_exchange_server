@@ -20,7 +20,7 @@ void node_free(void *obj)
     sdsfree(obj);
 }
 
-int node_compare(void *obj, void *key)
+int node_compare(const void *obj, const void *key)
 {
     return strcmp(obj, key);
 }

@@ -233,24 +233,19 @@ list_t *list_dup(list_t *orig)
     return copy;
 }
 
-list_node *list_search(list_t *list, void *key)
+list_node *list_find(list_t *list, void *key)
 {
+    if (list->type.compare == NULL)
+        return NULL;
     list_iter *iter = list_get_iterator(list, LIST_START_HEAD);
     if (iter == NULL) {
         return NULL;
     }
     list_node *node;
     while ((node = list_next(iter)) != NULL) {
-        if (list->type.compare) {
-            if (list->type.compare(node->value, key) == 0) {
-                list_release_iterator(iter);
-                return node;
-            }
-        } else {
-            if (node->value == key) {
-                list_release_iterator(iter);
-                return node;
-            }
+        if (list->type.compare(node->value, key) == 0) {
+            list_release_iterator(iter);
+            return node;
         }
     }
     list_release_iterator(iter);

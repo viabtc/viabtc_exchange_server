@@ -55,7 +55,7 @@ void list_rewind_tail(list_t *list, list_iter *iter);
 void list_release_iterator(list_iter *iter);
 
 list_t *list_dup(list_t *orig);
-list_node *list_search(list_t *list, void *key);
+list_node *list_find(list_t *list, void *key);
 list_node *list_index(list_t *list, long index);
 
 # endif

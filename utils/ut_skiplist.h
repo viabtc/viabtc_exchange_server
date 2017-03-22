@@ -18,9 +18,9 @@ typedef struct skiplist_iter {
 } skiplist_iter;
 
 typedef struct skiplist_type {
-    void *(*dup)(void *ptr);
-    void (*free)(void *ptr);
-    int (*compare)(void *ptr, void *key);
+    void *(*dup)(void *value);
+    void (*free)(void *value);
+    int (*compare)(void *value1, void *value2);
 } skiplist_type;
 
 typedef struct skiplist_t {

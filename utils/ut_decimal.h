@@ -9,6 +9,8 @@
 # include <mpdecimal.h>
 
 extern mpd_context_t mpd_ctx;
+
+extern mpd_t *mpd_one;
 extern mpd_t *mpd_zero;
 
 int init_mpd(void);

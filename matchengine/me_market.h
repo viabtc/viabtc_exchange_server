@@ -15,16 +15,13 @@ typedef struct order_t {
     uint64_t        id;
     double          create_time;
     double          update_time;
-    uint32_t        user_id;
     char            *market_name;
+    uint32_t        user_id;
     uint32_t        type;
     mpd_t           *price;
     mpd_t           *amount;
     mpd_t           *fee_rate;
-
     mpd_t           *left;
-    mpd_t           *freeze;
-
     mpd_t           *deal_stock;
     mpd_t           *deal_money;
     mpd_t           *deal_fee;
@@ -43,10 +40,13 @@ typedef struct market_t {
 } market_t;
 
 market_t *market_create(struct market *conf);
-order_t *market_put_order(market_t *m, uint32_t user_id, \
+order_t *market_put_limit_order(market_t *m, uint32_t user_id, \
         uint32_t order_type, mpd_t *amount, mpd_t *price, mpd_t *fee_rate);
+order_t *market_put_market_order(market_t *m, uint32_t user_id, \
+        uint32_t order_type, mpd_t *amount, mpd_t *fee_rate);
 order_t *market_get_order(market_t *m, uint64_t id);
 list_t *market_get_order_list(market_t *m, uint32_t user_id);
+void market_cancel_order(market_t *m, order_t *order);
 
 # endif
 

@@ -6,12 +6,15 @@
 # include "ut_decimal.h"
 
 mpd_context_t mpd_ctx;
+
+mpd_t *mpd_one;
 mpd_t *mpd_zero;
 
 int init_mpd(void)
 {
     mpd_ieee_context(&mpd_ctx, MPD_DECIMAL128);
     mpd_zero = mpd_new(&mpd_ctx);
+    mpd_set_string(mpd_one, "1", &mpd_ctx);
     mpd_set_string(mpd_zero, "0", &mpd_ctx);
 
     return 0;

@@ -43,8 +43,17 @@ static int load_markets(json_t *root, const char *key)
         if (!json_is_object(row))
             return -__LINE__;
         ERR_RET_LN(read_cfg_str(row, "name", &settings.markets[i].name, NULL));
-        ERR_RET_LN(read_cfg_str(row, "stock", &settings.markets[i].stock, NULL));
-        ERR_RET_LN(read_cfg_str(row, "money", &settings.markets[i].money, NULL));
+        ERR_RET_LN(read_cfg_int(row, "fee_prec", &settings.markets[i].fee_prec, false, 4));
+        json_t *stock = json_object_get(row, "stock");
+        if (!stock || !json_is_object(stock))
+            return -__LINE__;
+        ERR_RET_LN(read_cfg_str(stock, "name", &settings.markets[i].stock, NULL));
+        ERR_RET_LN(read_cfg_int(stock, "prec", &settings.markets[i].stock_prec, true, 0));
+        json_t *money = json_object_get(row, "money");
+        if (!money || !json_is_object(money))
+            return -__LINE__;
+        ERR_RET_LN(read_cfg_str(money, "name", &settings.markets[i].money, NULL));
+        ERR_RET_LN(read_cfg_int(money, "prec", &settings.markets[i].money_prec, true, 0));
     }
 
     return 0;

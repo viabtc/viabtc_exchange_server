@@ -139,14 +139,16 @@ static struct asset_type *get_asset_type(const char *asset)
     return entry->val;
 }
 
-int asset_exist(const char *asset)
+bool asset_exist(const char *asset)
 {
     struct asset_type *at = get_asset_type(asset);
-    if (at) {
-        return at->prec;
-    }
+    return at ? true : false;
+}
 
-    return -1;
+int asset_prec(const char *asset)
+{
+    struct asset_type *at = get_asset_type(asset);
+    return at ? at->prec : -1;
 }
 
 mpd_t *balance_get(uint32_t user_id, uint32_t type, const char *asset)

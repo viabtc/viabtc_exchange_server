@@ -20,7 +20,7 @@
     "assets": [
         {
             "name": "CNY",
-            "prec": 2
+            "prec": 8
         }, {
             "name": "BTC",
             "prec": 8
@@ -29,8 +29,14 @@
     "markets": [
         {
             "name": "BTCCNY",
-            "stock": "BTC",
-            "money": "CNY"
+            "stock": {
+                "name": "BTC",
+                "prec": 4
+            },
+            "money": {
+                "name": "CNY",
+                "prec": 2
+            }
         }
     ]
 }

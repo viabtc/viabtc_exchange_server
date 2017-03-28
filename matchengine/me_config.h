@@ -45,6 +45,9 @@ struct market {
     char                *name;
     char                *stock;
     char                *money;
+    int                 fee_prec;
+    int                 stock_prec;
+    int                 money_prec;
 };
 
 struct settings {

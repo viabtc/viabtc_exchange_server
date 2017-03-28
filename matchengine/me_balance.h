@@ -12,7 +12,8 @@
 # define BALANCE_TYPE_FREEZE    1
 
 int init_balance(void);
-int asset_exist(const char *asset);
+int asset_prec(const char *asset);
+bool asset_exist(const char *asset);
 
 mpd_t *balance_get(uint32_t user_id, uint32_t type, const char *asset);
 void   balance_del(uint32_t user_id, uint32_t type, const char *asset);

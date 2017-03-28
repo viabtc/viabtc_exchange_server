@@ -67,7 +67,7 @@ static sds on_cmd_balance_set(const char *cmd, int argc, sds *argv)
         goto error;
     }
     const char *asset = argv[3];
-    int prec = asset_exist(asset);
+    int prec = asset_prec(asset);
     if (prec < 0) {
         reply = sdscatprintf(reply, "invalid asset\n");
         goto error;
@@ -106,7 +106,7 @@ static sds on_cmd_balance_add(const char *cmd, int argc, sds *argv)
         goto error;
     }
     const char *asset = argv[3];
-    int prec = asset_exist(asset);
+    int prec = asset_prec(asset);
     if (prec < 0) {
         reply = sdscatprintf(reply, "invalid asset\n");
         goto error;
@@ -145,7 +145,7 @@ static sds on_cmd_balance_sub(const char *cmd, int argc, sds *argv)
         goto error;
     }
     const char *asset = argv[3];
-    int prec = asset_exist(asset);
+    int prec = asset_prec(asset);
     if (prec < 0) {
         reply = sdscatprintf(reply, "invalid asset\n");
         goto error;

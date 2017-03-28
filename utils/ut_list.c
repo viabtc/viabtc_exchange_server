@@ -233,7 +233,7 @@ list_t *list_dup(list_t *orig)
     return copy;
 }
 
-list_node *list_find(list_t *list, void *key)
+list_node *list_find(list_t *list, void *value)
 {
     if (list->type.compare == NULL)
         return NULL;
@@ -243,7 +243,7 @@ list_node *list_find(list_t *list, void *key)
     }
     list_node *node;
     while ((node = list_next(iter)) != NULL) {
-        if (list->type.compare(node->value, key) == 0) {
+        if (list->type.compare(node->value, value) == 0) {
             list_release_iterator(iter);
             return node;
         }

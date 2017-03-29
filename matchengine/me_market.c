@@ -21,6 +21,19 @@ static uint32_t dict_user_hash_function(const void *key)
     return obj->user_id;
 }
 
+static int dict_user_key_compare(const void *key1, const void *key2)
+{
+    const struct dict_user_key *obj1 = key1;
+    const struct dict_user_key *obj2 = key2;
+    if (obj1->user_id > obj2->user_id) {
+        return 1;
+    } else if (obj1->user_id == obj2->user_id) {
+        return 0;
+    } else {
+        return -1;
+    }
+}
+
 static void *dict_user_key_dup(const void *key)
 {
     struct dict_user_key *obj = malloc(sizeof(struct dict_user_key));
@@ -43,6 +56,19 @@ static void dict_user_val_free(void *key)
 static uint32_t dict_order_hash_function(const void *key)
 {
     return dict_generic_hash_function(key, sizeof(struct dict_order_key));
+}
+
+static int dict_order_key_compare(const void *key1, const void *key2)
+{
+    const struct dict_order_key *obj1 = key1;
+    const struct dict_order_key *obj2 = key2;
+    if (obj1->order_id > obj2->order_id) {
+        return 1;
+    } else if (obj1->order_id == obj2->order_id) {
+        return 0;
+    } else {
+        return -1;
+    }
 }
 
 static void *dict_order_key_dup(const void *key)
@@ -190,14 +216,15 @@ market_t *market_create(struct market *conf)
 {
     if (asset_exist(conf->stock) < 0 || asset_exist(conf->money) < 0)
         return NULL;
-    if (conf->stock_prec * conf->money_prec > asset_prec(conf->money))
+    if (conf->stock_prec + conf->money_prec > asset_prec(conf->money))
         return NULL;
-    if (conf->stock_prec * conf->fee_prec > asset_prec(conf->stock))
+    if (conf->stock_prec + conf->fee_prec > asset_prec(conf->stock))
         return NULL;
-    if (conf->money_prec * conf->fee_prec > asset_prec(conf->money))
+    if (conf->money_prec + conf->fee_prec > asset_prec(conf->money))
         return NULL;
 
     market_t *m = malloc(sizeof(market_t));
+    assert(m != NULL);
     m->name  = strdup(conf->name);
     m->stock = strdup(conf->stock);
     m->money = strdup(conf->money);
@@ -208,6 +235,7 @@ market_t *market_create(struct market *conf)
     dict_types dt;
     memset(&dt, 0, sizeof(dt));
     dt.hash_function    = dict_user_hash_function;
+    dt.key_compare      = dict_user_key_compare;
     dt.key_dup          = dict_user_key_dup;
     dt.key_destructor   = dict_user_key_free;
     dt.val_destructor   = dict_user_val_free;
@@ -217,6 +245,7 @@ market_t *market_create(struct market *conf)
 
     memset(&dt, 0, sizeof(dt));
     dt.hash_function    = dict_order_hash_function;
+    dt.key_compare      = dict_order_key_compare;
     dt.key_dup          = dict_order_key_dup;
     dt.key_destructor   = dict_order_key_free;
 

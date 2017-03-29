@@ -682,3 +682,8 @@ list_t *market_get_order_list(market_t *m, uint32_t user_id)
     return NULL;
 }
 
+void market_cancel_order(market_t *m, order_t *order)
+{
+    order_finish(m, order);
+}
+

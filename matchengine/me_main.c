@@ -10,6 +10,7 @@
 # include "me_market.h"
 # include "me_balance.h"
 # include "me_update.h"
+# include "me_trade.h"
 
 const char *__process__ = "matchengine";
 const char *__version__ = "0.1.0";
@@ -88,6 +89,10 @@ int main(int argc, char *argv[])
     ret = init_update();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init update fail: %d", ret);
+    }
+    ret = init_trade();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init trade fail: %d", ret);
     }
 
     nw_timer_set(&cron_timer, 0.5, true, on_cron_check, NULL);

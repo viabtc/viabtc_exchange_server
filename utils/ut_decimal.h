@@ -14,7 +14,6 @@ extern mpd_t *mpd_one;
 extern mpd_t *mpd_zero;
 
 int init_mpd(void);
-mpd_t *quantize(mpd_t *val, int prec);
 mpd_t *decimal(const char *str, int prec);
 
 # endif

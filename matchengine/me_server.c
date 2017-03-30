@@ -352,6 +352,7 @@ static int on_cmd_order_query(nw_ses *ses, rpc_pkg *pkg, json_t *request)
     }
     index = 0;
     while ((node = list_next(iter)) != NULL && index < limit) {
+        index++;
         order_t *order = node->value;
         json_array_append_new(result, get_order_info(order));
     }
@@ -362,6 +363,9 @@ static int on_cmd_order_query(nw_ses *ses, rpc_pkg *pkg, json_t *request)
 
 static int on_cmd_order_cancel(nw_ses *ses, rpc_pkg *pkg, json_t *request)
 {
+    if (json_array_size(request) != 3)
+        return reply_error_invalid_argument(ses, pkg);
+
     // user_id
     if (!json_is_integer(json_array_get(request, 0)))
         return reply_error_invalid_argument(ses, pkg);
@@ -395,6 +399,9 @@ static int on_cmd_order_cancel(nw_ses *ses, rpc_pkg *pkg, json_t *request)
 
 static int on_cmd_order_book(nw_ses *ses, rpc_pkg *pkg, json_t *request)
 {
+    if (json_array_size(request) != 4)
+        return reply_error_invalid_argument(ses, pkg);
+
     // market
     if (!json_is_string(json_array_get(request, 0)))
         return reply_error_invalid_argument(ses, pkg);
@@ -432,25 +439,79 @@ static int on_cmd_order_book(nw_ses *ses, rpc_pkg *pkg, json_t *request)
     size_t index = 0;
     skiplist_node *node;
     while ((node = skiplist_next(iter)) != NULL && index < offset) {
-        ++index;
+        index++;
     }
 
     json_t *result = json_array();
     index = 0;
     while ((node = skiplist_next(iter)) != NULL && index < offset) {
+        index++;
         order_t *order = node->value;
         json_array_append_new(result, get_order_info(order));
     }
+    skiplist_release_iterator(iter);
 
     return 0;
 }
 
 static int on_cmd_order_book_depth(nw_ses *ses, rpc_pkg *pkg, json_t *request)
 {
-    return 0;
+    if (json_array_size(request) != 2)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // market
+    if (!json_is_string(json_array_get(request, 0)))
+        return reply_error_invalid_argument(ses, pkg);
+    const char *market_name = json_string_value(json_array_get(request, 0));
+    market_t *market = get_market(market_name);
+    if (market == NULL)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // limit
+    if (!json_is_integer(json_array_get(request, 1)))
+        return reply_error_invalid_argument(ses, pkg);
+    size_t limit = json_integer_value(json_array_get(request, 1));
+    if (limit > ORDER_BOOK_MAX_LEN)
+        return reply_error_invalid_argument(ses, pkg);
+
+    json_t *asks = json_array();
+    skiplist_iter *iter = skiplist_get_iterator(market->asks);
+    skiplist_node *node;
+    size_t index = 0;
+    while ((node = skiplist_next(iter)) != NULL && index < limit) {
+        index++;
+        order_t *order = node->value;
+        json_t *info = json_array();
+        json_array_append_new(info, json_string(mpd_to_sci(order->price, 0)));
+        json_array_append_new(info, json_string(mpd_to_sci(order->left, 0)));
+    }
+    skiplist_release_iterator(iter);
+
+    json_t *bids = json_array();
+    iter = skiplist_get_iterator(market->bids);
+    index = 0;
+    while ((node = skiplist_next(iter)) != NULL) {
+        index++;
+        order_t *order = node->value;
+        json_t *info = json_array();
+        json_array_append_new(info, json_string(mpd_to_sci(order->price, 0)));
+        json_array_append_new(info, json_string(mpd_to_sci(order->left, 0)));
+    }
+    skiplist_release_iterator(iter);
+
+    json_t *result = json_object();
+    json_object_set_new(result, "asks", asks);
+    json_object_set_new(result, "bids", bids);
+
+    return reply_result(ses, pkg, result);
 }
 
 static int on_cmd_order_book_merge(nw_ses *ses, rpc_pkg *pkg, json_t *request)
+{
+    return 0;
+}
+
+static int on_cmd_market_info(nw_ses *ses, rpc_pkg *pkg, json_t *request)
 {
     return 0;
 }
@@ -528,6 +589,13 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         ret = on_cmd_order_book_merge(ses, pkg, request);
         if (ret < 0) {
             log_error("on_cmd_order_book_merge fail: %d", ret);
+        }
+        break;
+    case CMD_MARKET_INFO:
+        log_trace("from: %s cmd market info", nw_sock_human_addr(&ses->peer_addr));
+        ret = on_cmd_market_info(ses, pkg, request);
+        if (ret < 0) {
+            log_error("on_cmd_market_info fail: %d", ret);
         }
         break;
     default:

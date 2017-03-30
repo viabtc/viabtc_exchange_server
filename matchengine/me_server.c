@@ -511,7 +511,7 @@ static int on_cmd_order_book_merge(nw_ses *ses, rpc_pkg *pkg, json_t *request)
     return 0;
 }
 
-static int on_cmd_market_info(nw_ses *ses, rpc_pkg *pkg, json_t *request)
+static int on_cmd_market_ticker(nw_ses *ses, rpc_pkg *pkg, json_t *request)
 {
     return 0;
 }
@@ -591,11 +591,11 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
             log_error("on_cmd_order_book_merge fail: %d", ret);
         }
         break;
-    case CMD_MARKET_INFO:
-        log_trace("from: %s cmd market info", nw_sock_human_addr(&ses->peer_addr));
-        ret = on_cmd_market_info(ses, pkg, request);
+    case CMD_MARKET_TICKER:
+        log_trace("from: %s cmd market ticker", nw_sock_human_addr(&ses->peer_addr));
+        ret = on_cmd_market_ticker(ses, pkg, request);
         if (ret < 0) {
-            log_error("on_cmd_market_info fail: %d", ret);
+            log_error("on_cmd_market_ticker fail: %d", ret);
         }
         break;
     default:

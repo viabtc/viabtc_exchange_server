@@ -41,10 +41,14 @@ typedef struct market_t {
     int             fee_prec;
     dict_t          *orders;
     dict_t          *users;
+    dict_t          *volumes;
     skiplist_t      *asks;
     skiplist_t      *bids;
 
+    nw_timer        timer;
     uint64_t        id_start;
+    mpd_t           *volumes_24hour;
+    time_t          volumes_update;
 } market_t;
 
 market_t *market_create(struct market *conf);
@@ -55,6 +59,7 @@ int market_put_market_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t 
 list_t *market_get_order_list(market_t *m, uint32_t user_id);
 order_t *market_get_order(market_t *m, uint64_t id);
 void market_cancel_order(market_t *m, order_t *order);
+mpd_t *market_get_volumes(market_t *m);
 
 # endif
 

@@ -15,6 +15,10 @@ struct dict_order_key {
     uint64_t    order_id;
 };
 
+struct dict_volume_key {
+    time_t      timestamp;
+};
+
 static uint32_t dict_user_hash_function(const void *key)
 {
     const struct dict_user_key *obj = key;
@@ -83,6 +87,36 @@ static void *dict_order_key_dup(const void *key)
 static void dict_order_key_free(void *key)
 {
     free(key);
+}
+
+static uint32_t dict_volume_hash_function(const void *key)
+{
+    const struct dict_volume_key *obj = key;
+    return (uint32_t)obj->timestamp;
+}
+
+static int dict_volume_key_compare(const void *key1, const void *key2)
+{
+    const struct dict_volume_key *obj1 = key1;
+    const struct dict_volume_key *obj2 = key2;
+    return obj1->timestamp - obj2->timestamp;
+}
+
+static void *dict_volume_key_dup(const void *key)
+{
+    struct dict_volume_key *obj = malloc(sizeof(struct dict_volume_key));
+    memcpy(obj, key, sizeof(struct dict_volume_key));
+    return obj;
+}
+
+static void dict_volume_key_free(void *key)
+{
+    free(key);
+}
+
+static void dict_volume_val_free(void *val)
+{
+    mpd_del(val);
 }
 
 static int order_compare(const void *value1, const void *value2)
@@ -212,6 +246,21 @@ static void order_finish(market_t *m, order_t *order)
     order_free(order);
 }
 
+static void on_timer(nw_timer *timer, void *privdata)
+{
+    market_t *market = privdata;
+    market_get_volumes(market);
+    time_t base = time(NULL) - 1;
+    dict_iterator *iter = dict_get_iterator(market->volumes);
+    dict_entry *entry;
+    while ((entry = dict_next(iter)) != NULL) {
+        struct dict_volume_key *key = entry->key;
+        if (key->timestamp <= base - 86400) {
+            dict_delete(market->volumes, entry->key);
+        }
+    }
+}
+
 market_t *market_create(struct market *conf)
 {
     if (asset_exist(conf->stock) < 0 || asset_exist(conf->money) < 0)
@@ -252,6 +301,16 @@ market_t *market_create(struct market *conf)
     m->orders = dict_create(&dt, 1024);
     assert(m->orders != NULL);
 
+    memset(&dt, 0, sizeof(dt));
+    dt.hash_function    = dict_volume_hash_function;
+    dt.key_compare      = dict_volume_key_compare;
+    dt.key_dup          = dict_volume_key_dup;
+    dt.key_destructor   = dict_volume_key_free;
+    dt.val_destructor   = dict_volume_val_free;
+
+    m->volumes = dict_create(&dt, 1024);
+    assert(m->volumes != NULL);
+
     skiplist_type lt;
     memset(&lt, 0, sizeof(lt));
     lt.compare          = order_compare;
@@ -261,7 +320,27 @@ market_t *market_create(struct market *conf)
     assert(m->asks != NULL);
     assert(m->bids != NULL);
     
+    nw_timer_set(&m->timer, 1, true, on_timer, m);
+    nw_timer_start(&m->timer);
+
     return m;
+}
+
+static void update_volumes(market_t *m, time_t timestamp, mpd_t *amount)
+{
+    time_t now = time(NULL);
+    if (timestamp < now - 86400)
+        return;
+    struct dict_volume_key key = { .timestamp = now };
+    dict_entry *entry = dict_find(m->volumes, &key);
+    if (entry) {
+        mpd_t *volume = entry->val;
+        mpd_add(volume, volume, amount, &mpd_ctx); 
+    } else {
+        mpd_t *volume = mpd_new(&mpd_ctx);
+        mpd_copy(volume, amount, &mpd_ctx);
+        dict_add(m->volumes, &key, volume);
+    }
 }
 
 int execute_limit_ask_order(market_t *m, order_t *order)
@@ -317,6 +396,7 @@ int execute_limit_ask_order(market_t *m, order_t *order)
 
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
+        update_volumes(m, (time_t)order->create_time, amount);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);
@@ -387,6 +467,7 @@ int execute_limit_bid_order(market_t *m, order_t *order)
 
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
+        update_volumes(m, (time_t)order->create_time, amount);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);
@@ -535,6 +616,7 @@ int execute_market_ask_order(market_t *m, order_t *order)
 
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
+        update_volumes(m, (time_t)order->create_time, amount);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);
@@ -605,6 +687,7 @@ int execute_market_bid_order(market_t *m, order_t *order)
 
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
+        update_volumes(m, (time_t)order->create_time, amount);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);
@@ -714,5 +797,42 @@ list_t *market_get_order_list(market_t *m, uint32_t user_id)
 void market_cancel_order(market_t *m, order_t *order)
 {
     order_finish(m, order);
+}
+
+mpd_t *market_get_volumes(market_t *m)
+{
+    time_t base = time(NULL) - 1;
+    if (m->volumes_24hour == NULL) {
+        m->volumes_24hour = mpd_new(&mpd_ctx);
+        for(int i = 0; i < 86400; ++i) {
+            struct dict_volume_key key = { .timestamp = base - i };
+            dict_entry *entry = dict_find(m->volumes, &key);
+            if (entry) {
+                mpd_add(m->volumes_24hour, m->volumes_24hour, entry->val, &mpd_ctx);
+            }
+        }
+
+        m->volumes_update = base;
+        return m->volumes_24hour;
+    }
+
+    for (int i = 0; i < (base - m->volumes_update); ++i) {
+        struct dict_volume_key key = { .timestamp = base - 86400 - i };
+        dict_entry *entry = dict_find(m->volumes, &key);
+        if (entry) {
+            mpd_sub(m->volumes_24hour, m->volumes_24hour, entry->val, &mpd_ctx);
+        }
+    }
+
+    for (int i = 0; i < (base - m->volumes_update); ++i) {
+        struct dict_volume_key key = { .timestamp = base - i };
+        dict_entry *entry = dict_find(m->volumes, &key);
+        if (entry) {
+            mpd_add(m->volumes_24hour, m->volumes_24hour, entry->val, &mpd_ctx);
+        }
+    }
+
+    m->volumes_update = base;
+    return m->volumes_24hour;
 }
 

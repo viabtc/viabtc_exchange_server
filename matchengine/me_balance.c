@@ -229,10 +229,8 @@ mpd_t *balance_add(uint32_t user_id, uint32_t type, const char *asset, mpd_t *am
     dict_entry *entry = dict_find(dict_balance, &key);
     if (entry) {
         result = entry->val;
-        mpd_t *tmp = mpd_new(&mpd_ctx);
-        mpd_add(tmp, result, amount, &mpd_ctx);
-        mpd_rescale(result, tmp, -at->prec, &mpd_ctx);
-        mpd_del(tmp);
+        mpd_add(result, result, amount, &mpd_ctx);
+        mpd_rescale(result, result, -at->prec, &mpd_ctx);
         return result;
     }
 
@@ -251,15 +249,12 @@ mpd_t *balance_sub(uint32_t user_id, uint32_t type, const char *asset, mpd_t *am
     if (mpd_cmp(result, amount, &mpd_ctx) < 0)
         return NULL;
 
-    mpd_t *tmp = mpd_new(&mpd_ctx);
-    mpd_sub(tmp, result, amount, &mpd_ctx);
-    if (mpd_cmp(tmp, mpd_zero, &mpd_ctx) == 0) {
-        mpd_del(tmp);
+    mpd_sub(result, result, amount, &mpd_ctx);
+    if (mpd_cmp(result, mpd_zero, &mpd_ctx) == 0) {
         balance_del(user_id, type, asset);
         return mpd_zero;
     }
-    mpd_rescale(result, tmp, -at->prec, &mpd_ctx);
-    mpd_del(tmp);
+    mpd_rescale(result, result, -at->prec, &mpd_ctx);
 
     return result;
 }
@@ -280,10 +275,8 @@ mpd_t *balance_freeze(uint32_t user_id, const char *asset, mpd_t *amount)
 
     if (balance_add(user_id, BALANCE_TYPE_FREEZE, asset, amount) == 0)
         return NULL;
-    mpd_t *tmp = mpd_new(&mpd_ctx);
-    mpd_sub(tmp, available, amount, &mpd_ctx);
-    mpd_rescale(available, tmp, -at->prec, &mpd_ctx);
-    mpd_del(tmp);
+    mpd_sub(available, available, amount, &mpd_ctx);
+    mpd_rescale(available, available, -at->prec, &mpd_ctx);
 
     return available;
 }
@@ -304,10 +297,8 @@ mpd_t *balance_unfreeze(uint32_t user_id, const char *asset, mpd_t *amount)
 
     if (balance_add(user_id, BALANCE_TYPE_AVAILABLE, asset, amount) == 0)
         return NULL;
-    mpd_t *tmp = mpd_new(&mpd_ctx);
-    mpd_sub(tmp, freeze, amount, &mpd_ctx);
-    mpd_rescale(freeze, tmp, -at->prec, &mpd_ctx);
-    mpd_del(tmp);
+    mpd_sub(freeze, freeze, amount, &mpd_ctx);
+    mpd_rescale(freeze, freeze, -at->prec, &mpd_ctx);
 
     return freeze;
 }

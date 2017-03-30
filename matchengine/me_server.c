@@ -5,8 +5,10 @@
 
 # include "me_config.h"
 # include "me_server.h"
-# include "me_update.h"
 # include "me_balance.h"
+# include "me_update.h"
+# include "me_market.h"
+# include "me_trade.h"
 
 static rpc_svr *svr;
 
@@ -47,6 +49,11 @@ static int reply_error(nw_ses *ses, rpc_pkg *pkg, int code, const char *message)
 static int reply_error_invalid_argument(nw_ses *ses, rpc_pkg *pkg)
 {
     return reply_error(ses, pkg, 1, "invalid argument");
+}
+
+static int reply_error_internal_error(nw_ses *ses, rpc_pkg *pkg)
+{
+    return reply_error(ses, pkg, 1, "internal error");
 }
 
 static int reply_result(nw_ses *ses, rpc_pkg *pkg, json_t *result)
@@ -158,9 +165,294 @@ static int on_cmd_balance_update(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         return reply_error(ses, pkg, 10, "repeat update");
     } else if (ret == -2) {
         return reply_error(ses, pkg, 11, "balance not enough");
+    } else if (ret < 0) {
+        return reply_error_internal_error(ses, pkg);
     }
 
     return reply_success(ses, pkg);
+}
+
+static int on_cmd_order_put_limit(nw_ses *ses, rpc_pkg *pkg, json_t *request)
+{
+    if (json_array_size(request) != 6)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // user_id
+    if (!json_is_integer(json_array_get(request, 0)))
+        return reply_error_invalid_argument(ses, pkg);
+    uint32_t user_id = json_integer_value(json_array_get(request, 0));
+
+    // market
+    if (!json_is_string(json_array_get(request, 1)))
+        return reply_error_invalid_argument(ses, pkg);
+    const char *market_name = json_string_value(json_array_get(request, 1));
+    market_t *market = get_market(market_name);
+    if (market == NULL)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // side
+    if (!json_is_integer(json_array_get(request, 2)))
+        return reply_error_invalid_argument(ses, pkg);
+    uint32_t side = json_integer_value(json_array_get(request, 2));
+    if (side != MARKET_ORDER_SIDE_ASK && side != MARKET_ORDER_SIDE_BID)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // amount
+    if (!json_is_string(json_array_get(request, 3)))
+        return reply_error_invalid_argument(ses, pkg);
+    mpd_t *amount = decimal(json_string_value(json_array_get(request, 3)), market->stock_prec);
+    if (amount == NULL)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // price 
+    if (!json_is_string(json_array_get(request, 4)))
+        return reply_error_invalid_argument(ses, pkg);
+    mpd_t *price = decimal(json_string_value(json_array_get(request, 4)), market->money_prec);
+    if (price == NULL) {
+        mpd_del(amount);
+        return reply_error_invalid_argument(ses, pkg);
+    }
+
+    // fee
+    if (!json_is_string(json_array_get(request, 5)))
+        return reply_error_invalid_argument(ses, pkg);
+    mpd_t *fee_rate = decimal(json_string_value(json_array_get(request, 5)), market->fee_prec);
+    if (fee_rate == NULL) {
+        mpd_del(amount);
+        mpd_del(price);
+        return reply_error_invalid_argument(ses, pkg);
+    }
+
+    int ret = market_put_limit_order(market, user_id, side, amount, price, fee_rate);
+    mpd_del(amount);
+    mpd_del(price);
+    mpd_del(fee_rate);
+    if (ret < 0) {
+        log_error("market_put_limit_order fail: %d", ret);
+        return reply_error(ses, pkg, 10, "fail");
+    }
+
+    return reply_success(ses, pkg);
+}
+
+static int on_cmd_order_put_market(nw_ses *ses, rpc_pkg *pkg, json_t *request)
+{
+    if (json_array_size(request) != 5)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // user_id
+    if (!json_is_integer(json_array_get(request, 0)))
+        return reply_error_invalid_argument(ses, pkg);
+    uint32_t user_id = json_integer_value(json_array_get(request, 0));
+
+    // market
+    if (!json_is_string(json_array_get(request, 1)))
+        return reply_error_invalid_argument(ses, pkg);
+    const char *market_name = json_string_value(json_array_get(request, 1));
+    market_t *market = get_market(market_name);
+    if (market == NULL)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // side
+    if (!json_is_integer(json_array_get(request, 2)))
+        return reply_error_invalid_argument(ses, pkg);
+    uint32_t side = json_integer_value(json_array_get(request, 2));
+    if (side != MARKET_ORDER_SIDE_ASK && side != MARKET_ORDER_SIDE_BID)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // amount
+    if (!json_is_string(json_array_get(request, 3)))
+        return reply_error_invalid_argument(ses, pkg);
+    mpd_t *amount = decimal(json_string_value(json_array_get(request, 3)), market->stock_prec);
+    if (amount == NULL)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // fee
+    if (!json_is_string(json_array_get(request, 4)))
+        return reply_error_invalid_argument(ses, pkg);
+    mpd_t *fee_rate = decimal(json_string_value(json_array_get(request, 4)), market->fee_prec);
+    if (fee_rate == NULL) {
+        mpd_del(amount);
+        return reply_error_invalid_argument(ses, pkg);
+    }
+
+    int ret = market_put_market_order(market, user_id, side, amount, fee_rate);
+    mpd_del(amount);
+    mpd_del(fee_rate);
+    if (ret < 0) {
+        log_error("market_put_limit_order fail: %d", ret);
+        return reply_error(ses, pkg, 10, "fail");
+    }
+
+    return reply_success(ses, pkg);
+}
+
+static json_t *get_order_info(order_t *order)
+{
+    json_t *info = json_object();
+    json_object_set_new(info, "id",          json_integer(order->id));
+    json_object_set_new(info, "type",        json_integer(order->type));
+    json_object_set_new(info, "side",        json_integer(order->side));
+    json_object_set_new(info, "user",        json_integer(order->user_id));
+    json_object_set_new(info, "create_time", json_integer(order->create_time));
+    json_object_set_new(info, "update_time", json_integer(order->update_time));
+    json_object_set_new(info, "market",      json_string(order->market_name));
+    json_object_set_new(info, "price",       json_string(mpd_to_sci(order->price, 0)));
+    json_object_set_new(info, "amount",      json_string(mpd_to_sci(order->amount, 0)));
+    json_object_set_new(info, "fee",         json_string(mpd_to_sci(order->fee_rate, 0)));
+    json_object_set_new(info, "left",        json_string(mpd_to_sci(order->left, 0)));
+    json_object_set_new(info, "deal_stock",  json_string(mpd_to_sci(order->deal_stock, 0)));
+    json_object_set_new(info, "deal_money",  json_string(mpd_to_sci(order->deal_money, 0)));
+    json_object_set_new(info, "deal_fee",    json_string(mpd_to_sci(order->deal_fee, 0)));
+
+    return info;
+}
+
+static int on_cmd_order_query(nw_ses *ses, rpc_pkg *pkg, json_t *request)
+{
+    if (json_array_size(request) != 4)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // user_id
+    if (!json_is_integer(json_array_get(request, 0)))
+        return reply_error_invalid_argument(ses, pkg);
+    uint32_t user_id = json_integer_value(json_array_get(request, 0));
+
+    // market
+    if (!json_is_string(json_array_get(request, 1)))
+        return reply_error_invalid_argument(ses, pkg);
+    const char *market_name = json_string_value(json_array_get(request, 1));
+    market_t *market = get_market(market_name);
+    if (market == NULL)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // offset
+    if (!json_is_integer(json_array_get(request, 2)))
+        return reply_error_invalid_argument(ses, pkg);
+    size_t offset = json_integer_value(json_array_get(request, 2));
+
+    // limit
+    if (!json_is_integer(json_array_get(request, 3)))
+        return reply_error_invalid_argument(ses, pkg);
+    size_t limit = json_integer_value(json_array_get(request, 3));
+    if (limit > ORDER_LIST_MAX_LEN)
+        return reply_error_invalid_argument(ses, pkg);
+
+    json_t *result = json_array();
+    list_t *order_list = market_get_order_list(market, user_id);
+    if (order_list == NULL) {
+        return reply_result(ses, pkg, result);
+    }
+
+    list_iter *iter = list_get_iterator(order_list, LIST_START_HEAD);
+    list_node *node;
+    size_t index = 0;
+    while ((node = list_next(iter)) != NULL && index < offset) {
+        index++;
+    }
+    index = 0;
+    while ((node = list_next(iter)) != NULL && index < limit) {
+        order_t *order = node->value;
+        json_array_append_new(result, get_order_info(order));
+    }
+    list_release_iterator(iter);
+
+    return reply_result(ses, pkg, result);
+}
+
+static int on_cmd_order_cancel(nw_ses *ses, rpc_pkg *pkg, json_t *request)
+{
+    // user_id
+    if (!json_is_integer(json_array_get(request, 0)))
+        return reply_error_invalid_argument(ses, pkg);
+    uint32_t user_id = json_integer_value(json_array_get(request, 0));
+
+    // market
+    if (!json_is_string(json_array_get(request, 1)))
+        return reply_error_invalid_argument(ses, pkg);
+    const char *market_name = json_string_value(json_array_get(request, 1));
+    market_t *market = get_market(market_name);
+    if (market == NULL)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // order_id
+    if (!json_is_integer(json_array_get(request, 2)))
+        return reply_error_invalid_argument(ses, pkg);
+    uint64_t order_id = json_integer_value(json_array_get(request, 2));
+
+    order_t *order = market_get_order(market, order_id);
+    if (order == NULL) {
+        return reply_error(ses, pkg, 10, "order not found");
+    }
+    if (order->user_id != user_id) {
+        return reply_error(ses, pkg, 11, "user not match");
+    }
+
+    market_cancel_order(market, order);
+
+    return reply_success(ses, pkg);
+}
+
+static int on_cmd_order_book(nw_ses *ses, rpc_pkg *pkg, json_t *request)
+{
+    // market
+    if (!json_is_string(json_array_get(request, 0)))
+        return reply_error_invalid_argument(ses, pkg);
+    const char *market_name = json_string_value(json_array_get(request, 0));
+    market_t *market = get_market(market_name);
+    if (market == NULL)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // side
+    if (!json_is_integer(json_array_get(request, 2)))
+        return reply_error_invalid_argument(ses, pkg);
+    uint32_t side = json_integer_value(json_array_get(request, 2));
+    if (side != MARKET_ORDER_SIDE_ASK && side != MARKET_ORDER_SIDE_BID)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // offset
+    if (!json_is_integer(json_array_get(request, 2)))
+        return reply_error_invalid_argument(ses, pkg);
+    size_t offset = json_integer_value(json_array_get(request, 2));
+
+    // limit
+    if (!json_is_integer(json_array_get(request, 3)))
+        return reply_error_invalid_argument(ses, pkg);
+    size_t limit = json_integer_value(json_array_get(request, 3));
+    if (limit > ORDER_BOOK_MAX_LEN)
+        return reply_error_invalid_argument(ses, pkg);
+
+    skiplist_iter *iter;
+    if (side == MARKET_ORDER_SIDE_ASK) {
+        iter = skiplist_get_iterator(market->asks);
+    } else {
+        iter = skiplist_get_iterator(market->bids);
+    }
+
+    size_t index = 0;
+    skiplist_node *node;
+    while ((node = skiplist_next(iter)) != NULL && index < offset) {
+        ++index;
+    }
+
+    json_t *result = json_array();
+    index = 0;
+    while ((node = skiplist_next(iter)) != NULL && index < offset) {
+        order_t *order = node->value;
+        json_array_append_new(result, get_order_info(order));
+    }
+
+    return 0;
+}
+
+static int on_cmd_order_book_depth(nw_ses *ses, rpc_pkg *pkg, json_t *request)
+{
+    return 0;
+}
+
+static int on_cmd_order_book_merge(nw_ses *ses, rpc_pkg *pkg, json_t *request)
+{
+    return 0;
 }
 
 static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
@@ -187,6 +479,55 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         ret = on_cmd_balance_update(ses, pkg, request);
         if (ret < 0) {
             log_error("on_cmd_balance_update fail: %d", ret);
+        }
+        break;
+    case CMD_ORDER_PUT_LIMIT:
+        log_trace("from: %s cmd order put limit", nw_sock_human_addr(&ses->peer_addr));
+        ret = on_cmd_order_put_limit(ses, pkg, request);
+        if (ret < 0) {
+            log_error("on_cmd_order_put_limit fail: %d", ret);
+        }
+        break;
+    case CMD_ORDER_PUT_MARKET:
+        log_trace("from: %s cmd order put market", nw_sock_human_addr(&ses->peer_addr));
+        ret = on_cmd_order_put_market(ses, pkg, request);
+        if (ret < 0) {
+            log_error("on_cmd_order_put_market fail: %d", ret);
+        }
+        break;
+    case CMD_ORDER_QUERY:
+        log_trace("from: %s cmd order query", nw_sock_human_addr(&ses->peer_addr));
+        ret = on_cmd_order_query(ses, pkg, request);
+        if (ret < 0) {
+            log_error("on_cmd_order_query fail: %d", ret);
+        }
+        break;
+    case CMD_ORDER_CANCEL:
+        log_trace("from: %s cmd order cancel", nw_sock_human_addr(&ses->peer_addr));
+        ret = on_cmd_order_cancel(ses, pkg, request);
+        if (ret < 0) {
+            log_error("on_cmd_order_cancel fail: %d", ret);
+        }
+        break;
+    case CMD_ORDER_BOOK:
+        log_trace("from: %s cmd order book", nw_sock_human_addr(&ses->peer_addr));
+        ret = on_cmd_order_book(ses, pkg, request);
+        if (ret < 0) {
+            log_error("on_cmd_order_book fail: %d", ret);
+        }
+        break;
+    case CMD_ORDER_BOOK_DEPTH:
+        log_trace("from: %s cmd order book depth", nw_sock_human_addr(&ses->peer_addr));
+        ret = on_cmd_order_book_depth(ses, pkg, request);
+        if (ret < 0) {
+            log_error("on_cmd_order_book_depth fail: %d", ret);
+        }
+        break;
+    case CMD_ORDER_BOOK_MERGE:
+        log_trace("from: %s cmd order book merge", nw_sock_human_addr(&ses->peer_addr));
+        ret = on_cmd_order_book_merge(ses, pkg, request);
+        if (ret < 0) {
+            log_error("on_cmd_order_book_merge fail: %d", ret);
         }
         break;
     default:

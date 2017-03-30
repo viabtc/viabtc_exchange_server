@@ -10,5 +10,15 @@
 # define CMD_BALANCE_QUERY          101
 # define CMD_BALANCE_UPDATE         102
 
+
+// trade
+# define CMD_ORDER_PUT_LIMIT        201
+# define CMD_ORDER_PUT_MARKET       202
+# define CMD_ORDER_QUERY            203
+# define CMD_ORDER_CANCEL           204
+# define CMD_ORDER_BOOK             205
+# define CMD_ORDER_BOOK_DEPTH       206
+# define CMD_ORDER_BOOK_MERGE       207
+
 # endif
 

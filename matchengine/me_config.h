@@ -36,6 +36,9 @@
 # define ASSET_NAME_MAX_LEN     7
 # define BUSINESS_NAME_MAX_LEN  15
 
+# define ORDER_BOOK_MAX_LEN     100
+# define ORDER_LIST_MAX_LEN     100
+
 struct asset {
     char                *name;
     int                 prec;

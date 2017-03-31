@@ -290,20 +290,20 @@ static int on_cmd_order_put_market(nw_ses *ses, rpc_pkg *pkg, json_t *request)
 static json_t *get_order_info(order_t *order)
 {
     json_t *info = json_object();
-    json_object_set_new(info, "id",          json_integer(order->id));
-    json_object_set_new(info, "type",        json_integer(order->type));
-    json_object_set_new(info, "side",        json_integer(order->side));
-    json_object_set_new(info, "user",        json_integer(order->user_id));
+    json_object_set_new(info, "id", json_integer(order->id));
+    json_object_set_new(info, "type", json_integer(order->type));
+    json_object_set_new(info, "side", json_integer(order->side));
+    json_object_set_new(info, "user", json_integer(order->user_id));
     json_object_set_new(info, "create_time", json_integer(order->create_time));
     json_object_set_new(info, "update_time", json_integer(order->update_time));
-    json_object_set_new(info, "market",      json_string(order->market_name));
-    json_object_set_new(info, "price",       json_string(mpd_to_sci(order->price, 0)));
-    json_object_set_new(info, "amount",      json_string(mpd_to_sci(order->amount, 0)));
-    json_object_set_new(info, "fee",         json_string(mpd_to_sci(order->fee_rate, 0)));
-    json_object_set_new(info, "left",        json_string(mpd_to_sci(order->left, 0)));
-    json_object_set_new(info, "deal_stock",  json_string(mpd_to_sci(order->deal_stock, 0)));
-    json_object_set_new(info, "deal_money",  json_string(mpd_to_sci(order->deal_money, 0)));
-    json_object_set_new(info, "deal_fee",    json_string(mpd_to_sci(order->deal_fee, 0)));
+    json_object_set_new(info, "market", json_string(order->market_name));
+    json_object_set_new(info, "price", json_string(mpd_to_sci(order->price, 0)));
+    json_object_set_new(info, "amount", json_string(mpd_to_sci(order->amount, 0)));
+    json_object_set_new(info, "fee", json_string(mpd_to_sci(order->fee_rate, 0)));
+    json_object_set_new(info, "left", json_string(mpd_to_sci(order->left, 0)));
+    json_object_set_new(info, "deal_stock", json_string(mpd_to_sci(order->deal_stock, 0)));
+    json_object_set_new(info, "deal_money", json_string(mpd_to_sci(order->deal_money, 0)));
+    json_object_set_new(info, "deal_fee", json_string(mpd_to_sci(order->deal_fee, 0)));
 
     return info;
 }
@@ -524,11 +524,15 @@ static int on_cmd_market_ticker(nw_ses *ses, rpc_pkg *pkg, json_t *request)
     if (market == NULL)
         return reply_error_invalid_argument(ses, pkg);
 
+    // update market ticker
     market_update_ticker(market);
+
     json_t *result = json_object();
     json_object_set_new(result, "timestamp", json_integer(market->ticker_update));
+    json_object_set_new(result, "volume", json_string(mpd_to_sci(market->volumes_24hour, 0)));
+    json_object_set_new(result, "low", json_string(mpd_to_sci(market->low_24hour, 0)));
+    json_object_set_new(result, "high", json_string(mpd_to_sci(market->high_24hour, 0)));
     json_object_set_new(result, "last", json_string(mpd_to_sci(market->last_price, 0)));
-    json_object_set_new(result, "vol", json_string(mpd_to_sci(market->volumes_24hour, 0)));
 
     skiplist_iter *iter = skiplist_get_iterator(market->bids);
     skiplist_node *node = skiplist_next(iter);

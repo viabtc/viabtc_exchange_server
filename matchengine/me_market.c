@@ -19,6 +19,12 @@ struct dict_volume_key {
     time_t      timestamp;
 };
 
+struct dict_volume_val {
+    mpd_t       *volume;
+    mpd_t       *low;
+    mpd_t       *high;
+};
+
 static uint32_t dict_user_hash_function(const void *key)
 {
     const struct dict_user_key *obj = key;
@@ -116,7 +122,11 @@ static void dict_volume_key_free(void *key)
 
 static void dict_volume_val_free(void *val)
 {
-    mpd_del(val);
+    struct dict_volume_val *obj = val;
+    mpd_del(obj->volume);
+    mpd_del(obj->low);
+    mpd_del(obj->high);
+    free(obj);
 }
 
 static int order_compare(const void *value1, const void *value2)
@@ -335,17 +345,27 @@ static void update_volumes(market_t *m, time_t timestamp, mpd_t *amount, mpd_t *
     if (timestamp < now - 86400)
         return;
 
+    mpd_copy(m->last_price, price, &mpd_ctx);
     struct dict_volume_key key = { .timestamp = now };
     dict_entry *entry = dict_find(m->volumes, &key);
     if (entry) {
-        mpd_t *volume = entry->val;
-        mpd_add(volume, volume, amount, &mpd_ctx); 
+        struct dict_volume_val *val = entry->val;
+        mpd_add(val->volume, val->volume, amount, &mpd_ctx); 
+        if (mpd_cmp(price, val->low, &mpd_ctx) < 0) {
+            mpd_copy(val->low, price, &mpd_ctx);
+        } else if (mpd_cmp(price, val->high, &mpd_ctx) > 0) {
+            mpd_copy(val->high, price, &mpd_ctx);
+        }
     } else {
-        mpd_t *volume = mpd_new(&mpd_ctx);
-        mpd_copy(volume, amount, &mpd_ctx);
-        dict_add(m->volumes, &key, volume);
+        struct dict_volume_val *val = malloc(sizeof(struct dict_volume_val));
+        val->volume = mpd_new(&mpd_ctx);
+        val->low = mpd_new(&mpd_ctx);
+        val->high = mpd_new(&mpd_ctx);
+        mpd_copy(val->volume, amount, &mpd_ctx);
+        mpd_copy(val->low, price, &mpd_ctx);
+        mpd_copy(val->high, price, &mpd_ctx);
+        dict_add(m->volumes, &key, val);
     }
-    mpd_copy(m->last_price, price, &mpd_ctx);
 }
 
 int execute_limit_ask_order(market_t *m, order_t *order)
@@ -804,28 +824,58 @@ void market_cancel_order(market_t *m, order_t *order)
     order_finish(m, order);
 }
 
+static void market_update_price(time_t base, market_t *m)
+{
+    mpd_copy(m->low_24hour, mpd_zero, &mpd_ctx);
+    mpd_copy(m->high_24hour, mpd_zero, &mpd_ctx);
+    for(int i = 0; i < 86400; ++i) {
+        struct dict_volume_key key = { .timestamp = base - i };
+        dict_entry *entry = dict_find(m->volumes, &key);
+        if (entry) {
+            struct dict_volume_val *val = entry->val;
+            if (mpd_cmp(val->high, m->high_24hour, &mpd_ctx) > 0) {
+                mpd_copy(m->high_24hour, val->high, &mpd_ctx);
+            } else if (mpd_cmp(m->low_24hour, mpd_zero, &mpd_ctx) == 0 ||
+                    mpd_cmp(val->low, m->low_24hour, &mpd_ctx) < 0) {
+                mpd_copy(m->low_24hour, val->low, &mpd_ctx);
+            }
+        }
+    }
+}
+
 void market_update_ticker(market_t *m)
 {
     time_t base = time(NULL) - 1;
     if (m->volumes_24hour == NULL) {
+        m->low_24hour = mpd_new(&mpd_ctx);
+        m->high_24hour = mpd_new(&mpd_ctx);
         m->volumes_24hour = mpd_new(&mpd_ctx);
+        mpd_copy(m->volumes_24hour, mpd_zero, &mpd_ctx);
         for(int i = 0; i < 86400; ++i) {
             struct dict_volume_key key = { .timestamp = base - i };
             dict_entry *entry = dict_find(m->volumes, &key);
             if (entry) {
-                mpd_add(m->volumes_24hour, m->volumes_24hour, entry->val, &mpd_ctx);
+                struct dict_volume_val *val = entry->val;
+                mpd_add(m->volumes_24hour, m->volumes_24hour, val->volume, &mpd_ctx);
             }
         }
 
+        market_update_price(base, m);
         m->ticker_update = base;
         return;
     }
 
+    bool need_update_price = false;
     for (int i = 0; i < (base - m->ticker_update); ++i) {
         struct dict_volume_key key = { .timestamp = base - 86400 - i };
         dict_entry *entry = dict_find(m->volumes, &key);
         if (entry) {
-            mpd_sub(m->volumes_24hour, m->volumes_24hour, entry->val, &mpd_ctx);
+            struct dict_volume_val *val = entry->val;
+            mpd_sub(m->volumes_24hour, m->volumes_24hour, val->volume, &mpd_ctx);
+            if (mpd_cmp(val->high, m->high_24hour, &mpd_ctx) > 0 ||
+                    mpd_cmp(val->low, m->low_24hour, &mpd_ctx) < 0) {
+                need_update_price = true;
+            }
         }
     }
 
@@ -833,8 +883,17 @@ void market_update_ticker(market_t *m)
         struct dict_volume_key key = { .timestamp = base - i };
         dict_entry *entry = dict_find(m->volumes, &key);
         if (entry) {
-            mpd_add(m->volumes_24hour, m->volumes_24hour, entry->val, &mpd_ctx);
+            struct dict_volume_val *val = entry->val;
+            mpd_add(m->volumes_24hour, m->volumes_24hour, val->volume, &mpd_ctx);
+            if (mpd_cmp(val->high, m->high_24hour, &mpd_ctx) > 0 ||
+                    mpd_cmp(val->low, m->low_24hour, &mpd_ctx) < 0) {
+                need_update_price = true;
+            }
         }
+    }
+
+    if (need_update_price) {
+        market_update_price(base, m);
     }
 
     m->ticker_update = base;

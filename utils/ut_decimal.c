@@ -8,6 +8,7 @@
 mpd_context_t mpd_ctx;
 
 mpd_t *mpd_one;
+mpd_t *mpd_ten;
 mpd_t *mpd_zero;
 
 int init_mpd(void)
@@ -16,6 +17,8 @@ int init_mpd(void)
 
     mpd_one = mpd_new(&mpd_ctx);
     mpd_set_string(mpd_one, "1", &mpd_ctx);
+    mpd_ten = mpd_new(&mpd_ctx);
+    mpd_set_string(mpd_ten, "10", &mpd_ctx);
     mpd_zero = mpd_new(&mpd_ctx);
     mpd_set_string(mpd_zero, "0", &mpd_ctx);
 

@@ -203,6 +203,10 @@ static int on_cmd_order_put_limit(nw_ses *ses, rpc_pkg *pkg, json_t *request)
     mpd_t *amount = decimal(json_string_value(json_array_get(request, 3)), market->stock_prec);
     if (amount == NULL)
         return reply_error_invalid_argument(ses, pkg);
+    if (mpd_cmp(amount, mpd_zero, &mpd_ctx) <= 0) {
+        mpd_del(amount);
+        return reply_error_invalid_argument(ses, pkg);
+    }
 
     // price 
     if (!json_is_string(json_array_get(request, 4)))
@@ -210,6 +214,11 @@ static int on_cmd_order_put_limit(nw_ses *ses, rpc_pkg *pkg, json_t *request)
     mpd_t *price = decimal(json_string_value(json_array_get(request, 4)), market->money_prec);
     if (price == NULL) {
         mpd_del(amount);
+        return reply_error_invalid_argument(ses, pkg);
+    }
+    if (mpd_cmp(price, mpd_zero, &mpd_ctx) <= 0) {
+        mpd_del(amount);
+        mpd_del(price);
         return reply_error_invalid_argument(ses, pkg);
     }
 
@@ -222,14 +231,22 @@ static int on_cmd_order_put_limit(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         mpd_del(price);
         return reply_error_invalid_argument(ses, pkg);
     }
+    if (mpd_cmp(fee, mpd_zero, &mpd_ctx) < 0 || mpd_cmp(fee, mpd_one, &mpd_ctx) >= 0) {
+        mpd_del(amount);
+        mpd_del(price);
+        mpd_del(fee);
+        return reply_error_invalid_argument(ses, pkg);
+    }
 
     int ret = market_put_limit_order(market, user_id, side, amount, price, fee);
     mpd_del(amount);
     mpd_del(price);
     mpd_del(fee);
-    if (ret < 0) {
+    if (ret == -1) {
+        return reply_error(ses, pkg, 10, "balance not enough");
+    } else if (ret < 0) {
         log_error("market_put_limit_order fail: %d", ret);
-        return reply_error(ses, pkg, 10, "fail");
+        return reply_error_internal_error(ses, pkg);
     }
 
     return reply_success(ses, pkg);
@@ -266,6 +283,10 @@ static int on_cmd_order_put_market(nw_ses *ses, rpc_pkg *pkg, json_t *request)
     mpd_t *amount = decimal(json_string_value(json_array_get(request, 3)), market->stock_prec);
     if (amount == NULL)
         return reply_error_invalid_argument(ses, pkg);
+    if (mpd_cmp(amount, mpd_zero, &mpd_ctx) <= 0) {
+        mpd_del(amount);
+        return reply_error_invalid_argument(ses, pkg);
+    }
 
     // fee
     if (!json_is_string(json_array_get(request, 4)))
@@ -275,13 +296,20 @@ static int on_cmd_order_put_market(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         mpd_del(amount);
         return reply_error_invalid_argument(ses, pkg);
     }
+    if (mpd_cmp(fee, mpd_zero, &mpd_ctx) < 0 || mpd_cmp(fee, mpd_one, &mpd_ctx) >= 0) {
+        mpd_del(amount);
+        mpd_del(fee);
+        return reply_error_invalid_argument(ses, pkg);
+    }
 
     int ret = market_put_market_order(market, user_id, side, amount, fee);
     mpd_del(amount);
     mpd_del(fee);
-    if (ret < 0) {
+    if (ret == -1) {
+        return reply_error(ses, pkg, 10, "balance not enough");
+    } else if (ret < 0) {
         log_error("market_put_limit_order fail: %d", ret);
-        return reply_error(ses, pkg, 10, "fail");
+        return reply_error_internal_error(ses, pkg);
     }
 
     return reply_success(ses, pkg);

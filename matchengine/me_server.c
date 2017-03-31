@@ -484,6 +484,7 @@ static int on_cmd_order_book_depth(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         json_t *info = json_array();
         json_array_append_new(info, json_string(mpd_to_sci(order->price, 0)));
         json_array_append_new(info, json_string(mpd_to_sci(order->left, 0)));
+        json_array_append_new(asks, info);
     }
     skiplist_release_iterator(iter);
 
@@ -496,6 +497,7 @@ static int on_cmd_order_book_depth(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         json_t *info = json_array();
         json_array_append_new(info, json_string(mpd_to_sci(order->price, 0)));
         json_array_append_new(info, json_string(mpd_to_sci(order->left, 0)));
+        json_array_append_new(bids, info);
     }
     skiplist_release_iterator(iter);
 
@@ -508,7 +510,104 @@ static int on_cmd_order_book_depth(nw_ses *ses, rpc_pkg *pkg, json_t *request)
 
 static int on_cmd_order_book_merge(nw_ses *ses, rpc_pkg *pkg, json_t *request)
 {
-    return 0;
+    if (json_array_size(request) != 3)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // market
+    if (!json_is_string(json_array_get(request, 0)))
+        return reply_error_invalid_argument(ses, pkg);
+    const char *market_name = json_string_value(json_array_get(request, 0));
+    market_t *market = get_market(market_name);
+    if (market == NULL)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // limit
+    if (!json_is_integer(json_array_get(request, 1)))
+        return reply_error_invalid_argument(ses, pkg);
+    size_t limit = json_integer_value(json_array_get(request, 1));
+    if (limit > ORDER_BOOK_MAX_LEN)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // interval
+    if (!json_is_string(json_array_get(request, 2)))
+        return reply_error_invalid_argument(ses, pkg);
+    mpd_t *interval = decimal(json_string_value(json_array_get(request, 2)), market->money_prec);
+    if (!interval)
+        return reply_error_invalid_argument(ses, pkg);
+    if (mpd_cmp(interval, mpd_zero, &mpd_ctx) < 0) {
+        mpd_del(interval);
+        return reply_error_invalid_argument(ses, pkg);
+    }
+
+    mpd_t *q = mpd_new(&mpd_ctx);
+    mpd_t *r = mpd_new(&mpd_ctx);
+    mpd_t *price = mpd_new(&mpd_ctx);
+    mpd_t *amount = mpd_new(&mpd_ctx);
+
+    json_t *asks = json_array();
+    skiplist_iter *iter = skiplist_get_iterator(market->asks);
+    skiplist_node *node = skiplist_next(iter);
+    size_t index = 0;
+    while (node && index < limit) {
+        index++;
+        order_t *order = node->value;
+        mpd_divmod(q, r, order->price, interval, &mpd_ctx);
+        mpd_mul(price, q, interval, &mpd_ctx);
+        mpd_add(price, price, interval, &mpd_ctx);
+        mpd_copy(amount, order->left, &mpd_ctx);
+        while ((node = skiplist_next(iter)) != NULL) {
+            order = node->value;
+            if (mpd_cmp(price, order->price, &mpd_ctx) >= 0) {
+                mpd_add(amount, amount, order->left, &mpd_ctx);
+            } else {
+                break;
+            }
+        }
+
+        json_t *info = json_array();
+        json_array_append_new(info, json_string(mpd_to_sci(price, 0)));
+        json_array_append_new(info, json_string(mpd_to_sci(amount, 0)));
+        json_array_append_new(asks, info);
+    }
+    skiplist_release_iterator(iter);
+
+    json_t *bids = json_array();
+    iter = skiplist_get_iterator(market->bids);
+    node = skiplist_next(iter);
+    index = 0;
+    while (node && index < limit) {
+        index++;
+        order_t *order = node->value;
+        mpd_divmod(q, r, order->price, interval, &mpd_ctx);
+        mpd_mul(price, q, interval, &mpd_ctx);
+        mpd_copy(amount, order->left, &mpd_ctx);
+        while ((node = skiplist_next(iter)) != NULL) {
+            order = node->value;
+            if (mpd_cmp(price, order->price, &mpd_ctx) <= 0) {
+                mpd_add(amount, amount, order->left, &mpd_ctx);
+            } else {
+                break;
+            }
+        }
+
+        json_t *info = json_array();
+        json_array_append_new(info, json_string(mpd_to_sci(price, 0)));
+        json_array_append_new(info, json_string(mpd_to_sci(amount, 0)));
+        json_array_append_new(bids, info);
+    }
+    skiplist_release_iterator(iter);
+
+    mpd_del(q);
+    mpd_del(r);
+    mpd_del(price);
+    mpd_del(amount);
+    mpd_del(interval);
+
+    json_t *result = json_object();
+    json_object_set_new(result, "asks", asks);
+    json_object_set_new(result, "bids", bids);
+
+    return reply_result(ses, pkg, result);
 }
 
 static int on_cmd_market_ticker(nw_ses *ses, rpc_pkg *pkg, json_t *request)

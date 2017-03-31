@@ -20,7 +20,6 @@ static uint32_t dict_user_hash_function(const void *key)
     const struct dict_user_key *obj = key;
     return obj->user_id;
 }
-
 static int dict_user_key_compare(const void *key1, const void *key2)
 {
     const struct dict_user_key *obj1 = key1;
@@ -33,19 +32,16 @@ static int dict_user_key_compare(const void *key1, const void *key2)
         return -1;
     }
 }
-
 static void *dict_user_key_dup(const void *key)
 {
     struct dict_user_key *obj = malloc(sizeof(struct dict_user_key));
     memcpy(obj, key, sizeof(struct dict_user_key));
     return obj;
 }
-
 static void dict_user_key_free(void *key)
 {
     free(key);
 }
-
 static void dict_user_val_free(void *key)
 {
     list_release(key);
@@ -55,7 +51,6 @@ static uint32_t dict_order_hash_function(const void *key)
 {
     return dict_generic_hash_function(key, sizeof(struct dict_order_key));
 }
-
 static int dict_order_key_compare(const void *key1, const void *key2)
 {
     const struct dict_order_key *obj1 = key1;
@@ -68,14 +63,12 @@ static int dict_order_key_compare(const void *key1, const void *key2)
         return -1;
     }
 }
-
 static void *dict_order_key_dup(const void *key)
 {
     struct dict_order_key *obj = malloc(sizeof(struct dict_order_key));
     memcpy(obj, key, sizeof(struct dict_order_key));
     return obj;
 }
-
 static void dict_order_key_free(void *key)
 {
     free(key);
@@ -106,7 +99,7 @@ static int order_compare(const void *value1, const void *value2)
     return order1->id < order2->id ? 1 : -1;
 }
 
-static int order_same(const void *value1, const void *value2)
+static int order_equality(const void *value1, const void *value2)
 {
     const order_t *order1 = value2;
     const order_t *order2 = value2;
@@ -145,7 +138,7 @@ static void order_put(market_t *m, order_t *order)
     } else {
         list_type type;
         memset(&type, 0, sizeof(type));
-        type.compare = order_same;
+        type.compare = order_equality;
         list_t *order_list = list_create(&type);
         list_add_node_head(order_list, order);
         dict_add(m->users, &user_key, order_list);
@@ -429,7 +422,7 @@ int market_put_limit_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t *
         return -__LINE__;
     }
 
-    order->id = ++m->id_start;
+    order->id           = ++m->id_start;
     order->type         = MARKET_ORDER_TYPE_LIMIT;
     order->side         = side;
     order->create_time  = current_timestamp();
@@ -641,7 +634,7 @@ int market_put_market_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t 
         return -__LINE__;
     }
 
-    order->id = ++m->id_start;
+    order->id           = ++m->id_start;
     order->type         = MARKET_ORDER_TYPE_MARKET;
     order->side         = side;
     order->create_time  = current_timestamp();

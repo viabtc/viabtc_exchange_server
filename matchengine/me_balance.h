@@ -8,8 +8,8 @@
 
 # include "me_config.h"
 
-# define BALANCE_TYPE_AVAILABLE 0
-# define BALANCE_TYPE_FREEZE    1
+# define BALANCE_TYPE_AVAILABLE 1
+# define BALANCE_TYPE_FREEZE    2
 
 int init_balance(void);
 int asset_prec(const char *asset);

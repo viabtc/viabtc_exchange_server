@@ -76,7 +76,7 @@ static void dict_order_key_free(void *key)
 
 static int order_compare(const void *value1, const void *value2)
 {
-    const order_t *order1 = value2;
+    const order_t *order1 = value1;
     const order_t *order2 = value2;
 
     if (order1->id == order2->id) {
@@ -88,20 +88,20 @@ static int order_compare(const void *value1, const void *value2)
 
     int cmp;
     if (order1->side == MARKET_ORDER_SIDE_ASK) {
-        cmp = mpd_cmp(order2->price, order1->price, &mpd_ctx);
-    } else {
         cmp = mpd_cmp(order1->price, order2->price, &mpd_ctx);
+    } else {
+        cmp = mpd_cmp(order2->price, order1->price, &mpd_ctx);
     }
     if (cmp != 0) {
         return cmp;
     }
 
-    return order1->id < order2->id ? 1 : -1;
+    return order1->id > order2->id ? 1 : -1;
 }
 
 static int order_equality(const void *value1, const void *value2)
 {
-    const order_t *order1 = value2;
+    const order_t *order1 = value1;
     const order_t *order2 = value2;
 
     if (order1->id == order2->id) {
@@ -145,11 +145,15 @@ static void order_put(market_t *m, order_t *order)
     }
 
     if (order->side == MARKET_ORDER_SIDE_ASK) {
-        skiplist_insert(m->asks, order);
+        if (skiplist_insert(m->asks, order) == NULL) {
+            log_error("skiplist_insert fail, order id: %"PRIu64"", order->id);
+        }
         balance_freeze(order->user_id, m->stock, order->left);
         mpd_copy(order->freeze, order->left, &mpd_ctx);
     } else {
-        skiplist_insert(m->bids, order);
+        if (skiplist_insert(m->bids, order) == NULL) {
+            log_error("skiplist_insert fail, order id: %"PRIu64"", order->id);
+        }
         mpd_t *result = mpd_new(&mpd_ctx);
         mpd_mul(result, order->price, order->amount, &mpd_ctx);
         balance_freeze(order->user_id, m->money, result);

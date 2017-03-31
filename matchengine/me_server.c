@@ -366,26 +366,32 @@ static int on_cmd_order_query(nw_ses *ses, rpc_pkg *pkg, json_t *request)
     if (limit > ORDER_LIST_MAX_LEN)
         return reply_error_invalid_argument(ses, pkg);
 
-    json_t *result = json_array();
+    json_t *result = json_object();
     list_t *order_list = market_get_order_list(market, user_id);
+    json_object_set_new(result, "total", json_integer(order_list->len));
+    json_object_set_new(result, "limit", json_integer(limit));
+    json_object_set_new(result, "offset", json_integer(offset));
+    json_t *orders = json_array();
     if (order_list == NULL) {
+        json_object_set_new(result, "orders", orders);
         return reply_result(ses, pkg, result);
     }
 
     list_iter *iter = list_get_iterator(order_list, LIST_START_HEAD);
     list_node *node;
-    size_t index = 0;
-    while ((node = list_next(iter)) != NULL && index < offset) {
-        index++;
+    for (size_t i = 0; i < offset; i++) {
+        list_next(iter);
     }
-    index = 0;
+
+    size_t index = 0;
     while ((node = list_next(iter)) != NULL && index < limit) {
         index++;
         order_t *order = node->value;
-        json_array_append_new(result, get_order_info(order));
+        json_array_append_new(orders, get_order_info(order));
     }
     list_release_iterator(iter);
 
+    json_object_set_new(result, "orders", orders);
     return reply_result(ses, pkg, result);
 }
 
@@ -457,28 +463,34 @@ static int on_cmd_order_book(nw_ses *ses, rpc_pkg *pkg, json_t *request)
     if (limit > ORDER_BOOK_MAX_LEN)
         return reply_error_invalid_argument(ses, pkg);
 
+    json_t *result = json_object();
+    json_object_set_new(result, "offset", json_integer(offset));
+    json_object_set_new(result, "limit", json_integer(limit));
+
     skiplist_iter *iter;
     if (side == MARKET_ORDER_SIDE_ASK) {
         iter = skiplist_get_iterator(market->asks);
+        json_object_set_new(result, "total", json_integer(market->asks->len));
     } else {
         iter = skiplist_get_iterator(market->bids);
+        json_object_set_new(result, "total", json_integer(market->bids->len));
     }
 
+    for (size_t i = 0; i < offset; i++) {
+        skiplist_next(iter);
+    }
+
+    json_t *orders = json_array();
     size_t index = 0;
     skiplist_node *node;
-    while ((node = skiplist_next(iter)) != NULL && index < offset) {
-        index++;
-    }
-
-    json_t *result = json_array();
-    index = 0;
     while ((node = skiplist_next(iter)) != NULL && index < limit) {
         index++;
         order_t *order = node->value;
-        json_array_append_new(result, get_order_info(order));
+        json_array_append_new(orders, get_order_info(order));
     }
     skiplist_release_iterator(iter);
 
+    json_object_set_new(result, "orders", orders);
     return reply_result(ses, pkg, result);
 }
 

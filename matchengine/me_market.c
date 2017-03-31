@@ -15,16 +15,6 @@ struct dict_order_key {
     uint64_t    order_id;
 };
 
-struct dict_volume_key {
-    time_t      timestamp;
-};
-
-struct dict_volume_val {
-    mpd_t       *volume;
-    mpd_t       *low;
-    mpd_t       *high;
-};
-
 static uint32_t dict_user_hash_function(const void *key)
 {
     const struct dict_user_key *obj = key;
@@ -47,8 +37,6 @@ static int dict_user_key_compare(const void *key1, const void *key2)
 static void *dict_user_key_dup(const void *key)
 {
     struct dict_user_key *obj = malloc(sizeof(struct dict_user_key));
-    if (obj == NULL)
-        return NULL;
     memcpy(obj, key, sizeof(struct dict_user_key));
     return obj;
 }
@@ -84,8 +72,6 @@ static int dict_order_key_compare(const void *key1, const void *key2)
 static void *dict_order_key_dup(const void *key)
 {
     struct dict_order_key *obj = malloc(sizeof(struct dict_order_key));
-    if (obj == NULL)
-        return NULL;
     memcpy(obj, key, sizeof(struct dict_order_key));
     return obj;
 }
@@ -93,40 +79,6 @@ static void *dict_order_key_dup(const void *key)
 static void dict_order_key_free(void *key)
 {
     free(key);
-}
-
-static uint32_t dict_volume_hash_function(const void *key)
-{
-    const struct dict_volume_key *obj = key;
-    return (uint32_t)obj->timestamp;
-}
-
-static int dict_volume_key_compare(const void *key1, const void *key2)
-{
-    const struct dict_volume_key *obj1 = key1;
-    const struct dict_volume_key *obj2 = key2;
-    return obj1->timestamp - obj2->timestamp;
-}
-
-static void *dict_volume_key_dup(const void *key)
-{
-    struct dict_volume_key *obj = malloc(sizeof(struct dict_volume_key));
-    memcpy(obj, key, sizeof(struct dict_volume_key));
-    return obj;
-}
-
-static void dict_volume_key_free(void *key)
-{
-    free(key);
-}
-
-static void dict_volume_val_free(void *val)
-{
-    struct dict_volume_val *obj = val;
-    mpd_del(obj->volume);
-    mpd_del(obj->low);
-    mpd_del(obj->high);
-    free(obj);
 }
 
 static int order_compare(const void *value1, const void *value2)
@@ -151,13 +103,6 @@ static int order_compare(const void *value1, const void *value2)
         return cmp;
     }
 
-    double time_diff = order1->create_time - order2->create_time;
-    if (time_diff < 0) {
-        return 1;
-    } else if (time_diff > 0) {
-        return -1;
-    };
-
     return order1->id < order2->id ? 1 : -1;
 }
 
@@ -175,15 +120,15 @@ static int order_same(const void *value1, const void *value2)
 
 void order_free(order_t *order)
 {
-    free(order->market_name);
     mpd_del(order->price);
     mpd_del(order->amount);
-    mpd_del(order->fee_rate);
+    mpd_del(order->fee);
     mpd_del(order->left);
     mpd_del(order->freeze);
     mpd_del(order->deal_stock);
     mpd_del(order->deal_money);
     mpd_del(order->deal_fee);
+    free(order->market);
     free(order);
 }
 
@@ -256,21 +201,6 @@ static void order_finish(market_t *m, order_t *order)
     order_free(order);
 }
 
-static void on_timer(nw_timer *timer, void *privdata)
-{
-    market_t *market = privdata;
-    market_update_ticker(market);
-    time_t base = time(NULL) - 1;
-    dict_iterator *iter = dict_get_iterator(market->volumes);
-    dict_entry *entry;
-    while ((entry = dict_next(iter)) != NULL) {
-        struct dict_volume_key *key = entry->key;
-        if (key->timestamp <= base - 86400) {
-            dict_delete(market->volumes, entry->key);
-        }
-    }
-}
-
 market_t *market_create(struct market *conf)
 {
     if (asset_exist(conf->stock) < 0 || asset_exist(conf->money) < 0)
@@ -284,15 +214,12 @@ market_t *market_create(struct market *conf)
 
     market_t *m = malloc(sizeof(market_t));
     memset(m, 0, sizeof(market_t));
-    assert(m != NULL);
-    m->name  = strdup(conf->name);
-    m->stock = strdup(conf->stock);
-    m->money = strdup(conf->money);
-    m->stock_prec = conf->stock_prec;
-    m->money_prec = conf->money_prec;
-    m->fee_prec   = conf->fee_prec;
-    m->last_price = mpd_new(&mpd_ctx);
-    mpd_copy(m->last_price, mpd_zero, &mpd_ctx);
+    m->name             = strdup(conf->name);
+    m->stock            = strdup(conf->stock);
+    m->money            = strdup(conf->money);
+    m->stock_prec       = conf->stock_prec;
+    m->money_prec       = conf->money_prec;
+    m->fee_prec         = conf->fee_prec;
 
     dict_types dt;
     memset(&dt, 0, sizeof(dt));
@@ -303,7 +230,8 @@ market_t *market_create(struct market *conf)
     dt.val_destructor   = dict_user_val_free;
 
     m->users = dict_create(&dt, 1024);
-    assert(m->users != NULL);
+    if (m->users == NULL)
+        return NULL;
 
     memset(&dt, 0, sizeof(dt));
     dt.hash_function    = dict_order_hash_function;
@@ -312,17 +240,8 @@ market_t *market_create(struct market *conf)
     dt.key_destructor   = dict_order_key_free;
 
     m->orders = dict_create(&dt, 1024);
-    assert(m->orders != NULL);
-
-    memset(&dt, 0, sizeof(dt));
-    dt.hash_function    = dict_volume_hash_function;
-    dt.key_compare      = dict_volume_key_compare;
-    dt.key_dup          = dict_volume_key_dup;
-    dt.key_destructor   = dict_volume_key_free;
-    dt.val_destructor   = dict_volume_val_free;
-
-    m->volumes = dict_create(&dt, 1024);
-    assert(m->volumes != NULL);
+    if (m->orders == NULL)
+        return NULL;
 
     skiplist_type lt;
     memset(&lt, 0, sizeof(lt));
@@ -330,42 +249,10 @@ market_t *market_create(struct market *conf)
 
     m->asks = skiplist_create(&lt);
     m->bids = skiplist_create(&lt);
-    assert(m->asks != NULL);
-    assert(m->bids != NULL);
+    if (m->asks == NULL || m->bids == NULL)
+        return NULL;
     
-    nw_timer_set(&m->timer, 60, true, on_timer, m);
-    nw_timer_start(&m->timer);
-
     return m;
-}
-
-static void update_volumes(market_t *m, time_t timestamp, mpd_t *amount, mpd_t *price)
-{
-    time_t now = time(NULL);
-    if (timestamp < now - 86400)
-        return;
-
-    mpd_copy(m->last_price, price, &mpd_ctx);
-    struct dict_volume_key key = { .timestamp = now };
-    dict_entry *entry = dict_find(m->volumes, &key);
-    if (entry) {
-        struct dict_volume_val *val = entry->val;
-        mpd_add(val->volume, val->volume, amount, &mpd_ctx); 
-        if (mpd_cmp(price, val->low, &mpd_ctx) < 0) {
-            mpd_copy(val->low, price, &mpd_ctx);
-        } else if (mpd_cmp(price, val->high, &mpd_ctx) > 0) {
-            mpd_copy(val->high, price, &mpd_ctx);
-        }
-    } else {
-        struct dict_volume_val *val = malloc(sizeof(struct dict_volume_val));
-        val->volume = mpd_new(&mpd_ctx);
-        val->low = mpd_new(&mpd_ctx);
-        val->high = mpd_new(&mpd_ctx);
-        mpd_copy(val->volume, amount, &mpd_ctx);
-        mpd_copy(val->low, price, &mpd_ctx);
-        mpd_copy(val->high, price, &mpd_ctx);
-        dict_add(m->volumes, &key, val);
-    }
 }
 
 int execute_limit_ask_order(market_t *m, order_t *order)
@@ -397,8 +284,8 @@ int execute_limit_ask_order(market_t *m, order_t *order)
         }
 
         mpd_mul(deal, price, amount, &mpd_ctx);
-        mpd_mul(ask_fee, deal, order->fee_rate, &mpd_ctx);
-        mpd_mul(bid_fee, amount, pending->fee_rate, &mpd_ctx);
+        mpd_mul(ask_fee, deal, order->fee, &mpd_ctx);
+        mpd_mul(bid_fee, amount, pending->fee, &mpd_ctx);
 
         mpd_sub(order->left, order->left, amount, &mpd_ctx);
         mpd_add(order->deal_stock, order->deal_stock, amount, &mpd_ctx);
@@ -421,7 +308,6 @@ int execute_limit_ask_order(market_t *m, order_t *order)
 
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
-        update_volumes(m, (time_t)order->create_time, amount, price);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);
@@ -468,8 +354,8 @@ int execute_limit_bid_order(market_t *m, order_t *order)
         }
 
         mpd_mul(deal, price, amount, &mpd_ctx);
-        mpd_mul(ask_fee, deal, pending->fee_rate, &mpd_ctx);
-        mpd_mul(bid_fee, amount, order->fee_rate, &mpd_ctx);
+        mpd_mul(ask_fee, deal, pending->fee, &mpd_ctx);
+        mpd_mul(bid_fee, amount, order->fee, &mpd_ctx);
 
         mpd_sub(order->left, order->left, amount, &mpd_ctx);
         mpd_add(order->deal_stock, order->deal_stock, amount, &mpd_ctx);
@@ -492,7 +378,6 @@ int execute_limit_bid_order(market_t *m, order_t *order)
 
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
-        update_volumes(m, (time_t)order->create_time, amount, price);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);
@@ -510,7 +395,7 @@ int execute_limit_bid_order(market_t *m, order_t *order)
     return 0;
 }
 
-int market_put_limit_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *price, mpd_t *fee_rate)
+int market_put_limit_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *price, mpd_t *fee)
 {
     mpd_t *real_amount = mpd_new(&mpd_ctx);
     mpd_rescale(real_amount, amount, -m->stock_prec, &mpd_ctx);
@@ -528,8 +413,8 @@ int market_put_limit_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t *
     }
 
     mpd_t *real_fee = mpd_new(&mpd_ctx);
-    mpd_rescale(real_fee, fee_rate, -m->fee_prec, &mpd_ctx);
-    if (mpd_cmp(fee_rate, mpd_zero, &mpd_ctx) || mpd_cmp(fee_rate, mpd_one, &mpd_ctx) >= 0) {
+    mpd_rescale(real_fee, fee, -m->fee_prec, &mpd_ctx);
+    if (mpd_cmp(fee, mpd_zero, &mpd_ctx) || mpd_cmp(fee, mpd_one, &mpd_ctx) >= 0) {
         mpd_del(real_fee);
         mpd_del(real_price);
         mpd_del(real_amount);
@@ -549,11 +434,11 @@ int market_put_limit_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t *
     order->side         = side;
     order->create_time  = current_timestamp();
     order->update_time  = current_timestamp();
-    order->market_name  = strdup(m->name);
+    order->market       = strdup(m->name);
     order->user_id      = user_id;
     order->price        = mpd_new(&mpd_ctx);
     order->amount       = mpd_new(&mpd_ctx);
-    order->fee_rate     = mpd_new(&mpd_ctx);
+    order->fee          = mpd_new(&mpd_ctx);
     order->left         = mpd_new(&mpd_ctx);
     order->deal_stock   = mpd_new(&mpd_ctx);
     order->deal_money   = mpd_new(&mpd_ctx);
@@ -561,7 +446,7 @@ int market_put_limit_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t *
 
     mpd_copy(order->price, real_price, &mpd_ctx);
     mpd_copy(order->amount, real_amount, &mpd_ctx);
-    mpd_copy(order->fee_rate, real_fee, &mpd_ctx);
+    mpd_copy(order->fee, real_fee, &mpd_ctx);
     mpd_copy(order->left, real_amount, &mpd_ctx);
     mpd_copy(order->deal_stock, mpd_zero, &mpd_ctx);
     mpd_copy(order->deal_money, mpd_zero, &mpd_ctx);
@@ -617,8 +502,8 @@ int execute_market_ask_order(market_t *m, order_t *order)
         }
 
         mpd_mul(deal, price, amount, &mpd_ctx);
-        mpd_mul(ask_fee, deal, order->fee_rate, &mpd_ctx);
-        mpd_mul(bid_fee, amount, pending->fee_rate, &mpd_ctx);
+        mpd_mul(ask_fee, deal, order->fee, &mpd_ctx);
+        mpd_mul(bid_fee, amount, pending->fee, &mpd_ctx);
 
         mpd_sub(order->left, order->left, amount, &mpd_ctx);
         mpd_add(order->deal_stock, order->deal_stock, amount, &mpd_ctx);
@@ -641,7 +526,6 @@ int execute_market_ask_order(market_t *m, order_t *order)
 
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
-        update_volumes(m, (time_t)order->create_time, amount, price);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);
@@ -688,8 +572,8 @@ int execute_market_bid_order(market_t *m, order_t *order)
         }
 
         mpd_mul(deal, price, amount, &mpd_ctx);
-        mpd_mul(ask_fee, deal, pending->fee_rate, &mpd_ctx);
-        mpd_mul(bid_fee, amount, order->fee_rate, &mpd_ctx);
+        mpd_mul(ask_fee, deal, pending->fee, &mpd_ctx);
+        mpd_mul(bid_fee, amount, order->fee, &mpd_ctx);
 
         mpd_sub(order->left, order->left, deal, &mpd_ctx);
         mpd_add(order->deal_stock, order->deal_stock, amount, &mpd_ctx);
@@ -712,7 +596,6 @@ int execute_market_bid_order(market_t *m, order_t *order)
 
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
-        update_volumes(m, (time_t)order->create_time, amount, price);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);
@@ -730,7 +613,7 @@ int execute_market_bid_order(market_t *m, order_t *order)
     return 0;
 }
 
-int market_put_market_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *fee_rate)
+int market_put_market_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *fee)
 {
     mpd_t *real_amount = mpd_new(&mpd_ctx);
     if (side == MARKET_ORDER_SIDE_ASK) {
@@ -744,7 +627,7 @@ int market_put_market_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t 
     }
 
     mpd_t *real_fee = mpd_new(&mpd_ctx);
-    mpd_rescale(real_fee, fee_rate, -m->fee_prec, &mpd_ctx);
+    mpd_rescale(real_fee, fee, -m->fee_prec, &mpd_ctx);
     if (mpd_cmp(real_fee, mpd_zero, &mpd_ctx) < 0 || mpd_cmp(real_fee, mpd_one, &mpd_ctx) >= 0) {
         mpd_del(real_fee);
         mpd_del(real_amount);
@@ -763,18 +646,18 @@ int market_put_market_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t 
     order->side         = side;
     order->create_time  = current_timestamp();
     order->update_time  = current_timestamp();
-    order->market_name  = strdup(m->name);
+    order->market       = strdup(m->name);
     order->user_id      = user_id;
     order->price        = mpd_new(&mpd_ctx);
     order->amount       = mpd_new(&mpd_ctx);
-    order->fee_rate     = mpd_new(&mpd_ctx);
+    order->fee          = mpd_new(&mpd_ctx);
     order->left         = mpd_new(&mpd_ctx);
     order->deal_stock   = mpd_new(&mpd_ctx);
     order->deal_money   = mpd_new(&mpd_ctx);
     order->deal_fee     = mpd_new(&mpd_ctx);
 
     mpd_copy(order->amount, real_amount, &mpd_ctx);
-    mpd_copy(order->fee_rate, real_fee, &mpd_ctx);
+    mpd_copy(order->fee, real_fee, &mpd_ctx);
     mpd_copy(order->left, order->amount, &mpd_ctx);
     mpd_copy(order->deal_stock, mpd_zero, &mpd_ctx);
     mpd_copy(order->deal_money, mpd_zero, &mpd_ctx);
@@ -822,81 +705,5 @@ list_t *market_get_order_list(market_t *m, uint32_t user_id)
 void market_cancel_order(market_t *m, order_t *order)
 {
     order_finish(m, order);
-}
-
-static void market_update_price(time_t base, market_t *m)
-{
-    mpd_copy(m->low_24hour, mpd_zero, &mpd_ctx);
-    mpd_copy(m->high_24hour, mpd_zero, &mpd_ctx);
-    for(int i = 0; i < 86400; ++i) {
-        struct dict_volume_key key = { .timestamp = base - i };
-        dict_entry *entry = dict_find(m->volumes, &key);
-        if (entry) {
-            struct dict_volume_val *val = entry->val;
-            if (mpd_cmp(val->high, m->high_24hour, &mpd_ctx) > 0) {
-                mpd_copy(m->high_24hour, val->high, &mpd_ctx);
-            } else if (mpd_cmp(m->low_24hour, mpd_zero, &mpd_ctx) == 0 ||
-                    mpd_cmp(val->low, m->low_24hour, &mpd_ctx) < 0) {
-                mpd_copy(m->low_24hour, val->low, &mpd_ctx);
-            }
-        }
-    }
-}
-
-void market_update_ticker(market_t *m)
-{
-    time_t base = time(NULL) - 1;
-    if (m->volumes_24hour == NULL) {
-        m->low_24hour = mpd_new(&mpd_ctx);
-        m->high_24hour = mpd_new(&mpd_ctx);
-        m->volumes_24hour = mpd_new(&mpd_ctx);
-        mpd_copy(m->volumes_24hour, mpd_zero, &mpd_ctx);
-        for(int i = 0; i < 86400; ++i) {
-            struct dict_volume_key key = { .timestamp = base - i };
-            dict_entry *entry = dict_find(m->volumes, &key);
-            if (entry) {
-                struct dict_volume_val *val = entry->val;
-                mpd_add(m->volumes_24hour, m->volumes_24hour, val->volume, &mpd_ctx);
-            }
-        }
-
-        market_update_price(base, m);
-        m->ticker_update = base;
-        return;
-    }
-
-    bool need_update_price = false;
-    for (int i = 0; i < (base - m->ticker_update); ++i) {
-        struct dict_volume_key key = { .timestamp = base - 86400 - i };
-        dict_entry *entry = dict_find(m->volumes, &key);
-        if (entry) {
-            struct dict_volume_val *val = entry->val;
-            mpd_sub(m->volumes_24hour, m->volumes_24hour, val->volume, &mpd_ctx);
-            if (mpd_cmp(val->high, m->high_24hour, &mpd_ctx) > 0 ||
-                    mpd_cmp(val->low, m->low_24hour, &mpd_ctx) < 0) {
-                need_update_price = true;
-            }
-        }
-    }
-
-    for (int i = 0; i < (base - m->ticker_update); ++i) {
-        struct dict_volume_key key = { .timestamp = base - i };
-        dict_entry *entry = dict_find(m->volumes, &key);
-        if (entry) {
-            struct dict_volume_val *val = entry->val;
-            mpd_add(m->volumes_24hour, m->volumes_24hour, val->volume, &mpd_ctx);
-            if (mpd_cmp(val->high, m->high_24hour, &mpd_ctx) > 0 ||
-                    mpd_cmp(val->low, m->low_24hour, &mpd_ctx) < 0) {
-                need_update_price = true;
-            }
-        }
-    }
-
-    if (need_update_price) {
-        market_update_price(base, m);
-    }
-
-    m->ticker_update = base;
-    return;
 }
 

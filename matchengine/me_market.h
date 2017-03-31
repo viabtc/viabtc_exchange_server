@@ -20,11 +20,11 @@ typedef struct order_t {
     uint32_t        side;
     double          create_time;
     double          update_time;
-    char            *market_name;
     uint32_t        user_id;
+    char            *market;
     mpd_t           *price;
     mpd_t           *amount;
-    mpd_t           *fee_rate;
+    mpd_t           *fee;
     mpd_t           *left;
     mpd_t           *freeze;
     mpd_t           *deal_stock;
@@ -39,31 +39,24 @@ typedef struct market_t {
     int             stock_prec;
     int             money_prec;
     int             fee_prec;
+
     dict_t          *orders;
     dict_t          *users;
-    dict_t          *volumes;
+
     skiplist_t      *asks;
     skiplist_t      *bids;
 
     uint64_t        id_start;
-    nw_timer        timer;
-
-    time_t          ticker_update;
-    mpd_t           *last_price;
-    mpd_t           *low_24hour;
-    mpd_t           *high_24hour;
-    mpd_t           *volumes_24hour;
 } market_t;
 
 market_t *market_create(struct market *conf);
 
-int market_put_limit_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *price, mpd_t *fee_rate);
-int market_put_market_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *fee_rate);
+int market_put_limit_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *price, mpd_t *fee);
+int market_put_market_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *fee);
 
 list_t *market_get_order_list(market_t *m, uint32_t user_id);
 order_t *market_get_order(market_t *m, uint64_t id);
 void market_cancel_order(market_t *m, order_t *order);
-void market_update_ticker(market_t *m);
 
 # endif
 

@@ -216,17 +216,17 @@ static int on_cmd_order_put_limit(nw_ses *ses, rpc_pkg *pkg, json_t *request)
     // fee
     if (!json_is_string(json_array_get(request, 5)))
         return reply_error_invalid_argument(ses, pkg);
-    mpd_t *fee_rate = decimal(json_string_value(json_array_get(request, 5)), market->fee_prec);
-    if (fee_rate == NULL) {
+    mpd_t *fee = decimal(json_string_value(json_array_get(request, 5)), market->fee_prec);
+    if (fee == NULL) {
         mpd_del(amount);
         mpd_del(price);
         return reply_error_invalid_argument(ses, pkg);
     }
 
-    int ret = market_put_limit_order(market, user_id, side, amount, price, fee_rate);
+    int ret = market_put_limit_order(market, user_id, side, amount, price, fee);
     mpd_del(amount);
     mpd_del(price);
-    mpd_del(fee_rate);
+    mpd_del(fee);
     if (ret < 0) {
         log_error("market_put_limit_order fail: %d", ret);
         return reply_error(ses, pkg, 10, "fail");
@@ -270,15 +270,15 @@ static int on_cmd_order_put_market(nw_ses *ses, rpc_pkg *pkg, json_t *request)
     // fee
     if (!json_is_string(json_array_get(request, 4)))
         return reply_error_invalid_argument(ses, pkg);
-    mpd_t *fee_rate = decimal(json_string_value(json_array_get(request, 4)), market->fee_prec);
-    if (fee_rate == NULL) {
+    mpd_t *fee = decimal(json_string_value(json_array_get(request, 4)), market->fee_prec);
+    if (fee == NULL) {
         mpd_del(amount);
         return reply_error_invalid_argument(ses, pkg);
     }
 
-    int ret = market_put_market_order(market, user_id, side, amount, fee_rate);
+    int ret = market_put_market_order(market, user_id, side, amount, fee);
     mpd_del(amount);
-    mpd_del(fee_rate);
+    mpd_del(fee);
     if (ret < 0) {
         log_error("market_put_limit_order fail: %d", ret);
         return reply_error(ses, pkg, 10, "fail");
@@ -294,12 +294,12 @@ static json_t *get_order_info(order_t *order)
     json_object_set_new(info, "type", json_integer(order->type));
     json_object_set_new(info, "side", json_integer(order->side));
     json_object_set_new(info, "user", json_integer(order->user_id));
-    json_object_set_new(info, "create_time", json_integer(order->create_time));
-    json_object_set_new(info, "update_time", json_integer(order->update_time));
-    json_object_set_new(info, "market", json_string(order->market_name));
+    json_object_set_new(info, "create_time", json_real(order->create_time));
+    json_object_set_new(info, "update_time", json_real(order->update_time));
+    json_object_set_new(info, "market", json_string(order->market));
     json_object_set_new(info, "price", json_string(mpd_to_sci(order->price, 0)));
     json_object_set_new(info, "amount", json_string(mpd_to_sci(order->amount, 0)));
-    json_object_set_new(info, "fee", json_string(mpd_to_sci(order->fee_rate, 0)));
+    json_object_set_new(info, "fee", json_string(mpd_to_sci(order->fee, 0)));
     json_object_set_new(info, "left", json_string(mpd_to_sci(order->left, 0)));
     json_object_set_new(info, "deal_stock", json_string(mpd_to_sci(order->deal_stock, 0)));
     json_object_set_new(info, "deal_money", json_string(mpd_to_sci(order->deal_money, 0)));
@@ -411,9 +411,9 @@ static int on_cmd_order_book(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         return reply_error_invalid_argument(ses, pkg);
 
     // side
-    if (!json_is_integer(json_array_get(request, 2)))
+    if (!json_is_integer(json_array_get(request, 1)))
         return reply_error_invalid_argument(ses, pkg);
-    uint32_t side = json_integer_value(json_array_get(request, 2));
+    uint32_t side = json_integer_value(json_array_get(request, 1));
     if (side != MARKET_ORDER_SIDE_ASK && side != MARKET_ORDER_SIDE_BID)
         return reply_error_invalid_argument(ses, pkg);
 
@@ -444,14 +444,14 @@ static int on_cmd_order_book(nw_ses *ses, rpc_pkg *pkg, json_t *request)
 
     json_t *result = json_array();
     index = 0;
-    while ((node = skiplist_next(iter)) != NULL && index < offset) {
+    while ((node = skiplist_next(iter)) != NULL && index < limit) {
         index++;
         order_t *order = node->value;
         json_array_append_new(result, get_order_info(order));
     }
     skiplist_release_iterator(iter);
 
-    return 0;
+    return reply_result(ses, pkg, result);
 }
 
 static int on_cmd_order_book_depth(nw_ses *ses, rpc_pkg *pkg, json_t *request)
@@ -610,52 +610,6 @@ static int on_cmd_order_book_merge(nw_ses *ses, rpc_pkg *pkg, json_t *request)
     return reply_result(ses, pkg, result);
 }
 
-static int on_cmd_market_ticker(nw_ses *ses, rpc_pkg *pkg, json_t *request)
-{
-    if (json_array_size(request) != 1)
-        return reply_error_invalid_argument(ses, pkg);
-
-    // market
-    if (!json_is_string(json_array_get(request, 0)))
-        return reply_error_invalid_argument(ses, pkg);
-    const char *market_name = json_string_value(json_array_get(request, 0));
-    market_t *market = get_market(market_name);
-    if (market == NULL)
-        return reply_error_invalid_argument(ses, pkg);
-
-    // update market ticker
-    market_update_ticker(market);
-
-    json_t *result = json_object();
-    json_object_set_new(result, "timestamp", json_integer(market->ticker_update));
-    json_object_set_new(result, "volume", json_string(mpd_to_sci(market->volumes_24hour, 0)));
-    json_object_set_new(result, "low", json_string(mpd_to_sci(market->low_24hour, 0)));
-    json_object_set_new(result, "high", json_string(mpd_to_sci(market->high_24hour, 0)));
-    json_object_set_new(result, "last", json_string(mpd_to_sci(market->last_price, 0)));
-
-    skiplist_iter *iter = skiplist_get_iterator(market->bids);
-    skiplist_node *node = skiplist_next(iter);
-    if (node) {
-        order_t *order = node->value;
-        json_object_set_new(result, "bid", json_string(mpd_to_sci(order->price, 0)));
-    } else {
-        json_object_set_new(result, "bid", json_string(mpd_to_sci(mpd_zero, 0)));
-    }
-    skiplist_release_iterator(iter);
-
-    iter = skiplist_get_iterator(market->asks);
-    node = skiplist_next(iter);
-    if (node) {
-        order_t *order = node->value;
-        json_object_set_new(result, "ask", json_string(mpd_to_sci(order->price, 0)));
-    } else {
-        json_object_set_new(result, "ask", json_string(mpd_to_sci(mpd_zero, 0)));
-    }
-    skiplist_release_iterator(iter);
-
-    return reply_result(ses, pkg, result);
-}
-
 static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
 {
     json_t *request = json_loadb(pkg->body, pkg->body_size, 0, NULL);
@@ -729,13 +683,6 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         ret = on_cmd_order_book_merge(ses, pkg, request);
         if (ret < 0) {
             log_error("on_cmd_order_book_merge fail: %d", ret);
-        }
-        break;
-    case CMD_MARKET_TICKER:
-        log_trace("from: %s cmd market ticker", nw_sock_human_addr(&ses->peer_addr));
-        ret = on_cmd_market_ticker(ses, pkg, request);
-        if (ret < 0) {
-            log_error("on_cmd_market_ticker fail: %d", ret);
         }
         break;
     default:

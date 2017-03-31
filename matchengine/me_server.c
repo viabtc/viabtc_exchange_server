@@ -513,7 +513,44 @@ static int on_cmd_order_book_merge(nw_ses *ses, rpc_pkg *pkg, json_t *request)
 
 static int on_cmd_market_ticker(nw_ses *ses, rpc_pkg *pkg, json_t *request)
 {
-    return 0;
+    if (json_array_size(request) != 1)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // market
+    if (!json_is_string(json_array_get(request, 0)))
+        return reply_error_invalid_argument(ses, pkg);
+    const char *market_name = json_string_value(json_array_get(request, 0));
+    market_t *market = get_market(market_name);
+    if (market == NULL)
+        return reply_error_invalid_argument(ses, pkg);
+
+    market_update_ticker(market);
+    json_t *result = json_object();
+    json_object_set_new(result, "timestamp", json_integer(market->ticker_update));
+    json_object_set_new(result, "last", json_string(mpd_to_sci(market->last_price, 0)));
+    json_object_set_new(result, "vol", json_string(mpd_to_sci(market->volumes_24hour, 0)));
+
+    skiplist_iter *iter = skiplist_get_iterator(market->bids);
+    skiplist_node *node = skiplist_next(iter);
+    if (node) {
+        order_t *order = node->value;
+        json_object_set_new(result, "bid", json_string(mpd_to_sci(order->price, 0)));
+    } else {
+        json_object_set_new(result, "bid", json_string(mpd_to_sci(mpd_zero, 0)));
+    }
+    skiplist_release_iterator(iter);
+
+    iter = skiplist_get_iterator(market->asks);
+    node = skiplist_next(iter);
+    if (node) {
+        order_t *order = node->value;
+        json_object_set_new(result, "ask", json_string(mpd_to_sci(order->price, 0)));
+    } else {
+        json_object_set_new(result, "ask", json_string(mpd_to_sci(mpd_zero, 0)));
+    }
+    skiplist_release_iterator(iter);
+
+    return reply_result(ses, pkg, result);
 }
 
 static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)

@@ -249,7 +249,7 @@ static void order_finish(market_t *m, order_t *order)
 static void on_timer(nw_timer *timer, void *privdata)
 {
     market_t *market = privdata;
-    market_get_volumes(market);
+    market_update_ticker(market);
     time_t base = time(NULL) - 1;
     dict_iterator *iter = dict_get_iterator(market->volumes);
     dict_entry *entry;
@@ -273,6 +273,7 @@ market_t *market_create(struct market *conf)
         return NULL;
 
     market_t *m = malloc(sizeof(market_t));
+    memset(m, 0, sizeof(market_t));
     assert(m != NULL);
     m->name  = strdup(conf->name);
     m->stock = strdup(conf->stock);
@@ -280,6 +281,8 @@ market_t *market_create(struct market *conf)
     m->stock_prec = conf->stock_prec;
     m->money_prec = conf->money_prec;
     m->fee_prec   = conf->fee_prec;
+    m->last_price = mpd_new(&mpd_ctx);
+    mpd_copy(m->last_price, mpd_zero, &mpd_ctx);
 
     dict_types dt;
     memset(&dt, 0, sizeof(dt));
@@ -320,17 +323,18 @@ market_t *market_create(struct market *conf)
     assert(m->asks != NULL);
     assert(m->bids != NULL);
     
-    nw_timer_set(&m->timer, 1, true, on_timer, m);
+    nw_timer_set(&m->timer, 60, true, on_timer, m);
     nw_timer_start(&m->timer);
 
     return m;
 }
 
-static void update_volumes(market_t *m, time_t timestamp, mpd_t *amount)
+static void update_volumes(market_t *m, time_t timestamp, mpd_t *amount, mpd_t *price)
 {
     time_t now = time(NULL);
     if (timestamp < now - 86400)
         return;
+
     struct dict_volume_key key = { .timestamp = now };
     dict_entry *entry = dict_find(m->volumes, &key);
     if (entry) {
@@ -341,6 +345,7 @@ static void update_volumes(market_t *m, time_t timestamp, mpd_t *amount)
         mpd_copy(volume, amount, &mpd_ctx);
         dict_add(m->volumes, &key, volume);
     }
+    mpd_copy(m->last_price, price, &mpd_ctx);
 }
 
 int execute_limit_ask_order(market_t *m, order_t *order)
@@ -396,7 +401,7 @@ int execute_limit_ask_order(market_t *m, order_t *order)
 
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
-        update_volumes(m, (time_t)order->create_time, amount);
+        update_volumes(m, (time_t)order->create_time, amount, price);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);
@@ -467,7 +472,7 @@ int execute_limit_bid_order(market_t *m, order_t *order)
 
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
-        update_volumes(m, (time_t)order->create_time, amount);
+        update_volumes(m, (time_t)order->create_time, amount, price);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);
@@ -616,7 +621,7 @@ int execute_market_ask_order(market_t *m, order_t *order)
 
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
-        update_volumes(m, (time_t)order->create_time, amount);
+        update_volumes(m, (time_t)order->create_time, amount, price);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);
@@ -687,7 +692,7 @@ int execute_market_bid_order(market_t *m, order_t *order)
 
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
-        update_volumes(m, (time_t)order->create_time, amount);
+        update_volumes(m, (time_t)order->create_time, amount, price);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);
@@ -799,7 +804,7 @@ void market_cancel_order(market_t *m, order_t *order)
     order_finish(m, order);
 }
 
-mpd_t *market_get_volumes(market_t *m)
+void market_update_ticker(market_t *m)
 {
     time_t base = time(NULL) - 1;
     if (m->volumes_24hour == NULL) {
@@ -812,11 +817,11 @@ mpd_t *market_get_volumes(market_t *m)
             }
         }
 
-        m->volumes_update = base;
-        return m->volumes_24hour;
+        m->ticker_update = base;
+        return;
     }
 
-    for (int i = 0; i < (base - m->volumes_update); ++i) {
+    for (int i = 0; i < (base - m->ticker_update); ++i) {
         struct dict_volume_key key = { .timestamp = base - 86400 - i };
         dict_entry *entry = dict_find(m->volumes, &key);
         if (entry) {
@@ -824,7 +829,7 @@ mpd_t *market_get_volumes(market_t *m)
         }
     }
 
-    for (int i = 0; i < (base - m->volumes_update); ++i) {
+    for (int i = 0; i < (base - m->ticker_update); ++i) {
         struct dict_volume_key key = { .timestamp = base - i };
         dict_entry *entry = dict_find(m->volumes, &key);
         if (entry) {
@@ -832,7 +837,7 @@ mpd_t *market_get_volumes(market_t *m)
         }
     }
 
-    m->volumes_update = base;
-    return m->volumes_24hour;
+    m->ticker_update = base;
+    return;
 }
 

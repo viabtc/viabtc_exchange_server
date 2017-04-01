@@ -306,6 +306,10 @@ static int execute_limit_ask_order(market_t *m, order_t *order)
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
 
+        log_debug("market: %s, ask uesr: %u, order: %"PRIu64", bid user: %u, order: %"PRIu64", amount: %s, price: %s, ask fee: %s, bid fee: %s",
+                m->name, order->user_id, order->id, pending->user_id, pending->id,
+                mpd_to_sci(amount, 0), mpd_to_sci(price, 0), mpd_to_sci(ask_fee, 0), mpd_to_sci(bid_fee, 0));
+
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);
         }
@@ -375,6 +379,10 @@ static int execute_limit_bid_order(market_t *m, order_t *order)
 
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
+
+        log_debug("market: %s, ask uesr: %u, order: %"PRIu64", bid user: %u, order: %"PRIu64", amount: %s, price: %s, ask fee: %s, bid fee: %s",
+                m->name, pending->user_id, pending->id, order->user_id, order->id,
+                mpd_to_sci(amount, 0), mpd_to_sci(price, 0), mpd_to_sci(ask_fee, 0), mpd_to_sci(bid_fee, 0));
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);
@@ -510,6 +518,10 @@ static int execute_market_ask_order(market_t *m, order_t *order)
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
 
+        log_debug("market: %s, ask uesr: %u, order: %"PRIu64", bid user: %u, order: %"PRIu64", amount: %s, price: %s, ask fee: %s, bid fee: %s",
+                m->name, order->user_id, order->id, pending->user_id, pending->id,
+                mpd_to_sci(amount, 0), mpd_to_sci(price, 0), mpd_to_sci(ask_fee, 0), mpd_to_sci(bid_fee, 0));
+
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);
         }
@@ -590,6 +602,10 @@ static int execute_market_bid_order(market_t *m, order_t *order)
 
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
+
+        log_debug("market: %s, ask uesr: %u, order: %"PRIu64", bid user: %u, order: %"PRIu64", amount: %s, price: %s, ask fee: %s, bid fee: %s",
+                m->name, pending->user_id, pending->id, order->user_id, order->id,
+                mpd_to_sci(amount, 0), mpd_to_sci(price, 0), mpd_to_sci(ask_fee, 0), mpd_to_sci(bid_fee, 0));
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);

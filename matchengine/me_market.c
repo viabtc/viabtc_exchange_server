@@ -427,7 +427,7 @@ int market_put_limit_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t *
     order->type         = MARKET_ORDER_TYPE_LIMIT;
     order->side         = side;
     order->create_time  = current_timestamp();
-    order->update_time  = current_timestamp();
+    order->update_time  = order->create_time;
     order->market       = strdup(m->name);
     order->user_id      = user_id;
     order->price        = mpd_new(&mpd_ctx);
@@ -646,7 +646,7 @@ int market_put_market_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t 
     order->type         = MARKET_ORDER_TYPE_MARKET;
     order->side         = side;
     order->create_time  = current_timestamp();
-    order->update_time  = current_timestamp();
+    order->update_time  = order->create_time;
     order->market       = strdup(m->name);
     order->user_id      = user_id;
     order->price        = mpd_new(&mpd_ctx);

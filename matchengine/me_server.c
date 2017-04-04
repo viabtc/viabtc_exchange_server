@@ -14,7 +14,7 @@ static rpc_svr *svr;
 
 static int reply_json(nw_ses *ses, rpc_pkg *pkg, const json_t *json)
 {
-    char *message_data = json_dumps(json, 0);
+    char *message_data = json_dumps(json, JSON_INDENT(4));
     if (message_data == NULL)
         return -__LINE__;
     log_trace("connection: %s send: %s", nw_sock_human_addr(&ses->peer_addr), message_data);
@@ -593,7 +593,9 @@ static int on_cmd_order_book_merge(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         order_t *order = node->value;
         mpd_divmod(q, r, order->price, interval, &mpd_ctx);
         mpd_mul(price, q, interval, &mpd_ctx);
-        mpd_add(price, price, interval, &mpd_ctx);
+        if (mpd_cmp(r, mpd_zero, &mpd_ctx) != 0) {
+            mpd_add(price, price, interval, &mpd_ctx);
+        }
         mpd_copy(amount, order->left, &mpd_ctx);
         while ((node = skiplist_next(iter)) != NULL) {
             order = node->value;

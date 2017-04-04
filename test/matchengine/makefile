@@ -1,4 +1,3 @@
-TARGET  := cli.exe
-INCS = -I ../../network -I ../../utils
-LIBS = -L ../../utils -lutils -L ../../network -lnetwork -Wl,-Bstatic -lev -ljansson -lmpdec -Wl,-Bdynamic -lm
-include ../../makefile.inc
+all:
+	gcc -o cli.exe -g -std=gnu99 cli.c -I ../../network -I ../../utils -L ../../utils -lutils -L ../../network -lnetwork -lev -ljansson -lmpdec -lm
+

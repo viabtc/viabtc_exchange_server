@@ -250,6 +250,21 @@ int load_cfg_inetv4_list(json_t *root, const char *key, inetv4_list *cfg)
     return 0;
 }
 
+int load_cfg_mysql(json_t *root,  const char *key, mysql_cfg *cfg)
+{
+    json_t *node = json_object_get(root, key);
+    if (!node || !json_is_object(node))
+        return -__LINE__;
+
+    ERR_RET(read_cfg_str(node, "host", &cfg->host, NULL));
+    ERR_RET(read_cfg_int(node, "port", &cfg->port, false, 3306));
+    ERR_RET(read_cfg_str(node, "user", &cfg->user, NULL));
+    ERR_RET(read_cfg_str(node, "pass", &cfg->pass, NULL));
+    ERR_RET(read_cfg_str(node, "name", &cfg->name, NULL));
+
+    return 0;
+}
+
 int read_cfg_str(json_t *root, const char *key, char **val, const char *default_val)
 {
     json_t *node = json_object_get(root, key);

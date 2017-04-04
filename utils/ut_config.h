@@ -37,6 +37,14 @@ typedef struct inetv4_list {
     struct sockaddr_in *arr;
 } inetv4_list;
 
+typedef struct mysql_cfg {
+    char    *host;
+    int      port;
+    char    *user;
+    char    *pass;
+    char    *name;
+} mysql_cfg;
+
 int parse_inetv4_addr(const char *str, struct sockaddr_in *addr);
 
 int load_cfg_process(json_t *root, const char *key, process_cfg *cfg);
@@ -47,6 +55,7 @@ int load_cfg_rpc_clt(json_t *root, const char *key, rpc_clt_cfg *cfg);
 int load_cfg_rpc_svr(json_t *root, const char *key, rpc_svr_cfg *cfg);
 int load_cfg_cli_svr(json_t *root, const char *key, cli_svr_cfg *cfg);
 int load_cfg_inetv4_list(json_t *root, const char *key, inetv4_list *cfg);
+int load_cfg_mysql(json_t *root,  const char *key, mysql_cfg *cfg);
 
 int read_cfg_str(json_t *root, const char *key, char **val, const char *default_val);
 int read_cfg_int(json_t *root, const char *key, int *val, bool required, int default_val);

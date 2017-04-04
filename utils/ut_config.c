@@ -261,6 +261,7 @@ int load_cfg_mysql(json_t *root,  const char *key, mysql_cfg *cfg)
     ERR_RET(read_cfg_str(node, "user", &cfg->user, NULL));
     ERR_RET(read_cfg_str(node, "pass", &cfg->pass, NULL));
     ERR_RET(read_cfg_str(node, "name", &cfg->name, NULL));
+    ERR_RET(read_cfg_str(node, "charset", &cfg->charset, "utf8"));
 
     return 0;
 }

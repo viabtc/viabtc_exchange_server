@@ -43,6 +43,7 @@ typedef struct mysql_cfg {
     char    *user;
     char    *pass;
     char    *name;
+    char    *charset;
 } mysql_cfg;
 
 int parse_inetv4_addr(const char *str, struct sockaddr_in *addr);

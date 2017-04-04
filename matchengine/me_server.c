@@ -14,7 +14,12 @@ static rpc_svr *svr;
 
 static int reply_json(nw_ses *ses, rpc_pkg *pkg, const json_t *json)
 {
-    char *message_data = json_dumps(json, JSON_INDENT(4));
+    char *message_data;
+    if (settings.debug) {
+        message_data = json_dumps(json, JSON_INDENT(4));
+    } else {
+        message_data = json_dumps(json, 0);
+    }
     if (message_data == NULL)
         return -__LINE__;
     log_trace("connection: %s send: %s", nw_sock_human_addr(&ses->peer_addr), message_data);

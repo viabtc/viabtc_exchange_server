@@ -54,6 +54,8 @@ struct market {
 };
 
 struct settings {
+    bool                debug;
+
     process_cfg         process;
     log_cfg             log;
     rpc_svr_cfg         svr;

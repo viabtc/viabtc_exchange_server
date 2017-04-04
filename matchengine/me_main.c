@@ -6,6 +6,7 @@
 # include "ut_signal.h"
 # include "me_config.h"
 # include "me_cli.h"
+# include "me_log.h"
 # include "me_server.h"
 # include "me_market.h"
 # include "me_balance.h"
@@ -104,6 +105,11 @@ int main(int argc, char *argv[])
     ret = init_cli();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init cli fail: %d", ret);
+    }
+
+    ret = init_log();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init log fail: %d", ret);
     }
 
     ret = init_server();

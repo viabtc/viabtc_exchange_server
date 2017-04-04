@@ -32,6 +32,6 @@ CREATE TABLE `slice_history` (
 
 CREATE TABLE `oper_log_example` (
     `id`            BIGINT UNSIGNED NOT NULL PRIMARY KEY,
-    `t`             VARCHAR(30) NOT NULL,
+    `time`          BIGINT UNSIGNED NOT NULL,
     `detail`        TEXT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

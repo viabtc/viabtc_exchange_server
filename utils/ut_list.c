@@ -120,7 +120,7 @@ void list_rotate(list_t *list)
     list->head = node;
 }
 
-void list_delete(list_t *list, list_node *node)
+void list_del(list_t *list, list_node *node)
 {
     if (node->next) {
         node->next->prev = node->prev;

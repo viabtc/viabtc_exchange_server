@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
     list_iter *iter = list_get_iterator(copy, LIST_START_HEAD);
     while ((node = list_next(iter)) != NULL) {
         printf("%s\n", (char *)node->value);
-        list_delete(copy, node);
+        list_del(copy, node);
     }
     list_release_iterator(iter);
     list_release(copy);

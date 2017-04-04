@@ -173,7 +173,7 @@ static void order_finish(market_t *m, order_t *order)
         list_t *order_list = entry->val;
         list_node *node = list_find(order_list, order);
         if (node) {
-            list_delete(order_list, node);
+            list_del(order_list, node);
         }
     }
         

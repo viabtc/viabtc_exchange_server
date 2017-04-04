@@ -60,6 +60,7 @@ struct settings {
     log_cfg             log;
     rpc_svr_cfg         svr;
     cli_svr_cfg         cli;
+    mysql_cfg           db;
 
     size_t              asset_num;
     struct asset        *assets;

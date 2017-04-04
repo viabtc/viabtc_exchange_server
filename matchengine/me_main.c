@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
         error(EXIT_FAILURE, errno, "init cli fail: %d", ret);
     }
 
-    ret = init_log();
+    ret = init_oper_log();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init log fail: %d", ret);
     }

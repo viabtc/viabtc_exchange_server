@@ -18,6 +18,12 @@
         "heartbeat_check": false
     },
     "cli": "tcp@127.0.0.1:7317",
+    "db": {
+        "host": "localhost",
+        "user": "root",
+        "pass": "shit",
+        "name": "trade_log"
+    },
     "assets": [
         {
             "name": "CNY",

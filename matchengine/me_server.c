@@ -9,6 +9,7 @@
 # include "me_update.h"
 # include "me_market.h"
 # include "me_trade.h"
+# include "me_log.h"
 
 static rpc_svr *svr;
 
@@ -174,6 +175,7 @@ static int on_cmd_balance_update(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         return reply_error_internal_error(ses, pkg);
     }
 
+    append_oper_log("update_balance", request);
     return reply_success(ses, pkg);
 }
 
@@ -254,6 +256,7 @@ static int on_cmd_order_put_limit(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         return reply_error_internal_error(ses, pkg);
     }
 
+    append_oper_log("limit_order", request);
     return reply_success(ses, pkg);
 }
 
@@ -317,6 +320,7 @@ static int on_cmd_order_put_market(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         return reply_error_internal_error(ses, pkg);
     }
 
+    append_oper_log("market_order", request);
     return reply_success(ses, pkg);
 }
 

@@ -78,39 +78,41 @@ static void on_list_free(void *value)
 
 static void flush_log(void)
 {
-    static char *buf = NULL;
-    static size_t buf_size = 1024 * 10;
-    if (buf == NULL) {
-        buf = malloc(buf_size);
+    static sds table_last;
+    if (table_last == NULL) {
+        table_last = sdsempty();
     }
 
     time_t now = time(NULL);
     struct tm *tm = localtime(&now);
     sds table = sdsempty();
-    table = sdscatprintf(table, "oper_log_%04d%02d%02d", 1990 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday);
+    table = sdscatprintf(table, "oper_log_%04d%02d%02d", 1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday);
+
+    if (sdscmp(table_last, table) != 0) {
+        sds create_table_sql = sdsempty();
+        create_table_sql = sdscatprintf(create_table_sql, "CREATE TABLE IF NOT EXISTS `%s` like `oper_log_example`;", table);
+        nw_job_add(job, 0, create_table_sql);
+        sdsclear(table_last);
+        table_last = sdscatsds(table_last, table);
+    }
 
     sds sql = sdsempty();
-    sql = sdscatprintf(sql, "CREATE TABLE IF NOT EXIST `%s` like `oper_log_example`;", table);
     sql = sdscatprintf(sql, "INSERT INTO `%s` (`id`, `time`, `detail`) VALUES ", table);
     sdsfree(table);
 
+    char buf[10240];
     list_node *node;
     list_iter *iter = list_get_iterator(log_list, LIST_START_HEAD);
     while ((node = list_next(iter)) != NULL) {
         struct oper_log *log = node->value;
         size_t detail_len = strlen(log->detail);
-        if (buf_size <= detail_len * 2) {
-            buf_size = detail_len * 2 + 1;
-            buf = realloc(buf, buf_size);
-        }
         mysql_real_escape_string(mysql_conn, buf, log->detail, detail_len);
-        sql = sdscatprintf(sql, "(NULL, %ld, %s)", log->create_time, buf);
+        sql = sdscatprintf(sql, "(NULL, %ld, '%s')", log->create_time, buf);
         if (list_len(log_list) > 1) {
-            sql = sdscatprintf(sql, " ,");
+            sql = sdscatprintf(sql, ", ");
         }
         list_del(log_list, node);
     }
-
     list_release_iterator(iter);
     nw_job_add(job, 0, sql);
 }
@@ -164,6 +166,7 @@ int append_oper_log(const char *method, json_t *params)
     log->detail = json_dumps(detail, 0);
     json_decref(detail);
     list_add_node_tail(log_list, log);
+    log_debug("add log: %s", log->detail);
 
     return 0;
 }

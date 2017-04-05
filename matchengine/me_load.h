@@ -6,5 +6,7 @@
 # ifndef _ME_LOAD_H_
 # define _ME_LOAD_H_
 
+int init_from_db(void);
+
 # endif
 

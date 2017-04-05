@@ -6,9 +6,11 @@
 # ifndef _ME_LOG_LOAD_H_
 # define _ME_LOG_LOAD_H_
 
-int load_orders(const char *table);
-int load_balance(const char *table);
-int load_oper_log(const char *table);
+# include "ut_mysql.h"
+
+int load_orders(MYSQL *conn, const char *table);
+int load_balance(MYSQL *conn, const char *table);
+int load_oper_log(MYSQL *conn, const char *table);
 
 # endif
 

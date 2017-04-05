@@ -81,6 +81,22 @@ static int reply_success(nw_ses *ses, rpc_pkg *pkg)
     return reply_result(ses, pkg, result);
 }
 
+static inline int json_object_set_new_mpd(json_t *obj, const char *key, mpd_t *value)
+{
+    char *str = mpd_to_sci(value, 0);
+    int ret = json_object_set_new(obj, key, json_string(str));
+    free(str);
+    return ret;
+}
+
+static inline int json_array_append_new_mpd(json_t *obj, mpd_t *value)
+{
+    char *str = mpd_to_sci(value, 0);
+    int ret = json_array_append_new(obj, json_string(str));
+    free(str);
+    return ret;
+}
+
 static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *request)
 {
     size_t request_size = json_array_size(request);
@@ -102,14 +118,18 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         json_t *unit = json_object();
 
         mpd_t *available = balance_get(user_id, BALANCE_TYPE_AVAILABLE, asset);
-        char *available_str = mpd_to_sci(available, 0);
-        json_object_set_new(unit, "available", json_string(available == NULL ? "0" : available_str));
-        free(available_str);
+        if (available) {
+            json_object_set_new_mpd(unit, "available", available);
+        } else {
+            json_object_set_new(unit, "available", json_string("0"));
+        }
 
         mpd_t *freeze = balance_get(user_id, BALANCE_TYPE_FREEZE, asset);
-        char *freeze_str = mpd_to_sci(freeze, 0);
-        json_object_set_new(unit, "freeze", json_string(freeze == NULL ? "0" : freeze_str));
-        free(freeze_str);
+        if (freeze) {
+            json_object_set_new_mpd(unit, "freeze", freeze);
+        } else {
+            json_object_set_new(unit, "freeze", json_string("0"));
+        }
 
         json_object_set_new(result, asset, unit);
         return reply_result(ses, pkg, result);
@@ -121,14 +141,18 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         json_t *unit = json_object();
 
         mpd_t *available = balance_get(user_id, BALANCE_TYPE_AVAILABLE, asset);
-        char *available_str = mpd_to_sci(available, 0);
-        json_object_set_new(unit, "available", json_string(available == NULL ? "0" : available_str));
-        free(available_str);
+        if (available) {
+            json_object_set_new_mpd(unit, "available", available);
+        } else {
+            json_object_set_new(unit, "available", json_string("0"));
+        }
 
         mpd_t *freeze = balance_get(user_id, BALANCE_TYPE_FREEZE, asset);
-        char *freeze_str = mpd_to_sci(freeze, 0);
-        json_object_set_new(unit, "freeze", json_string(freeze == NULL ? "0" : freeze_str));
-        free(freeze_str);
+        if (freeze) {
+            json_object_set_new_mpd(unit, "freeze", freeze);
+        } else {
+            json_object_set_new(unit, "freeze", json_string("0"));
+        }
 
         json_object_set_new(result, asset, unit);
     }
@@ -335,22 +359,6 @@ static int on_cmd_order_put_market(nw_ses *ses, rpc_pkg *pkg, json_t *request)
 
     append_oper_log("market_order", request);
     return reply_success(ses, pkg);
-}
-
-static inline int json_object_set_new_mpd(json_t *obj, const char *key, mpd_t *value)
-{
-    char *str = mpd_to_sci(value, 0);
-    int ret = json_object_set_new(obj, key, json_string(str));
-    free(str);
-    return ret;
-}
-
-static inline int json_array_append_new_mpd(json_t *obj, mpd_t *value)
-{
-    char *str = mpd_to_sci(value, 0);
-    int ret = json_array_append_new(obj, json_string(str));
-    free(str);
-    return ret;
 }
 
 static json_t *get_order_info(order_t *order)

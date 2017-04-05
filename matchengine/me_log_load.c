@@ -9,7 +9,7 @@
 # include "me_update.h"
 # include "me_balance.h"
 
-static int do_load_orders(MYSQL *conn, const char *table)
+int load_orders(MYSQL *conn, const char *table)
 {
     size_t query_limit = 1000;
     uint64_t last_id = 0;
@@ -65,7 +65,7 @@ static int do_load_orders(MYSQL *conn, const char *table)
     return 0;
 }
 
-static int do_load_balance(MYSQL *conn, const char *table)
+int load_balance(MYSQL *conn, const char *table)
 {
     size_t query_limit = 1000;
     uint64_t last_id = 0;
@@ -321,7 +321,7 @@ static int load_oper(json_t *detail)
     return ret;
 }
 
-static int do_load_oper_log(MYSQL *conn, const char *table)
+int load_oper_log(MYSQL *conn, const char *table)
 {
     size_t query_limit = 1000;
     uint64_t last_id = 0;
@@ -364,45 +364,6 @@ static int do_load_oper_log(MYSQL *conn, const char *table)
             break;
     }
 
-    return 0;
-}
-
-int load_orders(MYSQL *conn, const char *table)
-{
-    int ret = do_load_orders(conn, table);
-    if (ret < 0) {
-        log_error("do_load_orders table: %s fail: %d", table, ret);
-        mysql_close(conn);
-        return -__LINE__;
-    }
-
-    mysql_close(conn);
-    return 0;
-}
-
-int load_balance(MYSQL *conn, const char *table)
-{
-    int ret = do_load_balance(conn, table);
-    if (ret < 0) {
-        log_error("do_load_balance table: %s fail: %d", table, ret);
-        mysql_close(conn);
-        return -__LINE__;
-    }
-
-    mysql_close(conn);
-    return 0;
-}
-
-int load_oper_log(MYSQL *conn, const char *table)
-{
-    int ret = do_load_oper_log(conn, table);
-    if (ret < 0) {
-        log_error("do_load_oper_log table: %s fail: %d", table, ret);
-        mysql_close(conn);
-        return -__LINE__;
-    }
-
-    mysql_close(conn);
     return 0;
 }
 

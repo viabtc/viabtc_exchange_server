@@ -11,6 +11,14 @@
 # define BALANCE_TYPE_AVAILABLE 1
 # define BALANCE_TYPE_FREEZE    2
 
+extern dict_t *dict_balance;
+
+struct balance_key {
+    uint32_t    user_id;
+    uint32_t    type;
+    char        asset[ASSET_NAME_MAX_LEN + 1];
+};
+
 int init_balance(void);
 int asset_prec(const char *asset);
 bool asset_exist(const char *asset);

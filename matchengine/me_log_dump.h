@@ -6,8 +6,10 @@
 # ifndef _ME_LOG_DUMP_H_
 # define _ME_LOG_DUMP_H_
 
-int dump_orders(const char *table);
-int dump_balance(const char *table);
+# include "ut_mysql.h"
+
+int dump_orders(MYSQL *conn, const char *table);
+int dump_balance(MYSQL *conn, const char *table);
 
 # endif
 

@@ -6,17 +6,11 @@
 # include "me_config.h"
 # include "me_balance.h"
 
+dict_t *dict_balance;
 static dict_t *dict_asset;
-static dict_t *dict_balance;
 
 struct asset_type {
     int         prec;
-};
-
-struct balance_key {
-    uint32_t    user_id;
-    uint32_t    type;
-    char        asset[ASSET_NAME_MAX_LEN + 1];
 };
 
 static uint32_t asset_dict_hash_function(const void *key)
@@ -312,5 +306,6 @@ void balance_traverse(balance_traverse_callback callback, void *privdata)
         mpd_t *val = entry->val;
         callback(key->user_id, key->type, key->asset, val, privdata);
     }
+    dict_release_iterator(iter);
 }
 

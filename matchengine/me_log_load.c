@@ -151,8 +151,6 @@ static int load_update_balance(json_t *params)
     mpd_del(change);
 
     if (ret < 0) {
-        log_error("update_user_balance user: %u, type: %u, asset: %s, business: %s, business_id: %"PRIu64", change: %s fail: %d",
-                user_id, type, asset, business, business_id, mpd_to_sci(change, 0), ret);
         return -__LINE__;
     }
 
@@ -231,8 +229,6 @@ static int load_limit_order(json_t *params)
     mpd_del(fee);
 
     if (ret < 0) {
-        log_error("market_put_limit_order market: %s, user: %u, side: %u, amount: %s, price: %s, fee: %s fail: %d",
-                market_name, user_id, side, mpd_to_sci(amount, 0), mpd_to_sci(price, 0), mpd_to_sci(fee, 0), ret);
         return -__LINE__;
     }
 

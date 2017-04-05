@@ -98,14 +98,20 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         if (asset_exist(asset) < 0)
             return reply_error_invalid_argument(ses, pkg);
 
-        json_t *unit = json_object();
-        mpd_t *available = balance_get(user_id, BALANCE_TYPE_AVAILABLE, asset);
-        json_object_set_new(unit, "available", json_string(available == NULL ? "0" : mpd_to_sci(available, 0)));
-        mpd_t *freeze = balance_get(user_id, BALANCE_TYPE_FREEZE, asset);
-        json_object_set_new(unit, "freeze", json_string(freeze == NULL ? "0" : mpd_to_sci(freeze, 0)));
         json_t *result = json_object();
-        json_object_set_new(result, asset, unit);
+        json_t *unit = json_object();
 
+        mpd_t *available = balance_get(user_id, BALANCE_TYPE_AVAILABLE, asset);
+        char *available_str = mpd_to_sci(available, 0);
+        json_object_set_new(unit, "available", json_string(available == NULL ? "0" : available_str));
+        free(available_str);
+
+        mpd_t *freeze = balance_get(user_id, BALANCE_TYPE_FREEZE, asset);
+        char *freeze_str = mpd_to_sci(freeze, 0);
+        json_object_set_new(unit, "freeze", json_string(freeze == NULL ? "0" : freeze_str));
+        free(freeze_str);
+
+        json_object_set_new(result, asset, unit);
         return reply_result(ses, pkg, result);
     }
 
@@ -113,10 +119,17 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *request)
     for (size_t i = 0; i < settings.asset_num; ++i) {
         const char *asset = settings.assets[i].name;
         json_t *unit = json_object();
+
         mpd_t *available = balance_get(user_id, BALANCE_TYPE_AVAILABLE, asset);
-        json_object_set_new(unit, "available", json_string(available == NULL ? "0" : mpd_to_sci(available, 0)));
+        char *available_str = mpd_to_sci(available, 0);
+        json_object_set_new(unit, "available", json_string(available == NULL ? "0" : available_str));
+        free(available_str);
+
         mpd_t *freeze = balance_get(user_id, BALANCE_TYPE_FREEZE, asset);
-        json_object_set_new(unit, "freeze", json_string(freeze == NULL ? "0" : mpd_to_sci(freeze, 0)));
+        char *freeze_str = mpd_to_sci(freeze, 0);
+        json_object_set_new(unit, "freeze", json_string(freeze == NULL ? "0" : freeze_str));
+        free(freeze_str);
+
         json_object_set_new(result, asset, unit);
     }
 
@@ -324,6 +337,22 @@ static int on_cmd_order_put_market(nw_ses *ses, rpc_pkg *pkg, json_t *request)
     return reply_success(ses, pkg);
 }
 
+static inline int json_object_set_new_mpd(json_t *obj, const char *key, mpd_t *value)
+{
+    char *str = mpd_to_sci(value, 0);
+    int ret = json_object_set_new(obj, key, json_string(str));
+    free(str);
+    return ret;
+}
+
+static inline int json_array_append_new_mpd(json_t *obj, mpd_t *value)
+{
+    char *str = mpd_to_sci(value, 0);
+    int ret = json_array_append_new(obj, json_string(str));
+    free(str);
+    return ret;
+}
+
 static json_t *get_order_info(order_t *order)
 {
     json_t *info = json_object();
@@ -334,13 +363,14 @@ static json_t *get_order_info(order_t *order)
     json_object_set_new(info, "create_time", json_real(order->create_time));
     json_object_set_new(info, "update_time", json_real(order->update_time));
     json_object_set_new(info, "market", json_string(order->market));
-    json_object_set_new(info, "price", json_string(mpd_to_sci(order->price, 0)));
-    json_object_set_new(info, "amount", json_string(mpd_to_sci(order->amount, 0)));
-    json_object_set_new(info, "fee", json_string(mpd_to_sci(order->fee, 0)));
-    json_object_set_new(info, "left", json_string(mpd_to_sci(order->left, 0)));
-    json_object_set_new(info, "deal_stock", json_string(mpd_to_sci(order->deal_stock, 0)));
-    json_object_set_new(info, "deal_money", json_string(mpd_to_sci(order->deal_money, 0)));
-    json_object_set_new(info, "deal_fee", json_string(mpd_to_sci(order->deal_fee, 0)));
+
+    json_object_set_new_mpd(info, "price", order->price);
+    json_object_set_new_mpd(info, "price", order->amount);
+    json_object_set_new_mpd(info, "price", order->fee);
+    json_object_set_new_mpd(info, "price", order->left);
+    json_object_set_new_mpd(info, "price", order->deal_stock);
+    json_object_set_new_mpd(info, "price", order->deal_money);
+    json_object_set_new_mpd(info, "price", order->deal_fee);
 
     return info;
 }
@@ -531,8 +561,8 @@ static int on_cmd_order_book_depth(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         index++;
         order_t *order = node->value;
         json_t *info = json_array();
-        json_array_append_new(info, json_string(mpd_to_sci(order->price, 0)));
-        json_array_append_new(info, json_string(mpd_to_sci(order->left, 0)));
+        json_array_append_new_mpd(info, order->price);
+        json_array_append_new_mpd(info, order->left);
         json_array_append_new(asks, info);
     }
     skiplist_release_iterator(iter);
@@ -544,8 +574,8 @@ static int on_cmd_order_book_depth(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         index++;
         order_t *order = node->value;
         json_t *info = json_array();
-        json_array_append_new(info, json_string(mpd_to_sci(order->price, 0)));
-        json_array_append_new(info, json_string(mpd_to_sci(order->left, 0)));
+        json_array_append_new_mpd(info, order->price);
+        json_array_append_new_mpd(info, order->left);
         json_array_append_new(bids, info);
     }
     skiplist_release_iterator(iter);
@@ -616,8 +646,8 @@ static int on_cmd_order_book_merge(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         }
 
         json_t *info = json_array();
-        json_array_append_new(info, json_string(mpd_to_sci(price, 0)));
-        json_array_append_new(info, json_string(mpd_to_sci(amount, 0)));
+        json_array_append_new_mpd(info, price);
+        json_array_append_new_mpd(info, amount);
         json_array_append_new(asks, info);
     }
     skiplist_release_iterator(iter);
@@ -642,8 +672,8 @@ static int on_cmd_order_book_merge(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         }
 
         json_t *info = json_array();
-        json_array_append_new(info, json_string(mpd_to_sci(price, 0)));
-        json_array_append_new(info, json_string(mpd_to_sci(amount, 0)));
+        json_array_append_new_mpd(info, price);
+        json_array_append_new_mpd(info, amount);
         json_array_append_new(bids, info);
     }
     skiplist_release_iterator(iter);

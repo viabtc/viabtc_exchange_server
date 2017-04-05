@@ -12,7 +12,9 @@ static cli_svr *svr;
 static void on_balance_traverse(uint32_t user_id, uint32_t type, const char *asset, const mpd_t *amount, void *privdata)
 {
     sds *reply = privdata;
-    *reply = sdscatprintf(*reply, "%-10u %-10u %-10s %s\n", user_id, type, asset, mpd_to_sci(amount, 0));
+    char *rstring = mpd_to_sci(amount, 0);
+    *reply = sdscatprintf(*reply, "%-10u %-10u %-10s %s\n", user_id, type, asset, rstring);
+    free(rstring);
 }
 
 static sds on_cmd_balance_list(const char *cmd, int argc, sds *argv)
@@ -35,15 +37,19 @@ static sds on_cmd_balance_get(const char *cmd, int argc, sds *argv)
         const char *asset = settings.assets[i].name;
         mpd_t *result = balance_get(user_id, BALANCE_TYPE_AVAILABLE, asset);
         if (result) {
-            reply = sdscatprintf(reply, "%-10u %-10u %-10s %s\n", user_id, BALANCE_TYPE_AVAILABLE, asset, mpd_to_sci(result, 0));
+            char *rstring = mpd_to_sci(result, 0);
+            reply = sdscatprintf(reply, "%-10u %-10u %-10s %s\n", user_id, BALANCE_TYPE_AVAILABLE, asset, rstring);
+            free(rstring);
         } else {
-            reply = sdscatprintf(reply, "%-10u %-10u %-10s %s\n", user_id, BALANCE_TYPE_AVAILABLE, asset, mpd_to_sci(mpd_zero, 0));
+            reply = sdscatprintf(reply, "%-10u %-10u %-10s %s\n", user_id, BALANCE_TYPE_AVAILABLE, asset, "0");
         }
         result = balance_get(user_id, BALANCE_TYPE_FREEZE, asset);
         if (result) {
-            reply = sdscatprintf(reply, "%-10u %-10u %-10s %s\n", user_id, BALANCE_TYPE_FREEZE, asset, mpd_to_sci(result, 0));
+            char *rstring = mpd_to_sci(result, 0);
+            reply = sdscatprintf(reply, "%-10u %-10u %-10s %s\n", user_id, BALANCE_TYPE_FREEZE, asset, rstring);
+            free(rstring);
         } else {
-            reply = sdscatprintf(reply, "%-10u %-10u %-10s %s\n", user_id, BALANCE_TYPE_FREEZE, asset, mpd_to_sci(mpd_zero, 0));
+            reply = sdscatprintf(reply, "%-10u %-10u %-10s %s\n", user_id, BALANCE_TYPE_FREEZE, asset, "0");
         }
     }
 

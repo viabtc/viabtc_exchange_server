@@ -306,9 +306,18 @@ static int execute_limit_ask_order(market_t *m, order_t *order)
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
 
+        char *str_amount  = mpd_to_sci(amount, 0);
+        char *str_price   = mpd_to_sci(price, 0);
+        char *str_ask_fee = mpd_to_sci(ask_fee, 0);
+        char *str_bid_fee = mpd_to_sci(bid_fee, 0);
+
         log_debug("market: %s, ask uesr: %u, order: %"PRIu64", bid user: %u, order: %"PRIu64", amount: %s, price: %s, ask fee: %s, bid fee: %s",
-                m->name, order->user_id, order->id, pending->user_id, pending->id,
-                mpd_to_sci(amount, 0), mpd_to_sci(price, 0), mpd_to_sci(ask_fee, 0), mpd_to_sci(bid_fee, 0));
+                m->name, order->user_id, order->id, pending->user_id, pending->id, str_amount, str_price, str_ask_fee, str_bid_fee);
+
+        free(str_amount);
+        free(str_price);
+        free(str_ask_fee);
+        free(str_bid_fee);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);
@@ -380,9 +389,18 @@ static int execute_limit_bid_order(market_t *m, order_t *order)
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
 
+        char *str_amount  = mpd_to_sci(amount, 0);
+        char *str_price   = mpd_to_sci(price, 0);
+        char *str_ask_fee = mpd_to_sci(ask_fee, 0);
+        char *str_bid_fee = mpd_to_sci(bid_fee, 0);
+
         log_debug("market: %s, ask uesr: %u, order: %"PRIu64", bid user: %u, order: %"PRIu64", amount: %s, price: %s, ask fee: %s, bid fee: %s",
-                m->name, pending->user_id, pending->id, order->user_id, order->id,
-                mpd_to_sci(amount, 0), mpd_to_sci(price, 0), mpd_to_sci(ask_fee, 0), mpd_to_sci(bid_fee, 0));
+                m->name, pending->user_id, pending->id, order->user_id, order->id, str_amount, str_price, str_ask_fee, str_bid_fee);
+
+        free(str_amount);
+        free(str_price);
+        free(str_ask_fee);
+        free(str_bid_fee);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);
@@ -518,9 +536,18 @@ static int execute_market_ask_order(market_t *m, order_t *order)
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
 
+        char *str_amount  = mpd_to_sci(amount, 0);
+        char *str_price   = mpd_to_sci(price, 0);
+        char *str_ask_fee = mpd_to_sci(ask_fee, 0);
+        char *str_bid_fee = mpd_to_sci(bid_fee, 0);
+
         log_debug("market: %s, ask uesr: %u, order: %"PRIu64", bid user: %u, order: %"PRIu64", amount: %s, price: %s, ask fee: %s, bid fee: %s",
-                m->name, order->user_id, order->id, pending->user_id, pending->id,
-                mpd_to_sci(amount, 0), mpd_to_sci(price, 0), mpd_to_sci(ask_fee, 0), mpd_to_sci(bid_fee, 0));
+                m->name, order->user_id, order->id, pending->user_id, pending->id, str_amount, str_price, str_ask_fee, str_bid_fee);
+
+        free(str_amount);
+        free(str_price);
+        free(str_ask_fee);
+        free(str_bid_fee);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);
@@ -603,9 +630,18 @@ static int execute_market_bid_order(market_t *m, order_t *order)
         order->update_time = current_timestamp();
         pending->update_time = current_timestamp();
 
+        char *str_amount  = mpd_to_sci(amount, 0);
+        char *str_price   = mpd_to_sci(price, 0);
+        char *str_ask_fee = mpd_to_sci(ask_fee, 0);
+        char *str_bid_fee = mpd_to_sci(bid_fee, 0);
+
         log_debug("market: %s, ask uesr: %u, order: %"PRIu64", bid user: %u, order: %"PRIu64", amount: %s, price: %s, ask fee: %s, bid fee: %s",
-                m->name, pending->user_id, pending->id, order->user_id, order->id,
-                mpd_to_sci(amount, 0), mpd_to_sci(price, 0), mpd_to_sci(ask_fee, 0), mpd_to_sci(bid_fee, 0));
+                m->name, pending->user_id, pending->id, order->user_id, order->id, str_amount, str_price, str_ask_fee, str_bid_fee);
+
+        free(str_amount);
+        free(str_price);
+        free(str_ask_fee);
+        free(str_bid_fee);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
             order_finish(m, pending);

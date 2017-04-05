@@ -6,9 +6,7 @@
 # include "me_log.h"
 # include "nw_job.h"
 # include "ut_list.h"
-
-# include <mysql/mysql.h>
-# include <mysql/errmsg.h>
+# include "ut_mysql.h"
 
 static MYSQL *mysql_conn;
 static nw_job *job;
@@ -22,20 +20,7 @@ struct oper_log {
 
 static void *on_job_init(void)
 {
-    MYSQL *conn = mysql_init(NULL);
-    if (conn == NULL)
-        return NULL;
-
-    my_bool reconnect = 1;
-    if (mysql_options(conn, MYSQL_OPT_RECONNECT, &reconnect) != 0)
-        return NULL;
-    if (mysql_options(conn, MYSQL_SET_CHARSET_NAME, settings.db.charset) != 0)
-        return NULL;
-    if (mysql_real_connect(conn, settings.db.host, settings.db.user, settings.db.pass,
-                settings.db.name, settings.db.port, NULL, 0) == NULL)
-        return NULL;
-
-    return conn;
+    return mysql_connect(&settings.db);
 }
 
 static void on_job(nw_job_entry *entry, void *privdata)
@@ -90,7 +75,7 @@ static void flush_log(void)
 
     if (sdscmp(table_last, table) != 0) {
         sds create_table_sql = sdsempty();
-        create_table_sql = sdscatprintf(create_table_sql, "CREATE TABLE IF NOT EXISTS `%s` like `oper_log_example`;", table);
+        create_table_sql = sdscatprintf(create_table_sql, "CREATE TABLE IF NOT EXISTS `%s` like `oper_log_example`", table);
         nw_job_add(job, 0, create_table_sql);
         sdsclear(table_last);
         table_last = sdscatsds(table_last, table);

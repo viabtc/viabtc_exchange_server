@@ -6,5 +6,8 @@
 # ifndef _ME_LOG_DUMP_H_
 # define _ME_LOG_DUMP_H_
 
+int dump_orders(const char *table);
+int dump_balance(const char *table);
+
 # endif
 

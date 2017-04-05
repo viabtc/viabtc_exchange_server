@@ -35,7 +35,10 @@ mpd_t *decimal(const char *str, int prec)
         return NULL;
     }
 
-    mpd_rescale(result, result, -prec, &mpd_ctx);
+    if (prec) {
+        mpd_rescale(result, result, -prec, &mpd_ctx);
+    }
+
     return result;
 }
 

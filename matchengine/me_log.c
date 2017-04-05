@@ -26,20 +26,15 @@ static void *on_job_init(void)
 static void on_job(nw_job_entry *entry, void *privdata)
 {
     MYSQL *conn = privdata;
-    const char *sql = entry->request;
+    sds sql = entry->request;
     log_trace("exec sql: %s", sql);
     while (true) {
-        int ret = mysql_real_query(conn, sql, (unsigned long)strlen(sql));
+        int ret = mysql_real_query(conn, sql, sdslen(sql));
         if (ret != 0) {
-            unsigned errcode = mysql_errno(conn);
-            log_error("exec sql: %s fail: %u %s", sql, errcode, (char *)mysql_error(conn));
+            log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
             usleep(1000 * 1000);
             continue;
         }
-
-        MYSQL_RES *result = mysql_store_result(conn);
-        if (result != NULL)
-            mysql_free_result(result);
         break;
     }
 }

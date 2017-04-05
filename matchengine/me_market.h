@@ -56,6 +56,8 @@ int market_put_market_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t 
 
 list_t *market_get_order_list(market_t *m, uint32_t user_id);
 order_t *market_get_order(market_t *m, uint64_t id);
+
+void market_put_order(market_t *m, order_t *order);
 void market_cancel_order(market_t *m, order_t *order);
 
 # endif

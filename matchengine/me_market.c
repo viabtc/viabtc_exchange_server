@@ -111,7 +111,7 @@ static int order_equality(const void *value1, const void *value2)
     return 1;
 }
 
-void order_free(order_t *order)
+static void order_free(order_t *order)
 {
     mpd_del(order->price);
     mpd_del(order->amount);
@@ -699,6 +699,11 @@ list_t *market_get_order_list(market_t *m, uint32_t user_id)
         return entry->val;
     }
     return NULL;
+}
+
+void market_put_order(market_t *m, order_t *order)
+{
+    order_put(m, order);
 }
 
 void market_cancel_order(market_t *m, order_t *order)

@@ -561,32 +561,59 @@ static int on_cmd_order_book_depth(nw_ses *ses, rpc_pkg *pkg, json_t *request)
     if (limit > ORDER_BOOK_MAX_LEN)
         return reply_error_invalid_argument(ses, pkg);
 
+    mpd_t *price = mpd_new(&mpd_ctx);
+    mpd_t *amount = mpd_new(&mpd_ctx);
+
     json_t *asks = json_array();
     skiplist_iter *iter = skiplist_get_iterator(market->asks);
-    skiplist_node *node;
+    skiplist_node *node = skiplist_next(iter);
     size_t index = 0;
-    while ((node = skiplist_next(iter)) != NULL && index < limit) {
+    while (node && index < limit) {
         index++;
         order_t *order = node->value;
+        mpd_copy(price, order->price, &mpd_ctx);
+        mpd_copy(amount, order->left, &mpd_ctx);
+        while ((node = skiplist_next(iter)) != NULL) {
+            order = node->value;
+            if (mpd_cmp(price, order->price, &mpd_ctx) == 0) {
+                mpd_add(amount, amount, order->left, &mpd_ctx);
+            } else {
+                break;
+            }
+        }
         json_t *info = json_array();
-        json_array_append_new_mpd(info, order->price);
-        json_array_append_new_mpd(info, order->left);
+        json_array_append_new_mpd(info, price);
+        json_array_append_new_mpd(info, amount);
         json_array_append_new(asks, info);
     }
     skiplist_release_iterator(iter);
 
     json_t *bids = json_array();
     iter = skiplist_get_iterator(market->bids);
+    node = skiplist_next(iter);
     index = 0;
-    while ((node = skiplist_next(iter)) != NULL) {
+    while (node && index < limit) {
         index++;
         order_t *order = node->value;
+        mpd_copy(price, order->price, &mpd_ctx);
+        mpd_copy(amount, order->left, &mpd_ctx);
+        while ((node = skiplist_next(iter)) != NULL) {
+            order = node->value;
+            if (mpd_cmp(price, order->price, &mpd_ctx) == 0) {
+                mpd_add(amount, amount, order->left, &mpd_ctx);
+            } else {
+                break;
+            }
+        }
         json_t *info = json_array();
-        json_array_append_new_mpd(info, order->price);
-        json_array_append_new_mpd(info, order->left);
+        json_array_append_new_mpd(info, price);
+        json_array_append_new_mpd(info, amount);
         json_array_append_new(bids, info);
     }
     skiplist_release_iterator(iter);
+
+    mpd_del(price);
+    mpd_del(amount);
 
     json_t *result = json_object();
     json_object_set_new(result, "asks", asks);
@@ -652,7 +679,6 @@ static int on_cmd_order_book_merge(nw_ses *ses, rpc_pkg *pkg, json_t *request)
                 break;
             }
         }
-
         json_t *info = json_array();
         json_array_append_new_mpd(info, price);
         json_array_append_new_mpd(info, amount);

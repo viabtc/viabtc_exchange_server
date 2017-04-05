@@ -3,10 +3,10 @@
  *     History: yang@haipo.me, 2017/04/04, create
  */
 
+# include "ut_mysql.h"
 # include "me_trade.h"
 # include "me_market.h"
 # include "me_balance.h"
-# include "me_log_dump.h"
 
 static sds sql_append_mpd(sds sql, mpd_t *val, bool comma)
 {
@@ -116,6 +116,49 @@ int dump_orders(MYSQL *conn, const char *table)
         }
     }
 
+    return 0;
+}
+
+int dump_markets(MYSQL *conn, const char *table)
+{
+    sds sql = sdsempty();
+    sql = sdscatprintf(sql, "DROP TABLE IF EXISTS `%s`", table);
+    log_trace("exec sql: %s", sql);
+    int ret = mysql_real_query(conn, sql, sdslen(sql));
+    if (ret != 0) {
+        log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+        sdsfree(sql);
+        return -__LINE__;
+    }
+
+    sdsclear(sql);
+    sql = sdscatprintf(sql, "CREATE TABLE IF NOT EXISTS `%s` LIKE `slice_market_example`", table);
+    log_trace("exec sql: %s", sql);
+    ret = mysql_real_query(conn, sql, sdslen(sql));
+    if (ret != 0) {
+        log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+        sdsfree(sql);
+        return -__LINE__;
+    }
+
+    for (size_t i = 0; i < settings.market_num; ++i) {
+        market_t *market = get_market(settings.markets[i].name);
+        if (market == NULL)
+            return -__LINE__;
+
+        sdsclear(sql);
+        sql = sdscatprintf(sql, "INSERT INTO `%s` (`id`, `market`, `id_start`) VALUES (NULL, '%s', %"PRIu64")",
+                table, market->name, market->id_start);
+        log_trace("exec sql: %s", sql);
+        int ret = mysql_real_query(conn, sql, sdslen(sql));
+        if (ret != 0) {
+            log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+            sdsfree(sql);
+            return -__LINE__;
+        }
+    }
+
+    sdsfree(sql);
     return 0;
 }
 

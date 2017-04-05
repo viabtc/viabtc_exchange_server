@@ -5,8 +5,8 @@
 
 # include "me_config.h"
 # include "me_persist.h"
-# include "me_log_load.h"
-# include "me_log_dump.h"
+# include "me_load.h"
+# include "me_dump.h"
 
 static time_t get_today_start(void)
 {
@@ -53,19 +53,29 @@ static int load_slice_from_db(MYSQL *conn, time_t start)
 {
     struct tm *t = localtime(&start);
     sds table = sdsempty();
-    table = sdscatprintf(table, "slice_balance_%04d%02d%02d", 1900 + t->tm_year, 1 + t->tm_mon, t->tm_mday);
-    int ret = load_balance(conn, table);
+
+    table = sdscatprintf(table, "slice_order_%04d%02d%02d", 1900 + t->tm_year, 1 + t->tm_mon, t->tm_mday);
+    int ret = load_orders(conn, table);
     if (ret < 0) {
-        log_error("load_balance from %s fail: %d", table, ret);
+        log_error("load_orders from %s fail: %d", table, ret);
         sdsfree(table);
         return -__LINE__;
     }
 
     sdsclear(table);
-    table = sdscatprintf(table, "slice_order_%04d%02d%02d", 1900 + t->tm_year, 1 + t->tm_mon, t->tm_mday);
-    ret = load_orders(conn, table);
+    table = sdscatprintf(table, "slice_market_%04d%02d%02d", 1900 + t->tm_year, 1 + t->tm_mon, t->tm_mday);
+    ret = load_markets(conn, table);
     if (ret < 0) {
-        log_error("load_orders from %s fail: %d", table, ret);
+        log_error("load_markets from %s fail: %d", table, ret);
+        sdsfree(table);
+        return -__LINE__;
+    }
+
+    sdsclear(table);
+    table = sdscatprintf(table, "slice_balance_%04d%02d%02d", 1900 + t->tm_year, 1 + t->tm_mon, t->tm_mday);
+    ret = load_balance(conn, table);
+    if (ret < 0) {
+        log_error("load_balance from %s fail: %d", table, ret);
         sdsfree(table);
         return -__LINE__;
     }
@@ -123,22 +133,6 @@ int init_from_db(void)
     return 0;
 }
 
-static int dump_balance_to_db(MYSQL *conn, time_t start)
-{
-    struct tm *t = localtime(&start);
-    sds table = sdsempty();
-    table = sdscatprintf(table, "slice_balance_%04d%02d%02d", 1900 + t->tm_year, 1 + t->tm_mon, t->tm_mday);
-    int ret = dump_balance(conn, table);
-    if (ret < 0) {
-        log_error("dump_balance to %s fail: %d", table, ret);
-        sdsfree(table);
-        return -__LINE__;
-    }
-
-    sdsfree(table);
-    return 0;
-}
-
 static int dump_order_to_db(MYSQL *conn, time_t start)
 {
     struct tm *t = localtime(&start);
@@ -147,6 +141,38 @@ static int dump_order_to_db(MYSQL *conn, time_t start)
     int ret = dump_orders(conn, table);
     if (ret < 0) {
         log_error("dump_orders to %s fail: %d", table, ret);
+        sdsfree(table);
+        return -__LINE__;
+    }
+
+    sdsfree(table);
+    return 0;
+}
+
+static int dump_market_to_db(MYSQL *conn, time_t start)
+{
+    struct tm *t = localtime(&start);
+    sds table = sdsempty();
+    table = sdscatprintf(table, "slice_market_%04d%02d%02d", 1900 + t->tm_year, 1 + t->tm_mon, t->tm_mday);
+    int ret = dump_markets(conn, table);
+    if (ret < 0) {
+        log_error("dump_markets to %s fail: %d", table, ret);
+        sdsfree(table);
+        return -__LINE__;
+    }
+
+    sdsfree(table);
+    return 0;
+}
+
+static int dump_balance_to_db(MYSQL *conn, time_t start)
+{
+    struct tm *t = localtime(&start);
+    sds table = sdsempty();
+    table = sdscatprintf(table, "slice_balance_%04d%02d%02d", 1900 + t->tm_year, 1 + t->tm_mon, t->tm_mday);
+    int ret = dump_balance(conn, table);
+    if (ret < 0) {
+        log_error("dump_balance to %s fail: %d", table, ret);
         sdsfree(table);
         return -__LINE__;
     }
@@ -207,12 +233,17 @@ int dump_to_db(void)
         }
     }
 
-    ret = dump_balance_to_db(conn, yestarday);
+    ret = dump_order_to_db(conn, yestarday);
     if (ret < 0) {
         return ret;
     }
 
-    ret = dump_order_to_db(conn, yestarday);
+    ret = dump_market_to_db(conn, yestarday);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = dump_balance_to_db(conn, yestarday);
     if (ret < 0) {
         return ret;
     }

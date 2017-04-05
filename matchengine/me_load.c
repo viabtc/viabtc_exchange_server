@@ -65,6 +65,33 @@ int load_orders(MYSQL *conn, const char *table)
     return 0;
 }
 
+int load_markets(MYSQL *conn, const char *table)
+{
+    sds sql = sdsempty();
+    sql = sdscatprintf(sql, "SELECT `market`, `id_start` from `%s`", table);
+    log_trace("exec sql: %s", sql);
+    int ret = mysql_real_query(conn, sql, sdslen(sql));
+    if (ret != 0) {
+        log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+        sdsfree(sql);
+        return -__LINE__;
+    }
+    sdsfree(sql);
+
+    MYSQL_RES *result = mysql_store_result(conn);
+    size_t num_rows = mysql_num_rows(result);
+    for (size_t i = 0; i < num_rows; ++i) {
+        MYSQL_ROW row = mysql_fetch_row(result);
+        market_t *market = get_market(row[0]);
+        if (market == NULL)
+            continue;
+        market->id_start = strtoull(row[1], NULL, 0);
+    }
+    mysql_free_result(result);
+
+    return 0;
+}
+
 int load_balance(MYSQL *conn, const char *table)
 {
     size_t query_limit = 1000;

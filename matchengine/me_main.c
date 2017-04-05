@@ -12,8 +12,7 @@
 # include "me_balance.h"
 # include "me_update.h"
 # include "me_trade.h"
-# include "me_load.h"
-# include "me_dump.h"
+# include "me_persist.h"
 
 const char *__process__ = "matchengine";
 const char *__version__ = "0.1.0";
@@ -59,11 +58,15 @@ int main(int argc, char *argv[])
 {
     printf("process: %s version: %s, compile date: %s %s\n", __process__, __version__, __DATE__, __TIME__);
 
-    if (argc != 2) {
-        printf("usage: %s config.json\n", argv[0]);
+    if (argc < 2) {
+        printf("usage: %s config.json [dump]\n", argv[0]);
         exit(EXIT_FAILURE);
     }
-    if (process_exist(__process__) != 0) {
+    bool is_dump = false;
+    if (argc == 3 && strcmp(argv[2], "dump") == 0) {
+        is_dump = true;
+    }
+    if (!is_dump && process_exist(__process__) != 0) {
         printf("process: %s exist\n", __process__);
         exit(EXIT_FAILURE);
     }
@@ -97,6 +100,16 @@ int main(int argc, char *argv[])
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init trade fail: %d", ret);
     }
+
+    if (is_dump) {
+        int ret = dump_to_db();
+        if (ret < 0) {
+            error(EXIT_FAILURE, errno, "dump to db fail: %d", ret);
+        }
+
+        return 0;
+    }
+
     ret = init_from_db();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init from db fail: %d", ret);

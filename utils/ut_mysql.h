@@ -11,6 +11,7 @@
 # include <mysql/errmsg.h>
 
 MYSQL *mysql_connect(mysql_cfg *cfg);
+bool is_table_exists(MYSQL *conn, const char *table);
 
 # endif
 

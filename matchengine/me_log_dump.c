@@ -79,9 +79,19 @@ static int dump_orders_list(MYSQL *conn, const char *table, skiplist_t *list)
 int dump_orders(MYSQL *conn, const char *table)
 {
     sds sql = sdsempty();
-    sql = sdscatprintf(sql, "CREATE TABLE IF NOT EXIST `%s` LIKE `slice_order_example`", table);
+    sql = sdscatprintf(sql, "DROP TABLE IF EXISTS `%s`", table);
     log_trace("exec sql: %s", sql);
     int ret = mysql_real_query(conn, sql, sdslen(sql));
+    if (ret != 0) {
+        log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+        sdsfree(sql);
+        return -__LINE__;
+    }
+    sdsclear(sql);
+
+    sql = sdscatprintf(sql, "CREATE TABLE IF NOT EXISTS `%s` LIKE `slice_order_example`", table);
+    log_trace("exec sql: %s", sql);
+    ret = mysql_real_query(conn, sql, sdslen(sql));
     if (ret != 0) {
         log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
         sdsfree(sql);
@@ -161,9 +171,19 @@ static int dump_balance_dict(MYSQL *conn, const char *table, dict_t *dict)
 int dump_balance(MYSQL *conn, const char *table)
 {
     sds sql = sdsempty();
-    sql = sdscatprintf(sql, "CREATE TABLE IF NOT EXIST `%s` LIKE `slice_balance_example`", table);
+    sql = sdscatprintf(sql, "DROP TABLE IF EXISTS `%s`", table);
     log_trace("exec sql: %s", sql);
     int ret = mysql_real_query(conn, sql, sdslen(sql));
+    if (ret != 0) {
+        log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+        sdsfree(sql);
+        return -__LINE__;
+    }
+    sdsclear(sql);
+
+    sql = sdscatprintf(sql, "CREATE TABLE IF NOT EXISTS `%s` LIKE `slice_balance_example`", table);
+    log_trace("exec sql: %s", sql);
+    ret = mysql_real_query(conn, sql, sdslen(sql));
     if (ret != 0) {
         log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
         sdsfree(sql);

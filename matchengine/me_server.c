@@ -373,12 +373,12 @@ static json_t *get_order_info(order_t *order)
     json_object_set_new(info, "market", json_string(order->market));
 
     json_object_set_new_mpd(info, "price", order->price);
-    json_object_set_new_mpd(info, "price", order->amount);
-    json_object_set_new_mpd(info, "price", order->fee);
-    json_object_set_new_mpd(info, "price", order->left);
-    json_object_set_new_mpd(info, "price", order->deal_stock);
-    json_object_set_new_mpd(info, "price", order->deal_money);
-    json_object_set_new_mpd(info, "price", order->deal_fee);
+    json_object_set_new_mpd(info, "amount", order->amount);
+    json_object_set_new_mpd(info, "fee", order->fee);
+    json_object_set_new_mpd(info, "left", order->left);
+    json_object_set_new_mpd(info, "deal_stock", order->deal_stock);
+    json_object_set_new_mpd(info, "deal_money", order->deal_money);
+    json_object_set_new_mpd(info, "deal_fee", order->deal_fee);
 
     return info;
 }

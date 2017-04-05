@@ -4,8 +4,9 @@
  */
 
 # include "me_config.h"
-# include "me_load.h"
+# include "me_persist.h"
 # include "me_log_load.h"
+# include "me_log_dump.h"
 
 static time_t get_today_start(void)
 {
@@ -69,6 +70,7 @@ static int load_slice_from_db(MYSQL *conn, time_t start)
         return -__LINE__;
     }
 
+    sdsfree(table);
     return 0;
 }
 
@@ -77,6 +79,10 @@ static int load_oper_log_from_db(MYSQL *conn, time_t start)
     struct tm *t = localtime(&start);
     sds table = sdsempty();
     table = sdscatprintf(table, "oper_log_%04d%02d%02d", 1900 + t->tm_year, 1 + t->tm_mon, t->tm_mday);
+    if (!is_table_exists(conn, table)) {
+        return 0;
+    }
+
     int ret = load_oper_log(conn, table);
     if (ret < 0) {
         log_error("load_oper_log from %s fail: %d", table, ret);
@@ -84,6 +90,7 @@ static int load_oper_log_from_db(MYSQL *conn, time_t start)
         return -__LINE__;
     }
 
+    sdsfree(table);
     return 0;
 }
 
@@ -110,6 +117,109 @@ int init_from_db(void)
         if (ret < 0) {
             return ret;
         }
+        start += 86400;
+    }
+
+    return 0;
+}
+
+static int dump_balance_to_db(MYSQL *conn, time_t start)
+{
+    struct tm *t = localtime(&start);
+    sds table = sdsempty();
+    table = sdscatprintf(table, "slice_balance_%04d%02d%02d", 1900 + t->tm_year, 1 + t->tm_mon, t->tm_mday);
+    int ret = dump_balance(conn, table);
+    if (ret < 0) {
+        log_error("dump_balance to %s fail: %d", table, ret);
+        sdsfree(table);
+        return -__LINE__;
+    }
+
+    sdsfree(table);
+    return 0;
+}
+
+static int dump_order_to_db(MYSQL *conn, time_t start)
+{
+    struct tm *t = localtime(&start);
+    sds table = sdsempty();
+    table = sdscatprintf(table, "slice_order_%04d%02d%02d", 1900 + t->tm_year, 1 + t->tm_mon, t->tm_mday);
+    int ret = dump_orders(conn, table);
+    if (ret < 0) {
+        log_error("dump_orders to %s fail: %d", table, ret);
+        sdsfree(table);
+        return -__LINE__;
+    }
+
+    sdsfree(table);
+    return 0;
+}
+
+int update_slice_history(MYSQL *conn, time_t start)
+{
+    struct tm *t = localtime(&start);
+    time_t now = time(NULL);
+    sds sql = sdsempty();
+    sql = sdscatprintf(sql, "INSERT INTO `slice_history` (`id`, `time`, `end_date`) VALUES (NULL, %ld, '%04d-%02d-%02d')",
+            now, 1900 + t->tm_year, 1 + t->tm_mon, t->tm_mday);
+    log_trace("exec sql: %s", sql);
+    int ret = mysql_real_query(conn, sql, sdslen(sql));
+    if (ret < 0) {
+        log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+        sdsfree(sql);
+        return -__LINE__;
+    }
+
+    sdsfree(sql);
+    return 0;
+}
+
+int dump_to_db(void)
+{
+    MYSQL *conn = mysql_connect(&settings.db);
+    if (conn == NULL)
+        return -__LINE__;
+
+    time_t yestarday = get_today_start() - 86400;
+    time_t last_slice = get_last_slice(conn);
+    if (last_slice == yestarday)
+        return 0;
+
+    int ret;
+    if (last_slice == 0) {
+        ret = load_oper_log_from_db(conn, yestarday);
+        if (ret < 0) {
+            return ret;
+        }
+    } else {
+        ret = load_slice_from_db(conn, last_slice);
+        if (ret < 0) {
+            return ret;
+        }
+
+        time_t start = last_slice + 86400;
+        while (start <= yestarday) {
+            ret = load_oper_log_from_db(conn, start);
+            if (ret < 0) {
+                return ret;
+            }
+            start += 86400;
+        }
+    }
+
+    ret = dump_balance_to_db(conn, yestarday);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = dump_order_to_db(conn, yestarday);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = update_slice_history(conn, yestarday);
+    if (ret < 0) {
+        return ret;
     }
 
     return 0;

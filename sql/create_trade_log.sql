@@ -24,6 +24,12 @@ CREATE TABLE `slice_order_example` (
     `deal_fee`      DECIMAL(30,10) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+CREATE TABLE `slice_market_example` (
+    `id`            INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    `market`        VARCHAR(30) NOT NULL,
+    `id_start`      BIGINT UNSIGNED NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 CREATE TABLE `slice_history` (
     `id`            INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
     `time`          BIGINT UNSIGNED NOT NULL,

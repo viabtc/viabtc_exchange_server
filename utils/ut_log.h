@@ -155,6 +155,8 @@ enum {
     DLOG_USER2  = 0x100,
 };
 
+# define log_stderr(fmt, args...) dlog_stderr("%s:%i(%s): " fmt, __FILE__, __LINE__, __func__, ##args);
+
 # define loga(fmt, args...) do { \
     if (default_dlog) { \
         dlog(default_dlog, fmt, ##args); \

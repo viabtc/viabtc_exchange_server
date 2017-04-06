@@ -6,8 +6,6 @@
 # ifndef _UT_SKIPLIST_H_
 # define _UT_SKIPLIST_H_
 
-# include <stdbool.h>
-
 typedef struct skiplist_node {
     void *value;
     struct skiplist_node *forward[];

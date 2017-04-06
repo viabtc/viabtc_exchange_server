@@ -31,8 +31,5 @@ mpd_t *balance_sub(uint32_t user_id, uint32_t type, const char *asset, mpd_t *am
 mpd_t *balance_freeze(uint32_t user_id, const char *asset, mpd_t *amount);
 mpd_t *balance_unfreeze(uint32_t user_id, const char *asset, mpd_t *amount);
 
-typedef void (*balance_traverse_callback)(uint32_t user_id, uint32_t type, const char *asset, const mpd_t *amount, void *privdata);
-void balance_traverse(balance_traverse_callback callback, void *privdata);
-
 # endif
 

@@ -297,15 +297,3 @@ mpd_t *balance_unfreeze(uint32_t user_id, const char *asset, mpd_t *amount)
     return freeze;
 }
 
-void balance_traverse(balance_traverse_callback callback, void *privdata)
-{
-    dict_iterator *iter = dict_get_iterator(dict_balance);
-    dict_entry *entry;
-    while ((entry = dict_next(iter)) != NULL) {
-        struct balance_key *key = entry->key;
-        mpd_t *val = entry->val;
-        callback(key->user_id, key->type, key->asset, val, privdata);
-    }
-    dict_release_iterator(iter);
-}
-

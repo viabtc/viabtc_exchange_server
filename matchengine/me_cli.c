@@ -3,25 +3,28 @@
  *     History: yang@haipo.me, 2017/03/17, create
  */
 
+# include "me_cli.h"
 # include "me_config.h"
 # include "me_balance.h"
-# include "me_cli.h"
 
 static cli_svr *svr;
-
-static void on_balance_traverse(uint32_t user_id, uint32_t type, const char *asset, const mpd_t *amount, void *privdata)
-{
-    sds *reply = privdata;
-    char *rstring = mpd_to_sci(amount, 0);
-    *reply = sdscatprintf(*reply, "%-10u %-10u %-10s %s\n", user_id, type, asset, rstring);
-    free(rstring);
-}
 
 static sds on_cmd_balance_list(const char *cmd, int argc, sds *argv)
 {
     sds reply = sdsempty();
     reply = sdscatprintf(reply, "%-10s %-10s %-10s %s\n", "user", "type", "asset", "amount");
-    balance_traverse(on_balance_traverse, &reply);
+
+    dict_iterator *iter = dict_get_iterator(dict_balance);
+    dict_entry *entry;
+    while ((entry = dict_next(iter)) != NULL) {
+        struct balance_key *key = entry->key;
+        mpd_t *val = entry->val;
+        char *str = mpd_to_sci(val, 0);
+        reply = sdscatprintf(reply, "%-10u %-10u %-10s %s\n", key->user_id, key->type, key->asset, str);
+        free(str);
+    }
+    dict_release_iterator(iter);
+
     return reply;
 }
 
@@ -37,17 +40,17 @@ static sds on_cmd_balance_get(const char *cmd, int argc, sds *argv)
         const char *asset = settings.assets[i].name;
         mpd_t *result = balance_get(user_id, BALANCE_TYPE_AVAILABLE, asset);
         if (result) {
-            char *rstring = mpd_to_sci(result, 0);
-            reply = sdscatprintf(reply, "%-10u %-10u %-10s %s\n", user_id, BALANCE_TYPE_AVAILABLE, asset, rstring);
-            free(rstring);
+            char *str = mpd_to_sci(result, 0);
+            reply = sdscatprintf(reply, "%-10u %-10u %-10s %s\n", user_id, BALANCE_TYPE_AVAILABLE, asset, str);
+            free(str);
         } else {
             reply = sdscatprintf(reply, "%-10u %-10u %-10s %s\n", user_id, BALANCE_TYPE_AVAILABLE, asset, "0");
         }
         result = balance_get(user_id, BALANCE_TYPE_FREEZE, asset);
         if (result) {
-            char *rstring = mpd_to_sci(result, 0);
-            reply = sdscatprintf(reply, "%-10u %-10u %-10s %s\n", user_id, BALANCE_TYPE_FREEZE, asset, rstring);
-            free(rstring);
+            char *str = mpd_to_sci(result, 0);
+            reply = sdscatprintf(reply, "%-10u %-10u %-10s %s\n", user_id, BALANCE_TYPE_FREEZE, asset, str);
+            free(str);
         } else {
             reply = sdscatprintf(reply, "%-10u %-10u %-10s %s\n", user_id, BALANCE_TYPE_FREEZE, asset, "0");
         }

@@ -12,7 +12,7 @@ static list_t *log_list;
 static nw_timer timer;
 
 struct oper_log {
-    time_t create_time;
+    double create_time;
     char *detail;
 };
 
@@ -84,7 +84,7 @@ static void flush_log(void)
         struct oper_log *log = node->value;
         size_t detail_len = strlen(log->detail);
         mysql_real_escape_string(mysql_conn, buf, log->detail, detail_len);
-        sql = sdscatprintf(sql, "(NULL, %ld, '%s')", log->create_time, buf);
+        sql = sdscatprintf(sql, "(NULL, %f, '%s')", log->create_time, buf);
         if (list_len(log_list) > 1) {
             sql = sdscatprintf(sql, ", ");
         }
@@ -139,7 +139,7 @@ int append_oper_log(const char *method, json_t *params)
     json_object_set_new(detail, "method", json_string(method));
     json_object_set(detail, "params", params);
     struct oper_log *log = malloc(sizeof(struct oper_log));
-    log->create_time = time(NULL);
+    log->create_time = current_timestamp();
     log->detail = json_dumps(detail, 0);
     json_decref(detail);
     list_add_node_tail(log_list, log);

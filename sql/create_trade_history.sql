@@ -5,7 +5,8 @@ CREATE TABLE `balance_history_example` (
     `asset`         VARCHAR(10) NOT NULL,
     `business`      VARCHAR(30) NOT NULL,
     `change`        DECIMAL(30,10) NOT NULL,
-    `after`         DECIMAL(30,10) NOT NULL,
+    `balance`       DECIMAL(30,10) NOT NULL,
+    `detail`        TEXT NOT NULL,
     INDEX `idx_user_asset` (`user_id`, `asset`),
     INDEX `idx_user_asset_business` (`user_id`, `asset`, `business`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

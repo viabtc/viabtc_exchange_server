@@ -48,9 +48,9 @@ typedef struct dict_iterator {
 uint32_t dict_generic_hash_function(const void *data, size_t len);
 
 dict_t *dict_create(dict_types *type, uint32_t init_size);
-int dict_expand(dict_t *dt, uint32_t size);
+dict_entry *dict_add(dict_t *dt, void *key, void *val);
 dict_entry *dict_find(dict_t *dt, const void *key);
-int dict_add(dict_t *dt, void *key, void *val);
+int dict_expand(dict_t *dt, uint32_t size);
 int dict_replace(dict_t *dt, void *key, void *val);
 int dict_delete(dict_t *dt, const void *key);
 void dict_release(dict_t *dt);

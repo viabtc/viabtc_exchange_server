@@ -163,15 +163,15 @@ dict_entry *dict_find(dict_t *dt, const void *key)
     return NULL;
 }
 
-int dict_add(dict_t *dt, void *key, void *val)
+dict_entry *dict_add(dict_t *dt, void *key, void *val)
 {
     if (dict_find(dt, key) != NULL)
-        return -1;
+        return NULL;
     if (dict_expand_if_needed(dt) != 0)
-        return -1;
+        return NULL;
     dict_entry *entry = malloc(sizeof(dict_entry));
     if (entry == NULL)
-        return -1;
+        return NULL;
 
     uint32_t index = DICT_HASH_KEY(dt, key) & dt->mask;
     entry->id = dt->id_start++;
@@ -181,7 +181,7 @@ int dict_add(dict_t *dt, void *key, void *val)
     DICT_SET_HASH_VAL(dt, entry, val);
     dt->used++;
 
-    return 0;
+    return entry;
 }
 
 int dict_replace(dict_t *dt, void *key, void *val)

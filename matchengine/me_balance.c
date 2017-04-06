@@ -117,7 +117,7 @@ int init_balance()
 
     for (size_t i = 0; i < settings.asset_num; ++i) {
         struct asset_type type = { .prec = settings.assets[i].prec };
-        if (dict_add(dict_asset, settings.assets[i].name, &type) < 0)
+        if (dict_add(dict_asset, settings.assets[i].name, &type) == NULL)
             return -__LINE__;
     }
 
@@ -175,7 +175,10 @@ mpd_t *balance_set(uint32_t user_id, uint32_t type, const char *asset, mpd_t *am
     if (at == NULL)
         return NULL;
 
-    if (mpd_cmp(amount, mpd_zero, &mpd_ctx) == 0) {
+    int ret = mpd_cmp(amount, mpd_zero, &mpd_ctx);
+    if (ret < 0) {
+        return NULL;
+    } else if (ret == 0) {
         balance_del(user_id, type, asset);
         return mpd_zero;
     }
@@ -194,14 +197,12 @@ mpd_t *balance_set(uint32_t user_id, uint32_t type, const char *asset, mpd_t *am
         return result;
     }
 
-    if (dict_add(dict_balance, &key, amount) < 0)
-        return NULL;
-    entry = dict_find(dict_balance, &key);
+    entry = dict_add(dict_balance, &key, amount);
     if (entry == NULL)
         return NULL;
-
     result = entry->val;
     mpd_rescale(result, amount, -at->prec, &mpd_ctx);
+
     return result;
 }
 
@@ -235,6 +236,9 @@ mpd_t *balance_sub(uint32_t user_id, uint32_t type, const char *asset, mpd_t *am
 {
     struct asset_type *at = get_asset_type(asset);
     if (at == NULL)
+        return NULL;
+
+    if (mpd_cmp(amount, mpd_zero, &mpd_ctx) < 0)
         return NULL;
 
     mpd_t *result = balance_get(user_id, type, asset);

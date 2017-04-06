@@ -4,7 +4,6 @@
  */
 
 # include "me_log.h"
-# include "nw_job.h"
 # include "ut_list.h"
 # include "ut_mysql.h"
 
@@ -72,8 +71,7 @@ static void flush_log(void)
         sds create_table_sql = sdsempty();
         create_table_sql = sdscatprintf(create_table_sql, "CREATE TABLE IF NOT EXISTS `%s` like `oper_log_example`", table);
         nw_job_add(job, 0, create_table_sql);
-        sdsclear(table_last);
-        table_last = sdscatsds(table_last, table);
+        table_last = sdscpy(table_last, table);
     }
 
     sds sql = sdsempty();
@@ -97,7 +95,7 @@ static void flush_log(void)
     nw_job_add(job, 0, sql);
 }
 
-static void on_timer(nw_timer *timer, void *privdata)
+static void on_timer(nw_timer *t, void *privdata)
 {
     if (log_list->len > 0) {
         flush_log();

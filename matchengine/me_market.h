@@ -36,6 +36,7 @@ typedef struct market_t {
     char            *name;
     char            *stock;
     char            *money;
+
     int             stock_prec;
     int             money_prec;
     int             fee_prec;

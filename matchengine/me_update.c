@@ -8,6 +8,7 @@
 # include "me_balance.h"
 
 static dict_t *dict_update;
+static nw_timer timer;
 
 struct update_key {
     uint32_t    user_id;
@@ -15,6 +16,7 @@ struct update_key {
     char        asset[ASSET_NAME_MAX_LEN + 1];
     char        business[BUSINESS_NAME_MAX_LEN + 1];
     uint64_t    business_id;
+    double      create_time;
 };
 
 static uint32_t update_dict_hash_function(const void *key)
@@ -39,6 +41,20 @@ static void update_dict_key_free(void *key)
     free(key);
 }
 
+static void on_timer(nw_timer *t, void *privdata)
+{
+    double now = current_timestamp();
+    dict_iterator *iter = dict_get_iterator(dict_update);
+    dict_entry *entry;
+    while ((entry = dict_next(iter)) != NULL) {
+        struct update_key *key = entry->key;
+        if (key->create_time < (now - 86400)) {
+            dict_delete(dict_update, entry->key);
+        }
+    }
+    dict_release_iterator(iter);
+}
+
 int init_update(void)
 {
     dict_types type;
@@ -52,6 +68,9 @@ int init_update(void)
     if (dict_update == NULL)
         return -__LINE__;
 
+    nw_timer_set(&timer, 60, true, on_timer, NULL);
+    nw_timer_start(&timer);
+
     return 0;
 }
 
@@ -64,6 +83,7 @@ int update_user_balance(uint32_t user_id, uint32_t type, const char *asset, \
     strncpy(key.asset, asset, sizeof(key.asset));
     strncpy(key.business, business, sizeof(key.business));
     key.business_id = business_id;
+    key.create_time = current_timestamp();
 
     dict_entry *entry = dict_find(dict_update, &key);
     if (entry) {

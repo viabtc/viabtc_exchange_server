@@ -101,8 +101,9 @@ int dump_orders(MYSQL *conn, const char *table)
 
     for (int i = 0; i < settings.market_num; ++i) {
         market_t *market = get_market(settings.markets[i].name);
-        if (market == NULL)
+        if (market == NULL) {
             return -__LINE__;
+        }
         int ret;
         ret = dump_orders_list(conn, table, market->asks);
         if (ret < 0) {
@@ -122,6 +123,7 @@ int dump_orders(MYSQL *conn, const char *table)
 int dump_markets(MYSQL *conn, const char *table)
 {
     sds sql = sdsempty();
+
     sql = sdscatprintf(sql, "DROP TABLE IF EXISTS `%s`", table);
     log_trace("exec sql: %s", sql);
     int ret = mysql_real_query(conn, sql, sdslen(sql));
@@ -143,9 +145,9 @@ int dump_markets(MYSQL *conn, const char *table)
 
     for (size_t i = 0; i < settings.market_num; ++i) {
         market_t *market = get_market(settings.markets[i].name);
-        if (market == NULL)
+        if (market == NULL) {
             return -__LINE__;
-
+        }
         sdsclear(sql);
         sql = sdscatprintf(sql, "INSERT INTO `%s` (`id`, `market`, `id_start`) VALUES (NULL, '%s', %"PRIu64")",
                 table, market->name, market->id_start);

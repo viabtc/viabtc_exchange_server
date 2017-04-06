@@ -200,7 +200,7 @@ static int load_limit_order(json_t *params)
     const char *market_name = json_string_value(json_array_get(params, 1));
     market_t *market = get_market(market_name);
     if (market == NULL)
-        return -__LINE__;
+        return 0;
 
     // side
     if (!json_is_integer(json_array_get(params, 2)))
@@ -278,7 +278,7 @@ static int load_market_order(json_t *params)
     const char *market_name = json_string_value(json_array_get(params, 1));
     market_t *market = get_market(market_name);
     if (market == NULL)
-        return -__LINE__;
+        return 0;
 
     // side
     if (!json_is_integer(json_array_get(params, 2)))
@@ -331,7 +331,7 @@ static int load_oper(json_t *detail)
     if (method == NULL)
         return -__LINE__;
     json_t *params = json_object_get(detail, "params");
-    if (params == NULL)
+    if (params == NULL || !json_is_array(detail))
         return -__LINE__;
 
     int ret = 0;
@@ -373,7 +373,7 @@ int load_oper_log(MYSQL *conn, const char *table)
             json_t *detail = json_loadb(row[1], strlen(row[1]), 0, NULL);
             if (detail == NULL) {
                 log_error("invalid detail data: %s", row[1]);
-                mysql_fetch_row(result);
+                mysql_free_result(result);
                 return -__LINE__;
             }
             ret = load_oper(detail);

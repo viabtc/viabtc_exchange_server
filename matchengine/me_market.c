@@ -146,17 +146,21 @@ static void order_put(market_t *m, order_t *order)
 
     if (order->side == MARKET_ORDER_SIDE_ASK) {
         if (skiplist_insert(m->asks, order) == NULL) {
-            log_error("skiplist_insert fail, order id: %"PRIu64"", order->id);
+            log_fatal("skiplist_insert fail, order id: %"PRIu64"", order->id);
         }
-        balance_freeze(order->user_id, m->stock, order->left);
+        if (balance_freeze(order->user_id, m->stock, order->left) == NULL) {
+            log_fatal("balance_freeze fail, order id: %"PRIu64"", order->id);
+        }
         mpd_copy(order->freeze, order->left, &mpd_ctx);
     } else {
         if (skiplist_insert(m->bids, order) == NULL) {
-            log_error("skiplist_insert fail, order id: %"PRIu64"", order->id);
+            log_fatal("skiplist_insert fail, order id: %"PRIu64"", order->id);
         }
         mpd_t *result = mpd_new(&mpd_ctx);
         mpd_mul(result, order->price, order->amount, &mpd_ctx);
-        balance_freeze(order->user_id, m->money, result);
+        if (balance_freeze(order->user_id, m->money, result) == NULL) {
+            log_fatal("balance_freeze fail, order id: %"PRIu64"", order->id);
+        }
         mpd_copy(order->freeze, result, &mpd_ctx);
         mpd_del(result);
     }
@@ -183,7 +187,9 @@ static void order_finish(market_t *m, order_t *order)
             skiplist_delete(m->asks, node);
         }
         if (mpd_cmp(order->freeze, mpd_zero, &mpd_ctx) > 0) {
-            balance_unfreeze(order->user_id, m->stock, order->freeze);
+            if (balance_unfreeze(order->user_id, m->stock, order->freeze) == NULL) {
+                log_fatal("balance_unfreeze fail, order id: %"PRIu64"", order->id);
+            }
         }
     } else {
         skiplist_node *node = skiplist_find(m->bids, order);
@@ -191,7 +197,9 @@ static void order_finish(market_t *m, order_t *order)
             skiplist_delete(m->bids, node);
         }
         if (mpd_cmp(order->freeze, mpd_zero, &mpd_ctx) > 0) {
-            balance_unfreeze(order->user_id, m->money, order->freeze);
+            if (balance_unfreeze(order->user_id, m->money, order->freeze) == NULL) {
+                log_fatal("balance_unfreeze fail, order id: %"PRIu64"", order->id);
+            }
         }
     }
 

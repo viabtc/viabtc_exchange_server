@@ -3,9 +3,8 @@
  *     History: yang@haipo.me, 2017/04/01, create
  */
 
-# include "me_log.h"
-# include "ut_list.h"
-# include "ut_mysql.h"
+# include "me_config.h"
+# include "me_operlog.h"
 
 static MYSQL *mysql_conn;
 static nw_job *job;
@@ -19,7 +18,7 @@ struct oper_log {
 
 static void *on_job_init(void)
 {
-    return mysql_connect(&settings.db);
+    return mysql_connect(&settings.db_log);
 }
 
 static void on_job(nw_job_entry *entry, void *privdata)
@@ -107,7 +106,7 @@ int init_oper_log(void)
     mysql_conn = mysql_init(NULL);
     if (mysql_conn == NULL)
         return -__LINE__;
-    if (mysql_options(mysql_conn, MYSQL_SET_CHARSET_NAME, settings.db.charset) != 0)
+    if (mysql_options(mysql_conn, MYSQL_SET_CHARSET_NAME, settings.db_log.charset) != 0)
         return -__LINE__;
 
     nw_job_type type;

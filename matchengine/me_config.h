@@ -27,6 +27,7 @@
 # include "ut_cli.h"
 # include "ut_misc.h"
 # include "ut_list.h"
+# include "ut_mysql.h"
 # include "ut_config.h"
 # include "ut_decimal.h"
 # include "ut_rpc_clt.h"
@@ -61,7 +62,8 @@ struct settings {
     log_cfg             log;
     rpc_svr_cfg         svr;
     cli_svr_cfg         cli;
-    mysql_cfg           db;
+    mysql_cfg           db_log;
+    mysql_cfg           db_history;
 
     size_t              asset_num;
     struct asset        *assets;

@@ -119,7 +119,7 @@ static int load_oper_log_from_db(MYSQL *conn, time_t start)
 
 int init_from_db(void)
 {
-    MYSQL *conn = mysql_connect(&settings.db);
+    MYSQL *conn = mysql_connect(&settings.db_log);
     if (conn == NULL) {
         log_error("connect mysql fail");
         log_stderr("connect mysql fail");
@@ -234,7 +234,7 @@ int update_slice_history(MYSQL *conn, time_t start)
 
 int dump_to_db(void)
 {
-    MYSQL *conn = mysql_connect(&settings.db);
+    MYSQL *conn = mysql_connect(&settings.db_log);
     if (conn == NULL) {
         log_error("connect mysql fail");
         log_stderr("connect mysql fail");

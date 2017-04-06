@@ -9,7 +9,7 @@
 # include "me_update.h"
 # include "me_market.h"
 # include "me_trade.h"
-# include "me_log.h"
+# include "me_operlog.h"
 
 static rpc_svr *svr;
 

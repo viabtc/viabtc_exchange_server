@@ -6,13 +6,14 @@
 # include "ut_signal.h"
 # include "me_config.h"
 # include "me_cli.h"
-# include "me_log.h"
+# include "me_operlog.h"
 # include "me_server.h"
 # include "me_market.h"
 # include "me_balance.h"
 # include "me_update.h"
 # include "me_trade.h"
 # include "me_persist.h"
+# include "me_history.h"
 
 const char *__process__ = "matchengine";
 const char *__version__ = "0.1.0";
@@ -128,7 +129,12 @@ int main(int argc, char *argv[])
 
     ret = init_oper_log();
     if (ret < 0) {
-        error(EXIT_FAILURE, errno, "init log fail: %d", ret);
+        error(EXIT_FAILURE, errno, "init oper log fail: %d", ret);
+    }
+
+    ret = init_history();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init history fail: %d", ret);
     }
 
     ret = init_server();

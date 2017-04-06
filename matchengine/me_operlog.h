@@ -3,8 +3,8 @@
  *     History: yang@haipo.me, 2017/04/01, create
  */
 
-# ifndef _ME_LOG_H_
-# define _ME_LOG_H_
+# ifndef _ME_OPERLOG_H_
+# define _ME_OPERLOG_H_
 
 # include "me_config.h"
 

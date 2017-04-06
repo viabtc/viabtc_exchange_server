@@ -89,9 +89,14 @@ static int read_config_from_json(json_t *root)
         printf("load cli config fail: %d\n", ret);
         return -__LINE__;
     }
-    ret = load_cfg_mysql(root, "db", &settings.db);
+    ret = load_cfg_mysql(root, "db_log", &settings.db_log);
     if (ret < 0) {
-        printf("load db config fail: %d\n", ret);
+        printf("load log db config fail: %d\n", ret);
+        return -__LINE__;
+    }
+    ret = load_cfg_mysql(root, "db_history", &settings.db_history);
+    if (ret < 0) {
+        printf("load history db config fail: %d\n", ret);
         return -__LINE__;
     }
     ret = load_assets(root, "assets");

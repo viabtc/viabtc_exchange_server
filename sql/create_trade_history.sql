@@ -13,7 +13,8 @@ CREATE TABLE `balance_history_example` (
 
 CREATE TABLE `order_history_example` (
     `id`            BIGINT UNSIGNED NOT NULL PRIMARY KEY,
-    `time`          DOUBLE NOT NULL,
+    `create_time`   DOUBLE NOT NULL,
+    `finish_time`   DOUBLE NOT NULL,
     `user_id`       INT UNSIGNED NOT NULL,
     `market`        VARCHAR(30) NOT NULL,
     `t`             TINYINT UNSIGNED NOT NULL,
@@ -29,7 +30,8 @@ CREATE TABLE `order_history_example` (
 
 CREATE TABLE `order_detail_example` (
     `id`            BIGINT UNSIGNED NOT NULL PRIMARY KEY,
-    `time`          DOUBLE NOT NULL,
+    `create_time`   DOUBLE NOT NULL,
+    `finish_time`   DOUBLE NOT NULL,
     `user_id`       INT UNSIGNED NOT NULL,
     `market`        VARCHAR(30) NOT NULL,
     `t`             TINYINT UNSIGNED NOT NULL,

@@ -301,3 +301,19 @@ mpd_t *balance_unfreeze(uint32_t user_id, const char *asset, mpd_t *amount)
     return freeze;
 }
 
+mpd_t *balance_total(uint32_t user_id, const char *asset)
+{
+    mpd_t *balance = mpd_new(&mpd_ctx);
+    mpd_copy(balance, mpd_zero, &mpd_ctx);
+    mpd_t *available = balance_get(user_id, BALANCE_TYPE_AVAILABLE, asset);
+    if (available) {
+        mpd_add(balance, balance, available, &mpd_ctx);
+    }
+    mpd_t *freeze = balance_get(user_id, BALANCE_TYPE_FREEZE, asset);
+    if (freeze) {
+        mpd_add(balance, balance, freeze, &mpd_ctx);
+    }
+
+    return balance;
+}
+

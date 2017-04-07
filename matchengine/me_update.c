@@ -106,7 +106,7 @@ int update_user_balance(bool real, uint32_t user_id, uint32_t type,
     dict_add(dict_update, &key, NULL);
 
     if (real) {
-        int ret = append_user_balance_history(current_timestamp(), user_id, type, asset, business, change, result, "");
+        int ret = append_user_balance_history(current_timestamp(), user_id, asset, business, change, "");
         if (ret < 0) {
             log_fatal("append_user_balance_history fail: %d", ret);
         }

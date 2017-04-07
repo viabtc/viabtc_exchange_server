@@ -244,7 +244,7 @@ static int append_order_deal(double t, uint64_t order_id, uint64_t deal_order_id
     return 0;
 }
 
-static int append_user_balance(double t, uint32_t user_id, const char *asset, const char *business, mpd_t *change, mpd_t *balance, const char *detail)
+static int append_user_balance(double t, uint32_t user_id, uint32_t type, const char *asset, const char *business, mpd_t *change, mpd_t *balance, const char *detail)
 {
     struct dict_sql_key key;
     key.hash = user_id % HISTORY_HASH_NUM;
@@ -254,13 +254,13 @@ static int append_user_balance(double t, uint32_t user_id, const char *asset, co
         return -__LINE__;
 
     if (sdslen(sql) == 0) {
-        sql = sdscatprintf(sql, "INSERT INTO `balance_history_%u` (`id`, `time`, `user_id`, `asset`, `business`, `change`, `balance`, `detail`) VALUES ", key.hash);
+        sql = sdscatprintf(sql, "INSERT INTO `balance_history_%u` (`id`, `time`, `user_id`, `t`, `asset`, `business`, `change`, `balance`, `detail`) VALUES ", key.hash);
     } else {
         sql = sdscatprintf(sql, ", ");
     }
 
     char buf[10 * 1024];
-    sql = sdscatprintf(sql, "(NULL, %f, %u, \"%s\", \"%s\", ", t, user_id, asset, business);
+    sql = sdscatprintf(sql, "(NULL, %f, %u, %u, \"%s\", \"%s\", ", t, user_id, type, asset, business);
     sql = sql_append_mpd(sql, change, true);
     sql = sql_append_mpd(sql, balance, true);
     mysql_real_escape_string(mysql_conn, buf, detail, strlen(detail));
@@ -283,9 +283,9 @@ int append_order_deal_history(double t, uint64_t ask, uint64_t bid, mpd_t *amoun
     return 0;
 }
 
-int append_user_balance_history(double t, uint32_t user_id, const char *asset, const char *business, mpd_t *change, mpd_t *balance, const char *detail)
+int append_user_balance_history(double t, uint32_t user_id, uint32_t type, const char *asset, const char *business, mpd_t *change, mpd_t *balance, const char *detail)
 {
-    append_user_balance(t, user_id, asset, business, change, balance, detail);
+    append_user_balance(t, user_id, type, asset, business, change, balance, detail);
     return 0;
 }
 

@@ -166,7 +166,7 @@ static void order_put(market_t *m, order_t *order)
     }
 }
 
-static void order_finish(market_t *m, order_t *order)
+static int order_finish(market_t *m, order_t *order)
 {
     struct dict_order_key order_key = { .order_id = order->id };
     dict_delete(m->orders, &order_key);
@@ -204,6 +204,7 @@ static void order_finish(market_t *m, order_t *order)
     }
 
     order_free(order);
+    return 0;
 }
 
 market_t *market_create(struct market *conf)
@@ -426,7 +427,7 @@ static int execute_limit_bid_order(market_t *m, order_t *order)
     return 0;
 }
 
-int market_put_limit_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *price, mpd_t *fee)
+int market_put_limit_order(bool real, market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *price, mpd_t *fee)
 {
     if (side == MARKET_ORDER_SIDE_ASK) {
         mpd_t *balance = balance_get(user_id, BALANCE_TYPE_AVAILABLE, m->stock);
@@ -667,7 +668,7 @@ static int execute_market_bid_order(market_t *m, order_t *order)
     return 0;
 }
 
-int market_put_market_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *fee)
+int market_put_market_order(bool real, market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *fee)
 {
     if (side == MARKET_ORDER_SIDE_ASK) {
         mpd_t *balance = balance_get(user_id, BALANCE_TYPE_AVAILABLE, m->stock);
@@ -725,6 +726,16 @@ int market_put_market_order(market_t *m, uint32_t user_id, uint32_t side, mpd_t 
     return 0;
 }
 
+int market_cancel_order(bool real, market_t *m, order_t *order)
+{
+    return order_finish(m, order);
+}
+
+void market_put_order(market_t *m, order_t *order)
+{
+    order_put(m, order);
+}
+
 order_t *market_get_order(market_t *m, uint64_t order_id)
 {
     struct dict_order_key key = { .order_id = order_id };
@@ -743,15 +754,5 @@ list_t *market_get_order_list(market_t *m, uint32_t user_id)
         return entry->val;
     }
     return NULL;
-}
-
-void market_put_order(market_t *m, order_t *order)
-{
-    order_put(m, order);
-}
-
-void market_cancel_order(market_t *m, order_t *order)
-{
-    order_finish(m, order);
 }
 

@@ -6,6 +6,7 @@
 # include "me_config.h"
 # include "me_update.h"
 # include "me_balance.h"
+# include "me_history.h"
 
 static dict_t *dict_update;
 static nw_timer timer;
@@ -74,8 +75,8 @@ int init_update(void)
     return 0;
 }
 
-int update_user_balance(uint32_t user_id, uint32_t type, const char *asset, \
-        const char *business, uint64_t business_id, mpd_t *change)
+int update_user_balance(bool real, uint32_t user_id, uint32_t type,
+        const char *asset, const char *business, uint64_t business_id, mpd_t *change)
 {
     struct update_key key;
     key.user_id = user_id;
@@ -103,6 +104,14 @@ int update_user_balance(uint32_t user_id, uint32_t type, const char *asset, \
         return -2;
 
     dict_add(dict_update, &key, NULL);
+
+    if (real) {
+        int ret = append_user_balance_history(current_timestamp(), user_id, type, asset, business, change, result, "");
+        if (ret < 0) {
+            log_fatal("append_user_balance_history fail: %d", ret);
+        }
+    }
+
     return 0;
 }
 

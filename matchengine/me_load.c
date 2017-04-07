@@ -174,7 +174,7 @@ static int load_update_balance(json_t *params)
     if (change == NULL)
         return -__LINE__;
 
-    int ret = update_user_balance(user_id, type, asset, business, business_id, change);
+    int ret = update_user_balance(false, user_id, type, asset, business, business_id, change);
     mpd_del(change);
 
     if (ret < 0) {
@@ -250,7 +250,7 @@ static int load_limit_order(json_t *params)
         return -__LINE__;
     }
 
-    int ret = market_put_limit_order(market, user_id, side, amount, price, fee);
+    int ret = market_put_limit_order(false, market, user_id, side, amount, price, fee);
     mpd_del(amount);
     mpd_del(price);
     mpd_del(fee);
@@ -312,13 +312,50 @@ static int load_market_order(json_t *params)
         return -__LINE__;
     }
 
-    int ret = market_put_market_order(market, user_id, side, amount, fee);
+    int ret = market_put_market_order(false, market, user_id, side, amount, fee);
     mpd_del(amount);
     mpd_del(fee);
 
     if (ret < 0) {
         log_error("market_put_market_order market: %s, user: %u, side: %u, amount: %s, fee: %s fail: %d",
                 market_name, user_id, side, mpd_to_sci(amount, 0), mpd_to_sci(fee, 0), ret);
+        return -__LINE__;
+    }
+
+    return 0;
+}
+
+static int load_cancel_order(json_t *params)
+{
+    if (json_array_size(params) != 3)
+        return -__LINE__;
+
+    // user_id
+    if (!json_is_integer(json_array_get(params, 0)))
+        return -__LINE__;
+    uint32_t user_id = json_integer_value(json_array_get(params, 0));
+
+    // market
+    if (!json_is_string(json_array_get(params, 1)))
+        return -__LINE__;
+    const char *market_name = json_string_value(json_array_get(params, 1));
+    market_t *market = get_market(market_name);
+    if (market == NULL)
+        return 0;
+
+    // order_id
+    if (!json_is_integer(json_array_get(params, 2)))
+        return -__LINE__;
+    uint64_t order_id = json_integer_value(json_array_get(params, 2));
+
+    order_t *order = market_get_order(market, order_id);
+    if (order == NULL) {
+        return -__LINE__;
+    }
+
+    int ret = market_cancel_order(false, market, order);
+    if (ret < 0) {
+        log_error("market_cancel_order id: %"PRIu64", user id: %u, market: %s", order_id, user_id, market_name);
         return -__LINE__;
     }
 
@@ -341,6 +378,8 @@ static int load_oper(json_t *detail)
         ret = load_limit_order(params);
     } else if (strcmp(method, "market_order") == 0) {
         ret = load_market_order(params);
+    } else if (strcmp(method, "cancel_order") == 0) {
+        ret = load_cancel_order(params);
     } else {
         return -__LINE__;
     }

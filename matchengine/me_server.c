@@ -202,7 +202,7 @@ static int on_cmd_balance_update(nw_ses *ses, rpc_pkg *pkg, json_t *request)
     if (change == NULL)
         return reply_error_invalid_argument(ses, pkg);
 
-    int ret = update_user_balance(user_id, type, asset, business, business_id, change);
+    int ret = update_user_balance(true, user_id, type, asset, business, business_id, change);
     mpd_del(change);
     if (ret == -1) {
         return reply_error(ses, pkg, 10, "repeat update");
@@ -282,7 +282,7 @@ static int on_cmd_order_put_limit(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         return reply_error_invalid_argument(ses, pkg);
     }
 
-    int ret = market_put_limit_order(market, user_id, side, amount, price, fee);
+    int ret = market_put_limit_order(true, market, user_id, side, amount, price, fee);
     mpd_del(amount);
     mpd_del(price);
     mpd_del(fee);
@@ -347,7 +347,7 @@ static int on_cmd_order_put_market(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         return reply_error_invalid_argument(ses, pkg);
     }
 
-    int ret = market_put_market_order(market, user_id, side, amount, fee);
+    int ret = market_put_market_order(true, market, user_id, side, amount, fee);
     mpd_del(amount);
     mpd_del(fee);
     if (ret == -1) {
@@ -473,8 +473,12 @@ static int on_cmd_order_cancel(nw_ses *ses, rpc_pkg *pkg, json_t *request)
         return reply_error(ses, pkg, 11, "user not match");
     }
 
-    market_cancel_order(market, order);
+    int ret = market_cancel_order(true, market, order);
+    if (ret < 0) {
+        return reply_error_internal_error(ses, pkg);
+    }
 
+    append_oper_log("cancel_order", request);
     return reply_success(ses, pkg);
 }
 

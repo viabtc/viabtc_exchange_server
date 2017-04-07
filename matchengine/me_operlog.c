@@ -77,6 +77,7 @@ static void flush_log(void)
     sql = sdscatprintf(sql, "INSERT INTO `%s` (`id`, `time`, `detail`) VALUES ", table);
     sdsfree(table);
 
+    size_t count;
     char buf[10240];
     list_node *node;
     list_iter *iter = list_get_iterator(log_list, LIST_START_HEAD);
@@ -89,9 +90,11 @@ static void flush_log(void)
             sql = sdscatprintf(sql, ", ");
         }
         list_del(log_list, node);
+        count++;
     }
     list_release_iterator(iter);
     nw_job_add(job, 0, sql);
+    log_debug("flush oper log count: %zu", count);
 }
 
 static void on_timer(nw_timer *t, void *privdata)

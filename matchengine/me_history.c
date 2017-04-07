@@ -83,14 +83,18 @@ static void on_job_release(void *privdata)
 
 static void on_timer(nw_timer *t, void *privdata)
 {
+    size_t count = 0;
     dict_iterator *iter = dict_get_iterator(dict_sql);
     dict_entry *entry;
     while ((entry = dict_next(iter)) != NULL) {
         sds sql = entry->val;
-        if (sdslen(sql)) {
-            nw_job_add(job, 0, sdsnewlen(sql, sdslen(sql)));
-        }
-        dict_delete(iter, entry->key);
+        nw_job_add(job, 0, sdsnewlen(sql, sdslen(sql)));
+        dict_delete(dict_sql, entry->key);
+        count++;
+    }
+
+    if (count) {
+        log_debug("flush history count: %zu", count);
     }
 }
 

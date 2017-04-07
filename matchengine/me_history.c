@@ -84,7 +84,6 @@ static void on_timer(nw_timer *t, void *privdata)
     dict_entry *entry;
     while ((entry = dict_next(iter)) != NULL) {
         nw_job_add(job, 0, entry->val);
-        log_trace("add job: %s", (sds)entry->val);
         dict_delete(dict_sql, entry->key);
         count++;
     }
@@ -246,7 +245,7 @@ static int append_order_deal(double t, uint64_t order_id, uint64_t deal_order_id
     sql = sql_append_mpd(sql, amount, true);
     sql = sql_append_mpd(sql, price, true);
     sql = sql_append_mpd(sql, deal, true);
-    sql = sql_append_mpd(sql, fee, true);
+    sql = sql_append_mpd(sql, fee, false);
     sql = sdscatprintf(sql, ")");
 
     set_sql(&key, sql);

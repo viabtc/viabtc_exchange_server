@@ -133,6 +133,7 @@ int init_from_db(void)
         ret = load_oper_log_from_db(conn, today);
         if (ret < 0)
             goto cleanup;
+        return 0;
     }
 
     ret = load_slice_from_db(conn, last_slice);

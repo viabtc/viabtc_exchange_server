@@ -84,6 +84,7 @@ static void on_timer(nw_timer *t, void *privdata)
     dict_entry *entry;
     while ((entry = dict_next(iter)) != NULL) {
         nw_job_add(job, 0, entry->val);
+        log_trace("add job: %s", (sds)entry->val);
         dict_delete(dict_sql, entry->key);
         count++;
     }
@@ -147,7 +148,7 @@ static sds get_sql(struct dict_sql_key *key)
     dict_entry *entry = dict_find(dict_sql, key);
     if (!entry) {
         sds val = sdsempty();
-        entry = dict_add(dict_sql, &key, val);
+        entry = dict_add(dict_sql, key, val);
         if (entry == NULL) {
             sdsfree(val);
             return NULL;
@@ -180,7 +181,7 @@ static int append_user_order(order_t *order)
         sql = sdscatprintf(sql, ", ");
     }
 
-    sql = sdscatprintf(sql, "(%"PRIu64", %f, %f, %u, \"%s\", %u, %u, ", order->id,
+    sql = sdscatprintf(sql, "(%"PRIu64", %f, %f, %u, '%s', %u, %u, ", order->id,
         order->create_time, order->update_time, order->user_id, order->market, order->type, order->side);
     sql = sql_append_mpd(sql, order->price, true);
     sql = sql_append_mpd(sql, order->amount, true);
@@ -211,7 +212,7 @@ static int append_order_detail(order_t *order)
         sql = sdscatprintf(sql, ", ");
     }
 
-    sql = sdscatprintf(sql, "(%"PRIu64", %f, %f, %u, \"%s\", %u, %u, ", order->id,
+    sql = sdscatprintf(sql, "(%"PRIu64", %f, %f, %u, '%s', %u, %u, ", order->id,
         order->create_time, order->update_time, order->user_id, order->market, order->type, order->side);
     sql = sql_append_mpd(sql, order->price, true);
     sql = sql_append_mpd(sql, order->amount, true);
@@ -269,12 +270,11 @@ static int append_user_balance(double t, uint32_t user_id, const char *asset, co
     }
 
     char buf[10 * 1024];
-    sql = sdscatprintf(sql, "(NULL, %f, %u, \"%s\", \"%s\", ", t, user_id, asset, business);
+    sql = sdscatprintf(sql, "(NULL, %f, %u, '%s', '%s', ", t, user_id, asset, business);
     sql = sql_append_mpd(sql, change, true);
     sql = sql_append_mpd(sql, balance, true);
     mysql_real_escape_string(mysql_conn, buf, detail, strlen(detail));
     sql = sdscatprintf(sql, "'%s')", buf);
-    log_trace("sql: %s", sql);
 
     set_sql(&key, sql);
 

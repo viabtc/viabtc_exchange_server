@@ -17,6 +17,9 @@ struct update_key {
     char        asset[ASSET_NAME_MAX_LEN + 1];
     char        business[BUSINESS_NAME_MAX_LEN + 1];
     uint64_t    business_id;
+};
+
+struct update_val {
     double      create_time;
 };
 
@@ -27,7 +30,7 @@ static uint32_t update_dict_hash_function(const void *key)
 
 static int update_dict_key_compare(const void *key1, const void *key2)
 {
-    return memcmp(key1, key2, sizeof(struct update_key));
+    return memcmp(key1, key2, sizeof(struct update_key) - sizeof(double));
 }
 
 static void *update_dict_key_dup(const void *key)
@@ -42,14 +45,26 @@ static void update_dict_key_free(void *key)
     free(key);
 }
 
+static void *update_dict_val_dup(const void *val)
+{
+    struct update_val*obj = malloc(sizeof(struct update_val));
+    memcpy(obj, val, sizeof(struct update_val));
+    return obj;
+}
+
+static void update_dict_val_free(void *val)
+{
+    free(val);
+}
+
 static void on_timer(nw_timer *t, void *privdata)
 {
     double now = current_timestamp();
     dict_iterator *iter = dict_get_iterator(dict_update);
     dict_entry *entry;
     while ((entry = dict_next(iter)) != NULL) {
-        struct update_key *key = entry->key;
-        if (key->create_time < (now - 86400)) {
+        struct update_val *val = entry->val;
+        if (val->create_time < (now - 86400)) {
             dict_delete(dict_update, entry->key);
         }
     }
@@ -64,6 +79,8 @@ int init_update(void)
     type.key_compare    = update_dict_key_compare;
     type.key_dup        = update_dict_key_dup;
     type.key_destructor = update_dict_key_free;
+    type.val_dup        = update_dict_val_dup;
+    type.val_destructor = update_dict_val_free;
 
     dict_update = dict_create(&type, 64);
     if (dict_update == NULL)
@@ -84,7 +101,6 @@ int update_user_balance(bool real, uint32_t user_id, uint32_t type,
     strncpy(key.asset, asset, sizeof(key.asset));
     strncpy(key.business, business, sizeof(key.business));
     key.business_id = business_id;
-    key.create_time = current_timestamp();
 
     dict_entry *entry = dict_find(dict_update, &key);
     if (entry) {
@@ -103,7 +119,8 @@ int update_user_balance(bool real, uint32_t user_id, uint32_t type,
     if (result == NULL)
         return -2;
 
-    dict_add(dict_update, &key, NULL);
+    struct update_val val = { .create_time = current_timestamp() };
+    dict_add(dict_update, &key, &val);
 
     if (real) {
         json_t *detail = json_object();

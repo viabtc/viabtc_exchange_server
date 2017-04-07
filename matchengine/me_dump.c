@@ -11,7 +11,7 @@
 static sds sql_append_mpd(sds sql, mpd_t *val, bool comma)
 {
     char *str = mpd_to_sci(val, 0);
-    sql = sdscatprintf(sql, "\"%s\"", str);
+    sql = sdscatprintf(sql, "'%s'", str);
     if (comma) {
         sql = sdscatprintf(sql, ", ");
     }
@@ -36,7 +36,7 @@ static int dump_orders_list(MYSQL *conn, const char *table, skiplist_t *list)
             sql = sdscatprintf(sql, ", ");
         }
 
-        sql = sdscatprintf(sql, "(%"PRIu64", %u, %u, %f, %f, %u, \"%s\" , ",
+        sql = sdscatprintf(sql, "(%"PRIu64", %u, %u, %f, %f, %u, '%s' , ",
                 order->id, order->type, order->side, order->create_time, order->update_time, order->user_id, order->market);
         sql = sql_append_mpd(sql, order->price, true);
         sql = sql_append_mpd(sql, order->amount, true);
@@ -181,7 +181,7 @@ static int dump_balance_dict(MYSQL *conn, const char *table, dict_t *dict)
             sql = sdscatprintf(sql, ", ");
         }
 
-        sql = sdscatprintf(sql, "(NULL, %u, \"%s\", %u, ", key->user_id, key->asset, key->type);
+        sql = sdscatprintf(sql, "(NULL, %u, '%s', %u, ", key->user_id, key->asset, key->type);
         sql = sql_append_mpd(sql, balance, false);
         sql = sdscatprintf(sql, ")");
 

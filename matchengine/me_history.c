@@ -46,14 +46,9 @@ static void dict_sql_key_free(void *key)
     free(key);
 }
 
-static void dict_sql_val_free(void *val)
-{
-    sdsfree(val);
-}
-
 static void *on_job_init(void)
 {
-    return mysql_connect(&settings.db_log);
+    return mysql_connect(&settings.db_history);
 }
 
 static void on_job(nw_job_entry *entry, void *privdata)
@@ -88,11 +83,11 @@ static void on_timer(nw_timer *t, void *privdata)
     dict_iterator *iter = dict_get_iterator(dict_sql);
     dict_entry *entry;
     while ((entry = dict_next(iter)) != NULL) {
-        sds sql = entry->val;
-        nw_job_add(job, 0, sdsnewlen(sql, sdslen(sql)));
+        nw_job_add(job, 0, entry->val);
         dict_delete(dict_sql, entry->key);
         count++;
     }
+    dict_release_iterator(iter);
 
     if (count) {
         log_debug("flush history count: %zu", count);
@@ -104,7 +99,7 @@ int init_history(void)
     mysql_conn = mysql_init(NULL);
     if (mysql_conn == NULL)
         return -__LINE__;
-    if (mysql_options(mysql_conn, MYSQL_SET_CHARSET_NAME, settings.db_log.charset) != 0)
+    if (mysql_options(mysql_conn, MYSQL_SET_CHARSET_NAME, settings.db_history.charset) != 0)
         return -__LINE__;
 
     dict_types dt;
@@ -113,7 +108,6 @@ int init_history(void)
     dt.key_compare    = dict_sql_key_compare;
     dt.key_dup        = dict_sql_key_dup;
     dt.key_destructor = dict_sql_key_free;
-    dt.val_destructor = dict_sql_val_free;
 
     dict_sql = dict_create(&dt, 1024);
     if (dict_sql == 0) {
@@ -140,7 +134,7 @@ int init_history(void)
 static sds sql_append_mpd(sds sql, mpd_t *val, bool comma)
 {
     char *str = mpd_to_sci(val, 0);
-    sql = sdscatprintf(sql, "\"%s\"", str);
+    sql = sdscatprintf(sql, "'%s'", str);
     if (comma) {
         sql = sdscatprintf(sql, ", ");
     }
@@ -160,6 +154,14 @@ static sds get_sql(struct dict_sql_key *key)
         }
     }
     return entry->val;
+}
+
+static void set_sql(struct dict_sql_key *key, sds sql)
+{
+    dict_entry *entry = dict_find(dict_sql, key);
+    if (entry) {
+        entry->val = sql;
+    }
 }
 
 static int append_user_order(order_t *order)
@@ -187,6 +189,8 @@ static int append_user_order(order_t *order)
     sql = sql_append_mpd(sql, order->deal_money, true);
     sql = sql_append_mpd(sql, order->deal_fee, false);
     sql = sdscatprintf(sql, ")");
+
+    set_sql(&key, sql);
 
     return 0;
 }
@@ -217,6 +221,8 @@ static int append_order_detail(order_t *order)
     sql = sql_append_mpd(sql, order->deal_fee, false);
     sql = sdscatprintf(sql, ")");
 
+    set_sql(&key, sql);
+
     return 0;
 }
 
@@ -242,6 +248,8 @@ static int append_order_deal(double t, uint64_t order_id, uint64_t deal_order_id
     sql = sql_append_mpd(sql, fee, true);
     sql = sdscatprintf(sql, ")");
 
+    set_sql(&key, sql);
+
     return 0;
 }
 
@@ -265,7 +273,10 @@ static int append_user_balance(double t, uint32_t user_id, const char *asset, co
     sql = sql_append_mpd(sql, change, true);
     sql = sql_append_mpd(sql, balance, true);
     mysql_real_escape_string(mysql_conn, buf, detail, strlen(detail));
-    sql = sdscatprintf(sql, "\"%s\")", buf);
+    sql = sdscatprintf(sql, "'%s')", buf);
+    log_trace("sql: %s", sql);
+
+    set_sql(&key, sql);
 
     return 0;
 }

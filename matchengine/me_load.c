@@ -368,7 +368,7 @@ static int load_oper(json_t *detail)
     if (method == NULL)
         return -__LINE__;
     json_t *params = json_object_get(detail, "params");
-    if (params == NULL || !json_is_array(detail))
+    if (params == NULL || !json_is_array(params))
         return -__LINE__;
 
     int ret = 0;

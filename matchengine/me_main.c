@@ -111,16 +111,16 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    ret = init_from_db();
-    if (ret < 0) {
-        error(EXIT_FAILURE, errno, "init from db fail: %d", ret);
-    }
-
     nw_timer_set(&cron_timer, 0.5, true, on_cron_check, NULL);
     nw_timer_start(&cron_timer);
 
     daemon(1, 1);
     process_keepalive();
+
+    ret = init_from_db();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init from db fail: %d", ret);
+    }
 
     ret = init_cli();
     if (ret < 0) {

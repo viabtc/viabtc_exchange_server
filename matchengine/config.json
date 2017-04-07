@@ -18,11 +18,17 @@
         "heartbeat_check": false
     },
     "cli": "tcp@127.0.0.1:7317",
-    "db": {
+    "db_log": {
         "host": "localhost",
         "user": "root",
         "pass": "shit",
         "name": "trade_log"
+    },
+    "db_history": {
+        "host": "localhost",
+        "user": "root",
+        "pass": "shit",
+        "name": "trade_history"
     },
     "assets": [
         {

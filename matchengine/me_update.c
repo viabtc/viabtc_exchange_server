@@ -106,10 +106,12 @@ int update_user_balance(bool real, uint32_t user_id, uint32_t type,
     dict_add(dict_update, &key, NULL);
 
     if (real) {
-        int ret = append_user_balance_history(current_timestamp(), user_id, asset, business, change, "");
-        if (ret < 0) {
-            log_fatal("append_user_balance_history fail: %d", ret);
-        }
+        json_t *detail = json_object();
+        json_object_set_new(detail, "id", json_integer(business_id));
+        char *detail_str = json_dumps(detail, 0);
+        append_user_balance_history(current_timestamp(), user_id, asset, business, change, detail_str);
+        free(detail_str);
+        json_decref(detail);
     }
 
     return 0;

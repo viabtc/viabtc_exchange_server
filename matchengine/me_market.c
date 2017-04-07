@@ -6,6 +6,7 @@
 # include "me_config.h"
 # include "me_market.h"
 # include "me_balance.h"
+# include "me_history.h"
 
 struct dict_user_key {
     uint32_t    user_id;
@@ -166,7 +167,7 @@ static void order_put(market_t *m, order_t *order)
     }
 }
 
-static int order_finish(market_t *m, order_t *order)
+static int order_finish(bool real, market_t *m, order_t *order)
 {
     struct dict_order_key order_key = { .order_id = order->id };
     dict_delete(m->orders, &order_key);
@@ -200,6 +201,13 @@ static int order_finish(market_t *m, order_t *order)
             if (balance_unfreeze(order->user_id, m->money, order->freeze) == NULL) {
                 log_fatal("balance_unfreeze fail, order id: %"PRIu64"", order->id);
             }
+        }
+    }
+
+    if (real) {
+        int ret = append_order_history(order);
+        if (ret < 0) {
+            log_fatal("append_order_history fail: %d, order: %"PRIu64"", ret, order->id);
         }
     }
 
@@ -261,7 +269,7 @@ market_t *market_create(struct market *conf)
     return m;
 }
 
-static int execute_limit_ask_order(market_t *m, order_t *order)
+static int execute_limit_ask_order(bool real, market_t *m, order_t *order)
 {
     mpd_t *price    = mpd_new(&mpd_ctx);
     mpd_t *amount   = mpd_new(&mpd_ctx);
@@ -312,8 +320,8 @@ static int execute_limit_ask_order(market_t *m, order_t *order)
         balance_add(pending->user_id, BALANCE_TYPE_AVAILABLE, m->stock, result);
         balance_sub(pending->user_id, BALANCE_TYPE_FREEZE, m->money, deal);
 
-        order->update_time = current_timestamp();
-        pending->update_time = current_timestamp();
+        order->update_time = pending->update_time = current_timestamp();
+        append_order_deal_history(order->update_time, order->id, pending->id, amount, price, deal, ask_fee, bid_fee);
 
         char *str_amount  = mpd_to_sci(amount, 0);
         char *str_price   = mpd_to_sci(price, 0);
@@ -329,7 +337,7 @@ static int execute_limit_ask_order(market_t *m, order_t *order)
         free(str_bid_fee);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
-            order_finish(m, pending);
+            order_finish(real, m, pending);
         }
     }
     skiplist_release_iterator(iter);
@@ -344,7 +352,7 @@ static int execute_limit_ask_order(market_t *m, order_t *order)
     return 0;
 }
 
-static int execute_limit_bid_order(market_t *m, order_t *order)
+static int execute_limit_bid_order(bool real, market_t *m, order_t *order)
 {
     mpd_t *price    = mpd_new(&mpd_ctx);
     mpd_t *amount   = mpd_new(&mpd_ctx);
@@ -395,8 +403,7 @@ static int execute_limit_bid_order(market_t *m, order_t *order)
         balance_add(pending->user_id, BALANCE_TYPE_AVAILABLE, m->money, result);
         balance_sub(pending->user_id, BALANCE_TYPE_FREEZE, m->stock, amount);
 
-        order->update_time = current_timestamp();
-        pending->update_time = current_timestamp();
+        order->update_time = pending->update_time = current_timestamp();
 
         char *str_amount  = mpd_to_sci(amount, 0);
         char *str_price   = mpd_to_sci(price, 0);
@@ -412,7 +419,7 @@ static int execute_limit_bid_order(market_t *m, order_t *order)
         free(str_bid_fee);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
-            order_finish(m, pending);
+            order_finish(real, m, pending);
         }
     }
     skiplist_release_iterator(iter);
@@ -476,9 +483,9 @@ int market_put_limit_order(bool real, market_t *m, uint32_t user_id, uint32_t si
 
     int ret;
     if (side == MARKET_ORDER_SIDE_ASK) {
-        ret = execute_limit_ask_order(m, order);
+        ret = execute_limit_ask_order(real, m, order);
     } else {
-        ret = execute_limit_bid_order(m, order);
+        ret = execute_limit_bid_order(real, m, order);
     }
     if (ret < 0) {
         log_error("execute order: %"PRIu64" fail: %d", order->id, ret);
@@ -495,7 +502,7 @@ int market_put_limit_order(bool real, market_t *m, uint32_t user_id, uint32_t si
     return 0;
 }
 
-static int execute_market_ask_order(market_t *m, order_t *order)
+static int execute_market_ask_order(bool real, market_t *m, order_t *order)
 {
     mpd_t *price    = mpd_new(&mpd_ctx);
     mpd_t *amount   = mpd_new(&mpd_ctx);
@@ -542,8 +549,7 @@ static int execute_market_ask_order(market_t *m, order_t *order)
         balance_add(pending->user_id, BALANCE_TYPE_AVAILABLE, m->stock, result);
         balance_sub(pending->user_id, BALANCE_TYPE_FREEZE, m->money, deal);
 
-        order->update_time = current_timestamp();
-        pending->update_time = current_timestamp();
+        order->update_time = pending->update_time = current_timestamp();
 
         char *str_amount  = mpd_to_sci(amount, 0);
         char *str_price   = mpd_to_sci(price, 0);
@@ -559,7 +565,7 @@ static int execute_market_ask_order(market_t *m, order_t *order)
         free(str_bid_fee);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
-            order_finish(m, pending);
+            order_finish(real, m, pending);
         }
     }
     skiplist_release_iterator(iter);
@@ -574,7 +580,7 @@ static int execute_market_ask_order(market_t *m, order_t *order)
     return 0;
 }
 
-static int execute_market_bid_order(market_t *m, order_t *order)
+static int execute_market_bid_order(bool real, market_t *m, order_t *order)
 {
     mpd_t *price    = mpd_new(&mpd_ctx);
     mpd_t *amount   = mpd_new(&mpd_ctx);
@@ -636,8 +642,7 @@ static int execute_market_bid_order(market_t *m, order_t *order)
         balance_add(pending->user_id, BALANCE_TYPE_AVAILABLE, m->money, result);
         balance_sub(pending->user_id, BALANCE_TYPE_FREEZE, m->stock, amount);
 
-        order->update_time = current_timestamp();
-        pending->update_time = current_timestamp();
+        order->update_time = pending->update_time = current_timestamp();
 
         char *str_amount  = mpd_to_sci(amount, 0);
         char *str_price   = mpd_to_sci(price, 0);
@@ -653,7 +658,7 @@ static int execute_market_bid_order(market_t *m, order_t *order)
         free(str_bid_fee);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
-            order_finish(m, pending);
+            order_finish(real, m, pending);
         }
     }
     skiplist_release_iterator(iter);
@@ -712,9 +717,9 @@ int market_put_market_order(bool real, market_t *m, uint32_t user_id, uint32_t s
 
     int ret;
     if (side == MARKET_ORDER_SIDE_ASK) {
-        ret = execute_market_ask_order(m, order);
+        ret = execute_market_ask_order(real, m, order);
     } else {
-        ret = execute_market_bid_order(m, order);
+        ret = execute_market_bid_order(real, m, order);
     }
     if (ret < 0) {
         log_error("execute order: %"PRIu64" fail: %d", order->id, ret);
@@ -728,7 +733,7 @@ int market_put_market_order(bool real, market_t *m, uint32_t user_id, uint32_t s
 
 int market_cancel_order(bool real, market_t *m, order_t *order)
 {
-    return order_finish(m, order);
+    return order_finish(real, m, order);
 }
 
 void market_put_order(market_t *m, order_t *order)

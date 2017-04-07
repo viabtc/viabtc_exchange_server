@@ -21,6 +21,7 @@ static uint32_t dict_user_hash_function(const void *key)
     const struct dict_user_key *obj = key;
     return obj->user_id;
 }
+
 static int dict_user_key_compare(const void *key1, const void *key2)
 {
     const struct dict_user_key *obj1 = key1;
@@ -33,16 +34,19 @@ static int dict_user_key_compare(const void *key1, const void *key2)
         return -1;
     }
 }
+
 static void *dict_user_key_dup(const void *key)
 {
     struct dict_user_key *obj = malloc(sizeof(struct dict_user_key));
     memcpy(obj, key, sizeof(struct dict_user_key));
     return obj;
 }
+
 static void dict_user_key_free(void *key)
 {
     free(key);
 }
+
 static void dict_user_val_free(void *key)
 {
     list_release(key);
@@ -52,6 +56,7 @@ static uint32_t dict_order_hash_function(const void *key)
 {
     return dict_generic_hash_function(key, sizeof(struct dict_order_key));
 }
+
 static int dict_order_key_compare(const void *key1, const void *key2)
 {
     const struct dict_order_key *obj1 = key1;
@@ -64,12 +69,14 @@ static int dict_order_key_compare(const void *key1, const void *key2)
         return -1;
     }
 }
+
 static void *dict_order_key_dup(const void *key)
 {
     struct dict_order_key *obj = malloc(sizeof(struct dict_order_key));
     memcpy(obj, key, sizeof(struct dict_order_key));
     return obj;
 }
+
 static void dict_order_key_free(void *key)
 {
     free(key);
@@ -356,7 +363,7 @@ static int execute_limit_ask_order(bool real, market_t *m, order_t *order)
             balance_sub(order->user_id, BALANCE_TYPE_AVAILABLE, m->money, ask_fee);
             if (real) {
                 char business[100];
-                snprintf(business, sizeof(business), "%s_fee", m->name);
+                snprintf(business, sizeof(business), "%s_FEE", m->name);
                 append_balance_trade_sub(order, m->money, business, ask_fee, price, amount);
             }
         }
@@ -379,7 +386,7 @@ static int execute_limit_ask_order(bool real, market_t *m, order_t *order)
             balance_sub(pending->user_id, BALANCE_TYPE_AVAILABLE, m->stock, bid_fee);
             if (real) {
                 char business[100];
-                snprintf(business, sizeof(business), "%s_fee", m->name);
+                snprintf(business, sizeof(business), "%s_FEE", m->name);
                 append_balance_trade_sub(pending, m->stock, business, bid_fee, price, amount);
             }
         }
@@ -467,7 +474,7 @@ static int execute_limit_bid_order(bool real, market_t *m, order_t *order)
             balance_sub(order->user_id, BALANCE_TYPE_AVAILABLE, m->stock, bid_fee);
             if (real) {
                 char business[100];
-                snprintf(business, sizeof(business), "%s_fee", m->name);
+                snprintf(business, sizeof(business), "%s_FEE", m->name);
                 append_balance_trade_sub(order, m->stock, business, bid_fee, price, amount);
             }
         }
@@ -490,7 +497,7 @@ static int execute_limit_bid_order(bool real, market_t *m, order_t *order)
             balance_sub(pending->user_id, BALANCE_TYPE_AVAILABLE, m->money, ask_fee);
             if (real) {
                 char business[100];
-                snprintf(business, sizeof(business), "%s_fee", m->name);
+                snprintf(business, sizeof(business), "%s_FEE", m->name);
                 append_balance_trade_sub(pending, m->money, business, ask_fee, price, amount);
             }
         }
@@ -642,7 +649,7 @@ static int execute_market_ask_order(bool real, market_t *m, order_t *order)
             balance_sub(order->user_id, BALANCE_TYPE_AVAILABLE, m->money, ask_fee);
             if (real) {
                 char business[100];
-                snprintf(business, sizeof(business), "%s_fee", m->name);
+                snprintf(business, sizeof(business), "%s_FEE", m->name);
                 append_balance_trade_sub(order, m->money, business, ask_fee, price, amount);
             }
         }
@@ -665,7 +672,7 @@ static int execute_market_ask_order(bool real, market_t *m, order_t *order)
             balance_sub(pending->user_id, BALANCE_TYPE_AVAILABLE, m->stock, bid_fee);
             if (real) {
                 char business[100];
-                snprintf(business, sizeof(business), "%s_fee", m->name);
+                snprintf(business, sizeof(business), "%s_FEE", m->name);
                 append_balance_trade_sub(pending, m->stock, business, bid_fee, price, amount);
             }
         }
@@ -764,7 +771,7 @@ static int execute_market_bid_order(bool real, market_t *m, order_t *order)
             balance_sub(order->user_id, BALANCE_TYPE_AVAILABLE, m->stock, bid_fee);
             if (real) {
                 char business[100];
-                snprintf(business, sizeof(business), "%s_fee", m->name);
+                snprintf(business, sizeof(business), "%s_FEE", m->name);
                 append_balance_trade_sub(order, m->stock, business, bid_fee, price, amount);
             }
         }
@@ -787,7 +794,7 @@ static int execute_market_bid_order(bool real, market_t *m, order_t *order)
             balance_sub(pending->user_id, BALANCE_TYPE_AVAILABLE, m->money, ask_fee);
             if (real) {
                 char business[100];
-                snprintf(business, sizeof(business), "%s_fee", m->name);
+                snprintf(business, sizeof(business), "%s_FEE", m->name);
                 append_balance_trade_sub(pending, m->money, business, ask_fee, price, amount);
             }
         }

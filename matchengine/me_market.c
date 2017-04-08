@@ -595,6 +595,12 @@ int market_put_limit_order(bool real, market_t *m, uint32_t user_id, uint32_t si
     }
 
     if (mpd_cmp(order->left, mpd_zero, &mpd_ctx) == 0) {
+        if (real) {
+            int ret = append_order_history(order);
+            if (ret < 0) {
+                log_fatal("append_order_history fail: %d, order: %"PRIu64"", ret, order->id);
+            }
+        }
         order_free(order);
     } else {
         order_put(m, order);
@@ -884,6 +890,13 @@ int market_put_market_order(bool real, market_t *m, uint32_t user_id, uint32_t s
         log_error("execute order: %"PRIu64" fail: %d", order->id, ret);
         order_free(order);
         return -__LINE__;
+    }
+
+    if (real) {
+        int ret = append_order_history(order);
+        if (ret < 0) {
+            log_fatal("append_order_history fail: %d, order: %"PRIu64"", ret, order->id);
+        }
     }
 
     order_free(order);

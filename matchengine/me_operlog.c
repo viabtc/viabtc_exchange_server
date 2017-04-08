@@ -151,3 +151,10 @@ int append_oper_log(const char *method, json_t *params)
     return 0;
 }
 
+bool is_oper_log_block(void)
+{
+    if (job->request_count >= MAX_PENDING_OPERLOG)
+        return true;
+    return false;
+}
+

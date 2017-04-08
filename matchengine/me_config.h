@@ -41,6 +41,8 @@
 # define ORDER_BOOK_MAX_LEN     100
 # define ORDER_LIST_MAX_LEN     100
 
+# define MAX_PENDING_OPERLOG    100
+
 struct asset {
     char                *name;
     int                 prec;

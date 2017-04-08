@@ -59,7 +59,12 @@ static int reply_error_invalid_argument(nw_ses *ses, rpc_pkg *pkg)
 
 static int reply_error_internal_error(nw_ses *ses, rpc_pkg *pkg)
 {
-    return reply_error(ses, pkg, 1, "internal error");
+    return reply_error(ses, pkg, 2, "internal error");
+}
+
+static int reply_error_service_unavailable(nw_ses *ses, rpc_pkg *pkg)
+{
+    return reply_error(ses, pkg, 3, "service unavailable");
 }
 
 static int reply_result(nw_ses *ses, rpc_pkg *pkg, json_t *result)
@@ -749,6 +754,10 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         }
         break;
     case CMD_BALANCE_UPDATE:
+        if (is_oper_log_block()) {
+            reply_error_service_unavailable(ses, pkg);
+            return;
+        }
         log_trace("from: %s cmd balance update", nw_sock_human_addr(&ses->peer_addr));
         ret = on_cmd_balance_update(ses, pkg, request);
         if (ret < 0) {
@@ -756,6 +765,10 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         }
         break;
     case CMD_ORDER_PUT_LIMIT:
+        if (is_oper_log_block()) {
+            reply_error_service_unavailable(ses, pkg);
+            return;
+        }
         log_trace("from: %s cmd order put limit", nw_sock_human_addr(&ses->peer_addr));
         ret = on_cmd_order_put_limit(ses, pkg, request);
         if (ret < 0) {
@@ -763,6 +776,10 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         }
         break;
     case CMD_ORDER_PUT_MARKET:
+        if (is_oper_log_block()) {
+            reply_error_service_unavailable(ses, pkg);
+            return;
+        }
         log_trace("from: %s cmd order put market", nw_sock_human_addr(&ses->peer_addr));
         ret = on_cmd_order_put_market(ses, pkg, request);
         if (ret < 0) {
@@ -777,6 +794,10 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         }
         break;
     case CMD_ORDER_CANCEL:
+        if (is_oper_log_block()) {
+            reply_error_service_unavailable(ses, pkg);
+            return;
+        }
         log_trace("from: %s cmd order cancel", nw_sock_human_addr(&ses->peer_addr));
         ret = on_cmd_order_cancel(ses, pkg, request);
         if (ret < 0) {

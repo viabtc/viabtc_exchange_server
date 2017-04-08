@@ -14,6 +14,7 @@
 # include "me_trade.h"
 # include "me_persist.h"
 # include "me_history.h"
+# include "me_message.h"
 
 const char *__process__ = "matchengine";
 const char *__version__ = "0.1.0";
@@ -135,6 +136,11 @@ int main(int argc, char *argv[])
     ret = init_history();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init history fail: %d", ret);
+    }
+
+    ret = init_message();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init message fail: %d", ret);
     }
 
     ret = init_server();

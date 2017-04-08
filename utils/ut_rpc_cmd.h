@@ -10,7 +10,6 @@
 # define CMD_BALANCE_QUERY          101
 # define CMD_BALANCE_UPDATE         102
 
-
 // trade
 # define CMD_ORDER_PUT_LIMIT        201
 # define CMD_ORDER_PUT_MARKET       202

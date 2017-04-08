@@ -302,3 +302,11 @@ int append_user_balance_history(double t, uint32_t user_id, const char *asset, c
     return 0;
 }
 
+bool is_history_block(void)
+{
+    if (job->request_count >= MAX_PENDING_HISTORY) {
+        return true;
+    }
+    return false;
+}
+

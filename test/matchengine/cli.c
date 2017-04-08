@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
     if (ret < 0)
         error(1, errno, "send error");
 
-    char buf[10240];
+    char buf[1024 * 1024];
     ret = recvfrom(sockfd, buf, sizeof(buf), 0, NULL, NULL);
     if (ret < 0) {
         error(1, errno, "recvfrom fail");

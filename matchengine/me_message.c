@@ -34,11 +34,11 @@ static void on_timer(nw_timer *t, void *privdata)
     while ((node = list_next(iter)) != NULL) {
         int ret = rd_kafka_produce(rkt_deals, RD_KAFKA_PARTITION_UA, RD_KAFKA_MSG_F_COPY, node->value, strlen(node->value), NULL, 0, NULL);
         if (ret == -1) {
-            log_error("Failed to produce to topic %s: %s\n", rd_kafka_topic_name(rkt_deals), rd_kafka_err2str(rd_kafka_last_error()));
+            log_error("Failed to produce: %s to topic %s: %s\n", (char *)node->value, rd_kafka_topic_name(rkt_deals), rd_kafka_err2str(rd_kafka_last_error()));
             if (rd_kafka_last_error() == RD_KAFKA_RESP_ERR__QUEUE_FULL) {
-                list_add_node_head(list_deals, node->value);
                 break;
             }
+            list_del(list_deals, node);
         }
     }
     list_release_iterator(iter);

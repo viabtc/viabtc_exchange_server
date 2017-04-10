@@ -152,6 +152,10 @@ int main(int argc, char *argv[])
     nw_loop_run();
     log_vip("server stop");
 
+    fini_message();
+    fini_history();
+    fini_oper_log();
+
     return 0;
 }
 

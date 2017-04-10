@@ -43,6 +43,7 @@
 
 # define MAX_PENDING_OPERLOG    100
 # define MAX_PENDING_HISTORY    1000
+# define MAX_PENDING_MESSAGE    1000
 
 struct asset {
     char                *name;
@@ -72,6 +73,8 @@ struct settings {
     struct asset        *assets;
     size_t              market_num;
     struct market       *markets;
+
+    char                *brokers;
 };
 
 extern struct settings settings;

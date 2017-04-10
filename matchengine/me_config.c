@@ -109,6 +109,11 @@ static int read_config_from_json(json_t *root)
         printf("load markets config fail: %d\n", ret);
         return -__LINE__;
     }
+    ret = read_cfg_str(root, "brokers", &settings.brokers, NULL);
+    if (ret < 0) {
+        printf("load brokers fail: %d\n", ret);
+        return -__LINE__;
+    }
 
     return 0;
 }

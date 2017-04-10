@@ -131,6 +131,16 @@ int init_history(void)
     return 0;
 }
 
+int fini_history(void)
+{
+    on_timer(NULL, NULL);
+
+    usleep(100 * 1000);
+    nw_job_release(job);
+
+    return 0;
+}
+
 static sds sql_append_mpd(sds sql, mpd_t *val, bool comma)
 {
     char *str = mpd_to_sci(val, 0);

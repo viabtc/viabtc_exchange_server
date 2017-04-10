@@ -7,6 +7,7 @@
 # include "me_market.h"
 # include "me_balance.h"
 # include "me_history.h"
+# include "me_message.h"
 
 struct dict_user_key {
     uint32_t    user_id;
@@ -348,6 +349,7 @@ static int execute_limit_ask_order(bool real, market_t *m, order_t *order)
         order->update_time = pending->update_time = current_timestamp();
         if (real) {
             append_order_deal_history(order->update_time, order->id, pending->id, amount, price, deal, ask_fee, bid_fee);
+            push_deal_message(order->update_time, m->name, order, pending, price, amount, ask_fee, bid_fee);
         }
 
         mpd_sub(order->left, order->left, amount, &mpd_ctx);
@@ -459,6 +461,7 @@ static int execute_limit_bid_order(bool real, market_t *m, order_t *order)
         order->update_time = pending->update_time = current_timestamp();
         if (real) {
             append_order_deal_history(order->update_time, pending->id, order->id, amount, price, deal, ask_fee, bid_fee);
+            push_deal_message(order->update_time, m->name, pending, order, price, amount, ask_fee, bid_fee);
         }
 
         mpd_sub(order->left, order->left, amount, &mpd_ctx);
@@ -640,6 +643,7 @@ static int execute_market_ask_order(bool real, market_t *m, order_t *order)
         order->update_time = pending->update_time = current_timestamp();
         if (real) {
             append_order_deal_history(order->update_time, order->id, pending->id, amount, price, deal, ask_fee, bid_fee);
+            push_deal_message(order->update_time, m->name, order, pending, price, amount, ask_fee, bid_fee);
         }
 
         mpd_sub(order->left, order->left, amount, &mpd_ctx);
@@ -762,6 +766,7 @@ static int execute_market_bid_order(bool real, market_t *m, order_t *order)
         order->update_time = pending->update_time = current_timestamp();
         if (real) {
             append_order_deal_history(order->update_time, pending->id, order->id, amount, price, deal, ask_fee, bid_fee);
+            push_deal_message(order->update_time, m->name, pending, order, price, amount, ask_fee, bid_fee);
         }
 
         mpd_sub(order->left, order->left, deal, &mpd_ctx);

@@ -8,7 +8,7 @@
 
 static MYSQL *mysql_conn;
 static nw_job *job;
-static list_t *log_list;
+static list_t *list;
 static nw_timer timer;
 
 struct oper_log {
@@ -80,16 +80,16 @@ static void flush_log(void)
     size_t count;
     char buf[10240];
     list_node *node;
-    list_iter *iter = list_get_iterator(log_list, LIST_START_HEAD);
+    list_iter *iter = list_get_iterator(list, LIST_START_HEAD);
     while ((node = list_next(iter)) != NULL) {
         struct oper_log *log = node->value;
         size_t detail_len = strlen(log->detail);
         mysql_real_escape_string(mysql_conn, buf, log->detail, detail_len);
         sql = sdscatprintf(sql, "(NULL, %f, '%s')", log->create_time, buf);
-        if (list_len(log_list) > 1) {
+        if (list_len(list) > 1) {
             sql = sdscatprintf(sql, ", ");
         }
-        list_del(log_list, node);
+        list_del(list, node);
         count++;
     }
     list_release_iterator(iter);
@@ -99,7 +99,7 @@ static void flush_log(void)
 
 static void on_timer(nw_timer *t, void *privdata)
 {
-    if (log_list->len > 0) {
+    if (list->len > 0) {
         flush_log();
     }
 }
@@ -126,12 +126,22 @@ int init_oper_log(void)
     list_type lt;
     memset(&lt, 0, sizeof(lt));
     lt.free = on_list_free;
-    log_list = list_create(&lt);
-    if (log_list == NULL)
+    list = list_create(&lt);
+    if (list == NULL)
         return -__LINE__;
 
     nw_timer_set(&timer, 0.1, true, on_timer, NULL);
     nw_timer_start(&timer);
+
+    return 0;
+}
+
+int fini_oper_log(void)
+{
+    on_timer(NULL, NULL);
+
+    usleep(100 * 1000);
+    nw_job_release(job);
 
     return 0;
 }
@@ -145,7 +155,7 @@ int append_oper_log(const char *method, json_t *params)
     log->create_time = current_timestamp();
     log->detail = json_dumps(detail, 0);
     json_decref(detail);
-    list_add_node_tail(log_list, log);
+    list_add_node_tail(list, log);
     log_debug("add log: %s", log->detail);
 
     return 0;

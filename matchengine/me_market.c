@@ -878,6 +878,7 @@ int market_put_market_order(bool real, market_t *m, uint32_t user_id, uint32_t s
     order->deal_money   = mpd_new(&mpd_ctx);
     order->deal_fee     = mpd_new(&mpd_ctx);
 
+    mpd_copy(order->price, mpd_zero, &mpd_ctx);
     mpd_copy(order->amount, amount, &mpd_ctx);
     mpd_copy(order->fee, fee, &mpd_ctx);
     mpd_copy(order->left, order->amount, &mpd_ctx);

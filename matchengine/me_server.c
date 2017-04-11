@@ -11,6 +11,7 @@
 # include "me_trade.h"
 # include "me_operlog.h"
 # include "me_history.h"
+# include "me_message.h"
 
 static rpc_svr *svr;
 
@@ -753,7 +754,7 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         }
         break;
     case CMD_BALANCE_UPDATE:
-        if (is_oper_log_block() || is_history_block()) {
+        if (is_oper_log_block() || is_history_block() || is_message_block()) {
             reply_error_service_unavailable(ses, pkg);
             goto cleanup;
         }
@@ -764,7 +765,7 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         }
         break;
     case CMD_ORDER_PUT_LIMIT:
-        if (is_oper_log_block() || is_history_block()) {
+        if (is_oper_log_block() || is_history_block() || is_message_block()) {
             reply_error_service_unavailable(ses, pkg);
             goto cleanup;
         }
@@ -775,7 +776,7 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         }
         break;
     case CMD_ORDER_PUT_MARKET:
-        if (is_oper_log_block() || is_history_block()) {
+        if (is_oper_log_block() || is_history_block() || is_message_block()) {
             reply_error_service_unavailable(ses, pkg);
             goto cleanup;
         }
@@ -793,7 +794,7 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         }
         break;
     case CMD_ORDER_CANCEL:
-        if (is_oper_log_block() || is_history_block()) {
+        if (is_oper_log_block() || is_history_block() || is_message_block()) {
             reply_error_service_unavailable(ses, pkg);
             goto cleanup;
         }

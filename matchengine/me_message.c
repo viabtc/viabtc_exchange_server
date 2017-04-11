@@ -38,8 +38,8 @@ static void on_timer(nw_timer *t, void *privdata)
             if (rd_kafka_last_error() == RD_KAFKA_RESP_ERR__QUEUE_FULL) {
                 break;
             }
-            list_del(list_deals, node);
         }
+        list_del(list_deals, node);
     }
     list_release_iterator(iter);
 

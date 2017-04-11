@@ -299,9 +299,9 @@ static int load_market_order(json_t *params)
     }
 
     // fee
-    if (!json_is_string(json_array_get(params, 5)))
+    if (!json_is_string(json_array_get(params, 4)))
         return -__LINE__;
-    mpd_t *fee = decimal(json_string_value(json_array_get(params, 5)), market->fee_prec);
+    mpd_t *fee = decimal(json_string_value(json_array_get(params, 4)), market->fee_prec);
     if (fee == NULL) {
         mpd_del(amount);
         return -__LINE__;

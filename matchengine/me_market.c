@@ -126,49 +126,78 @@ static void order_free(order_t *order)
     free(order);
 }
 
-static void order_put(market_t *m, order_t *order)
+static int order_put(market_t *m, order_t *order)
 {
+    if (order->type != MARKET_ORDER_TYPE_LIMIT)
+        return -__LINE__;
+
     struct dict_order_key order_key = { .order_id = order->id };
-    dict_add(m->orders, &order_key, order);
+    if (dict_add(m->orders, &order_key, order) == NULL)
+        return -__LINE__;
 
     struct dict_user_key user_key = { .user_id = order->user_id };
     dict_entry *entry = dict_find(m->users, &user_key);
     if (entry) {
         list_t *order_list = entry->val;
-        list_add_node_head(order_list, order);
+        if (list_add_node_head(order_list, order) == NULL)
+            return -__LINE__;
     } else {
         list_type type;
         memset(&type, 0, sizeof(type));
         type.compare = order_equality;
         list_t *order_list = list_create(&type);
-        list_add_node_head(order_list, order);
-        dict_add(m->users, &user_key, order_list);
+        if (order_list == NULL)
+            return -__LINE__;
+        if (list_add_node_head(order_list, order) == NULL)
+            return -__LINE__;
+        if (dict_add(m->users, &user_key, order_list) == NULL)
+            return -__LINE__;
     }
 
     if (order->side == MARKET_ORDER_SIDE_ASK) {
-        if (skiplist_insert(m->asks, order) == NULL) {
-            log_fatal("skiplist_insert fail, order id: %"PRIu64"", order->id);
-        }
-        if (balance_freeze(order->user_id, m->stock, order->left) == NULL) {
-            log_fatal("balance_freeze fail, order id: %"PRIu64"", order->id);
-        }
+        if (skiplist_insert(m->asks, order) == NULL)
+            return -__LINE__;
+        if (balance_freeze(order->user_id, m->stock, order->left) == NULL)
+            return -__LINE__;
         mpd_copy(order->freeze, order->left, &mpd_ctx);
     } else {
-        if (skiplist_insert(m->bids, order) == NULL) {
-            log_fatal("skiplist_insert fail, order id: %"PRIu64"", order->id);
-        }
+        if (skiplist_insert(m->bids, order) == NULL)
+            return -__LINE__;
         mpd_t *result = mpd_new(&mpd_ctx);
         mpd_mul(result, order->price, order->amount, &mpd_ctx);
-        if (balance_freeze(order->user_id, m->money, result) == NULL) {
-            log_fatal("balance_freeze fail, order id: %"PRIu64"", order->id);
-        }
+        if (balance_freeze(order->user_id, m->money, result) == NULL)
+            return -__LINE__;
         mpd_copy(order->freeze, result, &mpd_ctx);
         mpd_del(result);
     }
+
+    return 0;
 }
 
 static int order_finish(bool real, market_t *m, order_t *order)
 {
+    if (order->side == MARKET_ORDER_SIDE_ASK) {
+        skiplist_node *node = skiplist_find(m->asks, order);
+        if (node) {
+            skiplist_delete(m->asks, node);
+        }
+        if (mpd_cmp(order->freeze, mpd_zero, &mpd_ctx) > 0) {
+            if (balance_unfreeze(order->user_id, m->stock, order->freeze) == NULL) {
+                return -__LINE__;
+            }
+        }
+    } else {
+        skiplist_node *node = skiplist_find(m->bids, order);
+        if (node) {
+            skiplist_delete(m->bids, node);
+        }
+        if (mpd_cmp(order->freeze, mpd_zero, &mpd_ctx) > 0) {
+            if (balance_unfreeze(order->user_id, m->money, order->freeze) == NULL) {
+                return -__LINE__;
+            }
+        }
+    }
+
     struct dict_order_key order_key = { .order_id = order->id };
     dict_delete(m->orders, &order_key);
 
@@ -179,28 +208,6 @@ static int order_finish(bool real, market_t *m, order_t *order)
         list_node *node = list_find(order_list, order);
         if (node) {
             list_del(order_list, node);
-        }
-    }
-
-    if (order->side == MARKET_ORDER_SIDE_ASK) {
-        skiplist_node *node = skiplist_find(m->asks, order);
-        if (node) {
-            skiplist_delete(m->asks, node);
-        }
-        if (mpd_cmp(order->freeze, mpd_zero, &mpd_ctx) > 0) {
-            if (balance_unfreeze(order->user_id, m->stock, order->freeze) == NULL) {
-                log_fatal("balance_unfreeze fail, order id: %"PRIu64"", order->id);
-            }
-        }
-    } else {
-        skiplist_node *node = skiplist_find(m->bids, order);
-        if (node) {
-            skiplist_delete(m->bids, node);
-        }
-        if (mpd_cmp(order->freeze, mpd_zero, &mpd_ctx) > 0) {
-            if (balance_unfreeze(order->user_id, m->money, order->freeze) == NULL) {
-                log_fatal("balance_unfreeze fail, order id: %"PRIu64"", order->id);
-            }
         }
     }
 
@@ -591,14 +598,17 @@ int market_put_limit_order(bool real, market_t *m, uint32_t user_id, uint32_t si
 
     if (mpd_cmp(order->left, mpd_zero, &mpd_ctx) == 0) {
         if (real) {
-            int ret = append_order_history(order);
+            ret = append_order_history(order);
             if (ret < 0) {
                 log_fatal("append_order_history fail: %d, order: %"PRIu64"", ret, order->id);
             }
         }
         order_free(order);
     } else {
-        order_put(m, order);
+        ret = order_put(m, order);
+        if (ret < 0) {
+            log_fatal("order_put fail: %d, order: %"PRIu64"", ret, order->id);
+        }
     }
 
     return 0;
@@ -906,9 +916,9 @@ int market_cancel_order(bool real, market_t *m, order_t *order)
     return order_finish(real, m, order);
 }
 
-void market_put_order(market_t *m, order_t *order)
+int market_put_order(market_t *m, order_t *order)
 {
-    order_put(m, order);
+    return order_put(m, order);
 }
 
 order_t *market_get_order(market_t *m, uint64_t order_id)

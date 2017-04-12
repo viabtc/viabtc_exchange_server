@@ -482,6 +482,7 @@ static int on_cmd_order_cancel(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 
     int ret = market_cancel_order(true, market, order);
     if (ret < 0) {
+        log_error("cancel order: %"PRIu64" fail: %d", order->id, ret);
         return reply_error_internal_error(ses, pkg);
     }
 
@@ -783,7 +784,7 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         log_debug("from: %s cmd order put market, params: %s", nw_sock_human_addr(&ses->peer_addr), params_str);
         ret = on_cmd_order_put_market(ses, pkg, params);
         if (ret < 0) {
-            log_error("on_cmd_order_put_market fail: %d", ret);
+            log_error("on_cmd_order_put_market %s fail: %d", params_str, ret);
         }
         break;
     case CMD_ORDER_QUERY:

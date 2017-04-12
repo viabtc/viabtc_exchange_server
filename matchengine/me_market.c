@@ -27,13 +27,10 @@ static int dict_user_key_compare(const void *key1, const void *key2)
 {
     const struct dict_user_key *obj1 = key1;
     const struct dict_user_key *obj2 = key2;
-    if (obj1->user_id > obj2->user_id) {
-        return 1;
-    } else if (obj1->user_id == obj2->user_id) {
+    if (obj1->user_id == obj2->user_id) {
         return 0;
-    } else {
-        return -1;
     }
+    return 1;
 }
 
 static void *dict_user_key_dup(const void *key)
@@ -62,13 +59,10 @@ static int dict_order_key_compare(const void *key1, const void *key2)
 {
     const struct dict_order_key *obj1 = key1;
     const struct dict_order_key *obj2 = key2;
-    if (obj1->order_id > obj2->order_id) {
-        return 1;
-    } else if (obj1->order_id == obj2->order_id) {
+    if (obj1->order_id == obj2->order_id) {
         return 0;
-    } else {
-        return -1;
     }
+    return 1;
 }
 
 static void *dict_order_key_dup(const void *key)
@@ -112,11 +106,9 @@ static int order_equality(const void *value1, const void *value2)
 {
     const order_t *order1 = value1;
     const order_t *order2 = value2;
-
     if (order1->id == order2->id) {
         return 0;
     }
-
     return 1;
 }
 

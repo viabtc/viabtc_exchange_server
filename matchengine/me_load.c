@@ -54,6 +54,12 @@ int load_orders(MYSQL *conn, const char *table)
             order->deal_money = decimal(row[13], 0);
             order->deal_fee = decimal(row[14], 0);
 
+            if (!order->market || !order->price || !order->amount || !order->fee || !order->left ||
+                    !order->freeze || !order->deal_stock || !order->deal_money || !order->deal_fee) {
+                log_error("get order detail of order id: %"PRIu64" fail", order->id);
+                return -__LINE__;
+            }
+
             market_put_order(market, order);
         }
         mysql_free_result(result);

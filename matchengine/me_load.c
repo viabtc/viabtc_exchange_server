@@ -413,7 +413,12 @@ int load_operlog(MYSQL *conn, const char *table, uint64_t *start_id)
         size_t num_rows = mysql_num_rows(result);
         for (size_t i = 0; i < num_rows; ++i) {
             MYSQL_ROW row = mysql_fetch_row(result);
-            last_id = strtoull(row[0], NULL, 0);
+            uint64_t id = strtoull(row[0], NULL, 0);
+            if (id != last_id + 1) {
+                log_error("invalid id: %"PRIu64", last id: %"PRIu64"", id, last_id);
+                return -__LINE__;
+            }
+            last_id = id;
             json_t *detail = json_loadb(row[1], strlen(row[1]), 0, NULL);
             if (detail == NULL) {
                 log_error("invalid detail data: %s", row[1]);

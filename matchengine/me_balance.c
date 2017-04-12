@@ -317,3 +317,28 @@ mpd_t *balance_total(uint32_t user_id, const char *asset)
     return balance;
 }
 
+int balance_status(const char *asset, mpd_t *total, size_t *available_count, mpd_t *available, size_t *freeze_count, mpd_t *freeze)
+{
+    *available_count = 0;
+    *freeze_count = 0;
+
+    dict_entry *entry;
+    dict_iterator *iter = dict_get_iterator(dict_balance);
+    while ((entry = dict_next(iter)) != NULL) {
+        struct balance_key *key = entry->key;
+        if (strcmp(key->asset, asset) != 0)
+            continue;
+        mpd_add(total, total, entry->val, &mpd_ctx);
+        if (key->type == BALANCE_TYPE_AVAILABLE) {
+            *available_count += 1;
+            mpd_add(available, available, entry->val, &mpd_ctx);
+        } else {
+            *freeze_count += 1;
+            mpd_add(freeze, freeze, entry->val, &mpd_ctx);
+        }
+    }
+    dict_release_iterator(iter);
+
+    return 0;
+}
+

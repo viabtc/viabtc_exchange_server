@@ -6,6 +6,8 @@
 # include "me_cli.h"
 # include "me_config.h"
 # include "me_balance.h"
+# include "me_market.h"
+# include "me_trade.h"
 
 static cli_svr *svr;
 
@@ -63,6 +65,37 @@ error:
     return sdsnew("usage: balance get user_id\n");
 }
 
+static sds on_cmd_balance_summary(const char *cmd, int argc, sds *argv)
+{
+    sds reply = sdsempty();
+    reply = sdscatprintf(reply, "%-10s %-20s %-10s %-20s %-10s %-20s\n", "asset", "total", "available", "available", "freeze", "freeze");
+
+    size_t available_count;
+    size_t freeze_count;
+    mpd_t *total = mpd_new(&mpd_ctx);
+    mpd_t *available = mpd_new(&mpd_ctx);
+    mpd_t *freeze = mpd_new(&mpd_ctx);
+    for (size_t i = 0; i < settings.asset_num; ++i) {
+        mpd_copy(total, mpd_zero, &mpd_ctx);
+        mpd_copy(available, mpd_zero, &mpd_ctx);
+        mpd_copy(freeze, mpd_zero, &mpd_ctx);
+        balance_status(settings.assets[i].name, total, &available_count, available, &freeze_count, freeze);
+        char *total_str = mpd_to_sci(total, 0);
+        char *available_str = mpd_to_sci(available, 0);
+        char *freeze_str = mpd_to_sci(freeze, 0);
+        reply = sdscatprintf(reply, "%-10s %-20s %-10zu %-20s %-10zu %-20s\n", settings.assets[i].name,
+                total_str, available_count, available_str, freeze_count, freeze_str);
+        free(total_str);
+        free(available_str);
+        free(freeze_str);
+    }
+    mpd_del(total);
+    mpd_del(available);
+    mpd_del(freeze);
+
+    return reply;
+}
+
 static sds on_cmd_balance(const char *cmd, int argc, sds *argv)
 {
     if (argc > 0) {
@@ -70,13 +103,55 @@ static sds on_cmd_balance(const char *cmd, int argc, sds *argv)
             return on_cmd_balance_list(cmd, argc, argv);
         } else if (strcmp(argv[0], "get") == 0) {
             return on_cmd_balance_get(cmd, argc, argv);
+        } else if (strcmp(argv[0], "summary") == 0) {
+            return on_cmd_balance_summary(cmd, argc, argv);
         } else {
             goto error;
         }
     }
 
 error:
-    return sdsnew("usage: balance list/get\n");
+    return sdsnew("usage: balance list/get/summary\n");
+}
+
+static sds on_cmd_market_summary(const char *cmd, int argc, sds *argv)
+{
+    sds reply = sdsempty();
+    reply = sdscatprintf(reply, "%-10s %-10s %-20s %-10s %-20s\n", "market", "ask count", "ask amount", "bid count", "bid amount");
+
+    size_t ask_count;
+    size_t bid_count;
+    mpd_t *ask_amount = mpd_new(&mpd_ctx);
+    mpd_t *bid_amount = mpd_new(&mpd_ctx);
+    for (size_t i = 0; i < settings.market_num; ++i) {
+        mpd_copy(ask_amount, mpd_zero, &mpd_ctx);
+        mpd_copy(bid_amount, mpd_zero, &mpd_ctx);
+        market_t *market = get_market(settings.markets[i].name);
+        market_get_status(market, &ask_count, ask_amount, &bid_count, bid_amount);
+        char *ask_amount_str = mpd_to_sci(ask_amount, 0);
+        char *bid_amount_str = mpd_to_sci(bid_amount, 0);
+        reply = sdscatprintf(reply, "%-10s %-10zu %-20s %-10zu %-20s\n", market->name, ask_count, ask_amount_str, bid_count, bid_amount_str);
+        free(ask_amount_str);
+        free(bid_amount_str);
+    }
+    mpd_del(ask_amount);
+    mpd_del(bid_amount);
+
+    return reply;
+}
+
+static sds on_cmd_market(const char *cmd, int argc, sds *argv)
+{
+    if (argc > 0) {
+        if (strcmp(argv[0], "summary") == 0) {
+            return on_cmd_market_summary(cmd, argc, argv);
+        } else {
+            goto error;
+        }
+    }
+
+error:
+    return sdsnew("usage market summary\n");
 }
 
 int init_cli(void)
@@ -87,6 +162,7 @@ int init_cli(void)
     }
 
     cli_svr_add_cmd(svr, "balance", on_cmd_balance);
+    cli_svr_add_cmd(svr, "market",  on_cmd_market);
 
     return 0;
 }

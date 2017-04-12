@@ -941,3 +941,25 @@ list_t *market_get_order_list(market_t *m, uint32_t user_id)
     return NULL;
 }
 
+int market_get_status(market_t *m, size_t *ask_count, mpd_t *ask_amount, size_t *bid_count, mpd_t *bid_amount)
+{
+    *ask_count = m->asks->len;
+    *bid_count = m->bids->len;
+
+    skiplist_node *node;
+    skiplist_iter *iter = skiplist_get_iterator(m->asks);
+    while ((node = skiplist_next(iter)) != NULL) {
+        order_t *order = node->value;
+        mpd_add(ask_amount, ask_amount, order->left, &mpd_ctx);
+    }
+    skiplist_release_iterator(iter);
+
+    iter = skiplist_get_iterator(m->bids);
+    while ((node = skiplist_next(iter)) != NULL) {
+        order_t *order = node->value;
+        mpd_add(bid_amount, bid_amount, order->left, &mpd_ctx);
+    }
+
+    return 0;
+}
+

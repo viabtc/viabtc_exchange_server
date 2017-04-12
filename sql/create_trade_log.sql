@@ -33,12 +33,11 @@ CREATE TABLE `slice_market_example` (
 CREATE TABLE `slice_history` (
     `id`            INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
     `time`          BIGINT NOT NULL,
-    `end_date`      DATE NOT NULL
+    `end_id`        BIGINT UNSIGNED NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-CREATE TABLE `oper_log_example` (
-    `id`            BIGINT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
+CREATE TABLE `operlog_example` (
+    `id`            BIGINT UNSIGNED NOT NULL PRIMARY KEY,
     `time`          DOUBLE NOT NULL,
     `detail`        TEXT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-

@@ -75,6 +75,7 @@ struct settings {
     struct market       *markets;
 
     char                *brokers;
+    int                 slice_interval;
 };
 
 extern struct settings settings;

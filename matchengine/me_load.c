@@ -393,14 +393,13 @@ static int load_oper(json_t *detail)
     return ret;
 }
 
-int load_operlog(MYSQL *conn, const char *table)
+int load_operlog(MYSQL *conn, const char *table, uint64_t *start_id)
 {
     size_t query_limit = 1000;
-    uint64_t last_id = 0;
+    uint64_t last_id = *start_id;
     while (true) {
         sds sql = sdsempty();
-        sql = sdscatprintf(sql, "SELECT `id`, `detail` from `%s` WHERE `id` > %"PRIu64" ORDER BY `id` LIMIT %zu",
-                table, last_id, query_limit);
+        sql = sdscatprintf(sql, "SELECT `id`, `detail` from `%s` WHERE `id` > %"PRIu64" ORDER BY `id` LIMIT %zu", table, last_id, query_limit);
         log_trace("exec sql: %s", sql);
         int ret = mysql_real_query(conn, sql, sdslen(sql));
         if (ret != 0) {
@@ -436,6 +435,7 @@ int load_operlog(MYSQL *conn, const char *table)
             break;
     }
 
+    *start_id = last_id;
     return 0;
 }
 

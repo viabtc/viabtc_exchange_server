@@ -6,8 +6,13 @@
 # ifndef _ME_PERSIST_H_
 # define _ME_PERSIST_H_
 
+# include <time.h>
+
 int init_from_db(void);
-int dump_to_db(void);
+int dump_to_db(time_t timestamp);
+int make_slice(time_t timestamp);
+
+int init_persist(void);
 
 # endif
 

@@ -114,6 +114,11 @@ static int read_config_from_json(json_t *root)
         printf("load brokers fail: %d\n", ret);
         return -__LINE__;
     }
+    ret = read_cfg_int(root, "slice_interval", &settings.slice_interval, false, 86400);
+    if (ret < 0) {
+        printf("load slice_interval fail: %d", ret);
+        return -__LINE__;
+    }
 
     return 0;
 }

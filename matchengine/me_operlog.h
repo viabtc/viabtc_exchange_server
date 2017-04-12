@@ -8,6 +8,8 @@
 
 # include "me_config.h"
 
+extern uint64_t operlog_id_start;
+
 int init_operlog(void);
 int fini_operlog(void);
 

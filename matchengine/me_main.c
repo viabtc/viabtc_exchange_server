@@ -64,11 +64,7 @@ int main(int argc, char *argv[])
         printf("usage: %s config.json [dump]\n", argv[0]);
         exit(EXIT_FAILURE);
     }
-    bool is_dump = false;
-    if (argc == 3 && strcmp(argv[2], "dump") == 0) {
-        is_dump = true;
-    }
-    if (!is_dump && process_exist(__process__) != 0) {
+    if (process_exist(__process__) != 0) {
         printf("process: %s exist\n", __process__);
         exit(EXIT_FAILURE);
     }
@@ -103,30 +99,13 @@ int main(int argc, char *argv[])
         error(EXIT_FAILURE, errno, "init trade fail: %d", ret);
     }
 
-    if (is_dump) {
-        int ret = dump_to_db();
-        if (ret < 0) {
-            error(EXIT_FAILURE, errno, "dump to db fail: %d", ret);
-        }
-
-        return 0;
-    }
-
-    nw_timer_set(&cron_timer, 0.5, true, on_cron_check, NULL);
-    nw_timer_start(&cron_timer);
-
-    daemon(1, 1);
-    process_keepalive();
-
     ret = init_from_db();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init from db fail: %d", ret);
     }
 
-    ret = init_cli();
-    if (ret < 0) {
-        error(EXIT_FAILURE, errno, "init cli fail: %d", ret);
-    }
+    daemon(1, 1);
+    process_keepalive();
 
     ret = init_operlog();
     if (ret < 0) {
@@ -138,15 +117,28 @@ int main(int argc, char *argv[])
         error(EXIT_FAILURE, errno, "init history fail: %d", ret);
     }
 
+    ret = init_persist();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init persist fail: %d", ret);
+    }
+
     ret = init_message();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init message fail: %d", ret);
+    }
+
+    ret = init_cli();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init cli fail: %d", ret);
     }
 
     ret = init_server();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init server fail: %d", ret);
     }
+
+    nw_timer_set(&cron_timer, 0.5, true, on_cron_check, NULL);
+    nw_timer_start(&cron_timer);
 
     log_vip("server start");
     log_stderr("server start");

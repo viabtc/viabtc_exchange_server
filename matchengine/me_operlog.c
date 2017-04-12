@@ -6,12 +6,15 @@
 # include "me_config.h"
 # include "me_operlog.h"
 
+uint64_t operlog_id_start;
+
 static MYSQL *mysql_conn;
 static nw_job *job;
 static list_t *list;
 static nw_timer timer;
 
 struct operlog {
+    uint64_t id;
     double create_time;
     char *detail;
 };
@@ -85,7 +88,7 @@ static void flush_log(void)
         struct operlog *log = node->value;
         size_t detail_len = strlen(log->detail);
         mysql_real_escape_string(mysql_conn, buf, log->detail, detail_len);
-        sql = sdscatprintf(sql, "(NULL, %f, '%s')", log->create_time, buf);
+        sql = sdscatprintf(sql, "(%"PRIu64", %f, '%s')", log->id, log->create_time, buf);
         if (list_len(list) > 1) {
             sql = sdscatprintf(sql, ", ");
         }
@@ -152,6 +155,7 @@ int append_operlog(const char *method, json_t *params)
     json_object_set_new(detail, "method", json_string(method));
     json_object_set(detail, "params", params);
     struct operlog *log = malloc(sizeof(struct operlog));
+    log->id = ++operlog_id_start;
     log->create_time = current_timestamp();
     log->detail = json_dumps(detail, 0);
     json_decref(detail);

@@ -11,7 +11,7 @@ static nw_job *job;
 static list_t *list;
 static nw_timer timer;
 
-struct oper_log {
+struct operlog {
     double create_time;
     char *detail;
 };
@@ -49,7 +49,7 @@ static void on_job_release(void *privdata)
 
 static void on_list_free(void *value)
 {
-    struct oper_log *log = value;
+    struct operlog *log = value;
     free(log->detail);
     free(log);
 }
@@ -64,11 +64,11 @@ static void flush_log(void)
     time_t now = time(NULL);
     struct tm *tm = localtime(&now);
     sds table = sdsempty();
-    table = sdscatprintf(table, "oper_log_%04d%02d%02d", 1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday);
+    table = sdscatprintf(table, "operlog_%04d%02d%02d", 1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday);
 
     if (sdscmp(table_last, table) != 0) {
         sds create_table_sql = sdsempty();
-        create_table_sql = sdscatprintf(create_table_sql, "CREATE TABLE IF NOT EXISTS `%s` like `oper_log_example`", table);
+        create_table_sql = sdscatprintf(create_table_sql, "CREATE TABLE IF NOT EXISTS `%s` like `operlog_example`", table);
         nw_job_add(job, 0, create_table_sql);
         table_last = sdscpy(table_last, table);
     }
@@ -82,7 +82,7 @@ static void flush_log(void)
     list_node *node;
     list_iter *iter = list_get_iterator(list, LIST_START_HEAD);
     while ((node = list_next(iter)) != NULL) {
-        struct oper_log *log = node->value;
+        struct operlog *log = node->value;
         size_t detail_len = strlen(log->detail);
         mysql_real_escape_string(mysql_conn, buf, log->detail, detail_len);
         sql = sdscatprintf(sql, "(NULL, %f, '%s')", log->create_time, buf);
@@ -104,7 +104,7 @@ static void on_timer(nw_timer *t, void *privdata)
     }
 }
 
-int init_oper_log(void)
+int init_operlog(void)
 {
     mysql_conn = mysql_init(NULL);
     if (mysql_conn == NULL)
@@ -136,7 +136,7 @@ int init_oper_log(void)
     return 0;
 }
 
-int fini_oper_log(void)
+int fini_operlog(void)
 {
     on_timer(NULL, NULL);
 
@@ -146,12 +146,12 @@ int fini_oper_log(void)
     return 0;
 }
 
-int append_oper_log(const char *method, json_t *params)
+int append_operlog(const char *method, json_t *params)
 {
     json_t *detail = json_object();
     json_object_set_new(detail, "method", json_string(method));
     json_object_set(detail, "params", params);
-    struct oper_log *log = malloc(sizeof(struct oper_log));
+    struct operlog *log = malloc(sizeof(struct operlog));
     log->create_time = current_timestamp();
     log->detail = json_dumps(detail, 0);
     json_decref(detail);
@@ -161,7 +161,7 @@ int append_oper_log(const char *method, json_t *params)
     return 0;
 }
 
-bool is_oper_log_block(void)
+bool is_operlog_block(void)
 {
     if (job->request_count >= MAX_PENDING_OPERLOG)
         return true;

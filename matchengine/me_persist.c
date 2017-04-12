@@ -92,11 +92,11 @@ static int load_slice_from_db(MYSQL *conn, time_t start)
     return 0;
 }
 
-static int load_oper_log_from_db(MYSQL *conn, time_t start)
+static int load_operlog_from_db(MYSQL *conn, time_t start)
 {
     struct tm *t = localtime(&start);
     sds table = sdsempty();
-    table = sdscatprintf(table, "oper_log_%04d%02d%02d", 1900 + t->tm_year, 1 + t->tm_mon, t->tm_mday);
+    table = sdscatprintf(table, "operlog_%04d%02d%02d", 1900 + t->tm_year, 1 + t->tm_mon, t->tm_mday);
     log_stderr("load oper log from: %s", table);
     if (!is_table_exists(conn, table)) {
         log_error("table %s not exist", table);
@@ -105,10 +105,10 @@ static int load_oper_log_from_db(MYSQL *conn, time_t start)
         return 0;
     }
 
-    int ret = load_oper_log(conn, table);
+    int ret = load_operlog(conn, table);
     if (ret < 0) {
-        log_error("load_oper_log from %s fail: %d", table, ret);
-        log_stderr("load_oper_log from %s fail: %d", table, ret);
+        log_error("load_operlog from %s fail: %d", table, ret);
+        log_stderr("load_operlog from %s fail: %d", table, ret);
         sdsfree(table);
         return -__LINE__;
     }
@@ -130,7 +130,7 @@ int init_from_db(void)
     time_t today = get_today_start();
     time_t last_slice = get_last_slice(conn);
     if (last_slice == 0) {
-        ret = load_oper_log_from_db(conn, today);
+        ret = load_operlog_from_db(conn, today);
         if (ret < 0)
             goto cleanup;
         return 0;
@@ -143,7 +143,7 @@ int init_from_db(void)
 
     time_t start = last_slice + 86400;
     while (start <= today) {
-        ret = load_oper_log_from_db(conn, start);
+        ret = load_operlog_from_db(conn, start);
         if (ret < 0) {
             goto cleanup;
         }
@@ -251,7 +251,7 @@ int dump_to_db(void)
 
     int ret;
     if (last_slice == 0) {
-        ret = load_oper_log_from_db(conn, yestarday);
+        ret = load_operlog_from_db(conn, yestarday);
         if (ret < 0) {
             goto cleanup;
         }
@@ -263,7 +263,7 @@ int dump_to_db(void)
 
         time_t start = last_slice + 86400;
         while (start <= yestarday) {
-            ret = load_oper_log_from_db(conn, start);
+            ret = load_operlog_from_db(conn, start);
             if (ret < 0) {
                 goto cleanup;
             }

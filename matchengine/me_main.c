@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
         error(EXIT_FAILURE, errno, "init cli fail: %d", ret);
     }
 
-    ret = init_oper_log();
+    ret = init_operlog();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init oper log fail: %d", ret);
     }
@@ -149,12 +149,13 @@ int main(int argc, char *argv[])
     }
 
     log_vip("server start");
+    log_stderr("server start");
     nw_loop_run();
     log_vip("server stop");
 
     fini_message();
     fini_history();
-    fini_oper_log();
+    fini_operlog();
 
     return 0;
 }

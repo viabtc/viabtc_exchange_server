@@ -219,7 +219,7 @@ static int on_cmd_balance_update(nw_ses *ses, rpc_pkg *pkg, json_t *params)
         return reply_error_internal_error(ses, pkg);
     }
 
-    append_oper_log("update_balance", params);
+    append_operlog("update_balance", params);
     return reply_success(ses, pkg);
 }
 
@@ -300,7 +300,7 @@ static int on_cmd_order_put_limit(nw_ses *ses, rpc_pkg *pkg, json_t *params)
         return reply_error_internal_error(ses, pkg);
     }
 
-    append_oper_log("limit_order", params);
+    append_operlog("limit_order", params);
     return reply_success(ses, pkg);
 }
 
@@ -364,7 +364,7 @@ static int on_cmd_order_put_market(nw_ses *ses, rpc_pkg *pkg, json_t *params)
         return reply_error_internal_error(ses, pkg);
     }
 
-    append_oper_log("market_order", params);
+    append_operlog("market_order", params);
     return reply_success(ses, pkg);
 }
 
@@ -485,7 +485,7 @@ static int on_cmd_order_cancel(nw_ses *ses, rpc_pkg *pkg, json_t *params)
         return reply_error_internal_error(ses, pkg);
     }
 
-    append_oper_log("cancel_order", params);
+    append_operlog("cancel_order", params);
     return reply_success(ses, pkg);
 }
 
@@ -754,7 +754,7 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         }
         break;
     case CMD_BALANCE_UPDATE:
-        if (is_oper_log_block() || is_history_block() || is_message_block()) {
+        if (is_operlog_block() || is_history_block() || is_message_block()) {
             reply_error_service_unavailable(ses, pkg);
             goto cleanup;
         }
@@ -765,7 +765,7 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         }
         break;
     case CMD_ORDER_PUT_LIMIT:
-        if (is_oper_log_block() || is_history_block() || is_message_block()) {
+        if (is_operlog_block() || is_history_block() || is_message_block()) {
             reply_error_service_unavailable(ses, pkg);
             goto cleanup;
         }
@@ -776,7 +776,7 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         }
         break;
     case CMD_ORDER_PUT_MARKET:
-        if (is_oper_log_block() || is_history_block() || is_message_block()) {
+        if (is_operlog_block() || is_history_block() || is_message_block()) {
             reply_error_service_unavailable(ses, pkg);
             goto cleanup;
         }
@@ -794,7 +794,7 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         }
         break;
     case CMD_ORDER_CANCEL:
-        if (is_oper_log_block() || is_history_block() || is_message_block()) {
+        if (is_operlog_block() || is_history_block() || is_message_block()) {
             reply_error_service_unavailable(ses, pkg);
             goto cleanup;
         }

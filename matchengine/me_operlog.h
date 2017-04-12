@@ -8,12 +8,12 @@
 
 # include "me_config.h"
 
-int init_oper_log(void);
-int fini_oper_log(void);
+int init_operlog(void);
+int fini_operlog(void);
 
-int append_oper_log(const char *method, json_t *params);
+int append_operlog(const char *method, json_t *params);
 
-bool is_oper_log_block(void);
+bool is_operlog_block(void);
 
 # endif
 

@@ -387,7 +387,7 @@ static int load_oper(json_t *detail)
     return ret;
 }
 
-int load_oper_log(MYSQL *conn, const char *table)
+int load_operlog(MYSQL *conn, const char *table)
 {
     size_t query_limit = 1000;
     uint64_t last_id = 0;

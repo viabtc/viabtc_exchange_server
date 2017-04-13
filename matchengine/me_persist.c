@@ -315,8 +315,8 @@ static int delete_slice(MYSQL *conn, uint64_t id, time_t timestamp)
         log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
         return -__LINE__;
     }
-
     sdsclear(sql);
+
     sql = sdscatprintf(sql, "DROP TABLE `slice_market_%ld", timestamp);
     log_trace("exec sql: %s", sql);
     ret = mysql_real_query(conn, sql, sdslen(sql));
@@ -324,8 +324,8 @@ static int delete_slice(MYSQL *conn, uint64_t id, time_t timestamp)
         log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
         return -__LINE__;
     }
-
     sdsclear(sql);
+
     sql = sdscatprintf(sql, "DROP TABLE `slice_balance_%ld", timestamp);
     log_trace("exec sql: %s", sql);
     ret = mysql_real_query(conn, sql, sdslen(sql));
@@ -333,8 +333,8 @@ static int delete_slice(MYSQL *conn, uint64_t id, time_t timestamp)
         log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
         return -__LINE__;
     }
-
     sdsclear(sql);
+
     sql = sdscatprintf(sql, "DELETE FROM `slice_history` WHERE `id` = %"PRIu64"", id);
     log_trace("exec sql: %s", sql);
     ret = mysql_real_query(conn, sql, sdslen(sql));
@@ -342,6 +342,7 @@ static int delete_slice(MYSQL *conn, uint64_t id, time_t timestamp)
         log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
         return -__LINE__;
     }
+    sdsfree(sql);
 
     log_info("delete slice id: %"PRIu64", time: %ld success", id, timestamp);
 

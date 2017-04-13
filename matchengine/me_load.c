@@ -57,6 +57,7 @@ int load_orders(MYSQL *conn, const char *table)
             if (!order->market || !order->price || !order->amount || !order->fee || !order->left ||
                     !order->freeze || !order->deal_stock || !order->deal_money || !order->deal_fee) {
                 log_error("get order detail of order id: %"PRIu64" fail", order->id);
+                mysql_free_result(result);
                 return -__LINE__;
             }
 

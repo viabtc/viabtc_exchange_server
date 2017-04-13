@@ -54,6 +54,7 @@ static int dump_orders_list(MYSQL *conn, const char *table, skiplist_t *list)
             int ret = mysql_real_query(conn, sql, sdslen(sql));
             if (ret < 0) {
                 log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+                skiplist_release_iterator(iter);
                 sdsfree(sql);
                 return -__LINE__;
             }
@@ -61,6 +62,7 @@ static int dump_orders_list(MYSQL *conn, const char *table, skiplist_t *list)
             index = 0;
         }
     }
+    skiplist_release_iterator(iter);
 
     if (index > 0) {
         log_trace("exec sql: %s", sql);
@@ -191,6 +193,7 @@ static int dump_balance_dict(MYSQL *conn, const char *table, dict_t *dict)
             int ret = mysql_real_query(conn, sql, sdslen(sql));
             if (ret < 0) {
                 log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+                dict_release_iterator(iter);
                 sdsfree(sql);
                 return -__LINE__;
             }
@@ -198,6 +201,7 @@ static int dump_balance_dict(MYSQL *conn, const char *table, dict_t *dict)
             index = 0;
         }
     }
+    dict_release_iterator(iter);
 
     if (index > 0) {
         log_trace("exec sql: %s", sql);

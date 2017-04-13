@@ -8,11 +8,12 @@
 
 # include <time.h>
 
+int init_persist(void);
+
 int init_from_db(void);
 int dump_to_db(time_t timestamp);
 int make_slice(time_t timestamp);
-
-int init_persist(void);
+int clear_slice(time_t timestamp);
 
 # endif
 

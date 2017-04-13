@@ -28,6 +28,7 @@
 # include "ut_misc.h"
 # include "ut_list.h"
 # include "ut_mysql.h"
+# include "ut_signal.h"
 # include "ut_config.h"
 # include "ut_decimal.h"
 # include "ut_rpc_clt.h"
@@ -76,6 +77,7 @@ struct settings {
 
     char                *brokers;
     int                 slice_interval;
+    int                 slice_keeptime;
 };
 
 extern struct settings settings;

@@ -37,6 +37,7 @@ static int get_last_slice(MYSQL *conn, time_t *timestamp, uint64_t *id)
         sdsfree(sql);
         return -__LINE__;
     }
+    sdsfree(sql);
 
     MYSQL_RES *result = mysql_store_result(conn);
     size_t num_rows = mysql_num_rows(result);
@@ -48,6 +49,7 @@ static int get_last_slice(MYSQL *conn, time_t *timestamp, uint64_t *id)
     MYSQL_ROW row = mysql_fetch_row(result);
     *timestamp = strtol(row[0], NULL, 0);
     *id = strtoull(row[1], NULL, 0);
+    mysql_free_result(result);
 
     return 0;
 }
@@ -159,6 +161,7 @@ int init_from_db(void)
 
     operlog_id_start = last_oper_id;
     log_stderr("load success");
+    mysql_close(conn);
     return 0;
 
 cleanup:
@@ -263,6 +266,132 @@ int dump_to_db(time_t timestamp)
     }
 
     log_info("dump success");
+    mysql_close(conn);
+    return 0;
+
+cleanup:
+    log_info("dump fail");
+    mysql_close(conn);
+    return ret;
+}
+
+static int slice_count(MYSQL *conn, time_t timestamp)
+{
+    sds sql = sdsempty();
+    sql = sdscatprintf(sql, "SELECT COUNT(*) FROM `slice_history` WHERE `time` >= %ld", timestamp - settings.slice_keeptime);
+    log_trace("exec sql: %s", sql);
+    int ret = mysql_real_query(conn, sql, sdslen(sql));
+    if (ret != 0) {
+        log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+        sdsfree(sql);
+        return -__LINE__;
+    }
+    sdsfree(sql);
+
+    MYSQL_RES *result = mysql_store_result(conn);
+    size_t num_rows = mysql_num_rows(result);
+    if (num_rows != 1) {
+        mysql_free_result(result);
+        return -__LINE__;
+    }
+
+    MYSQL_ROW row = mysql_fetch_row(result);
+    int count = atoi(row[0]);
+    mysql_free_result(result);
+
+    return count;
+}
+
+static int delete_slice(MYSQL *conn, uint64_t id, time_t timestamp)
+{
+    log_info("delete slice id: %"PRIu64", time: %ld start", id, timestamp);
+
+    int ret;
+    sds sql = sdsempty();
+    sql = sdscatprintf(sql, "DROP TABLE `slice_order_%ld", timestamp);
+    log_trace("exec sql: %s", sql);
+    ret = mysql_real_query(conn, sql, sdslen(sql));
+    if (ret != 0) {
+        log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+        return -__LINE__;
+    }
+
+    sdsclear(sql);
+    sql = sdscatprintf(sql, "DROP TABLE `slice_market_%ld", timestamp);
+    log_trace("exec sql: %s", sql);
+    ret = mysql_real_query(conn, sql, sdslen(sql));
+    if (ret != 0) {
+        log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+        return -__LINE__;
+    }
+
+    sdsclear(sql);
+    sql = sdscatprintf(sql, "DROP TABLE `slice_balance_%ld", timestamp);
+    log_trace("exec sql: %s", sql);
+    ret = mysql_real_query(conn, sql, sdslen(sql));
+    if (ret != 0) {
+        log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+        return -__LINE__;
+    }
+
+    sdsclear(sql);
+    sql = sdscatprintf(sql, "DELETE FROM `slice_history` WHERE `id` = %"PRIu64"", id);
+    log_trace("exec sql: %s", sql);
+    ret = mysql_real_query(conn, sql, sdslen(sql));
+    if (ret != 0) {
+        log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+        return -__LINE__;
+    }
+
+    log_info("delete slice id: %"PRIu64", time: %ld success", id, timestamp);
+
+    return 0;
+}
+
+int clear_slice(time_t timestamp)
+{
+    MYSQL *conn = mysql_connect(&settings.db_log);
+    if (conn == NULL) {
+        log_error("connect mysql fail");
+        return -__LINE__;
+    }
+
+    int ret = slice_count(conn, timestamp);
+    if (ret < 0) {
+        goto cleanup;
+    }
+    if (ret == 0) {
+        log_error("0 slice in last %d seconds", settings.slice_keeptime);
+        goto cleanup;
+    }
+
+    sds sql = sdsempty();
+    sql = sdscatprintf(sql, "SELECT `id`, `time` FROM `slice_history` WHERE `time` < %ld", timestamp - settings.slice_keeptime);
+    ret = mysql_real_query(conn, sql, sdslen(sql));
+    if (ret != 0) {
+        log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+        sdsfree(sql);
+        ret = -__LINE__;
+        goto cleanup;
+    }
+    sdsfree(sql);
+
+    MYSQL_RES *result = mysql_store_result(conn);
+    size_t num_rows = mysql_num_rows(result);
+    for (size_t i = 0; i < num_rows; ++i) {
+        MYSQL_ROW row = mysql_fetch_row(result);
+        uint64_t id = strtoull(row[0], NULL, 0);
+        time_t slice_time = strtol(row[1], NULL, 0);
+        ret = delete_slice(conn, id, slice_time);
+        if (ret < 0) {
+            mysql_free_result(result);
+            goto cleanup;
+        }
+
+    }
+    mysql_free_result(result);
+
+    mysql_close(conn);
     return 0;
 
 cleanup:
@@ -280,9 +409,15 @@ int make_slice(time_t timestamp)
         return 0;
     }
 
-    int ret = dump_to_db(timestamp);
+    int ret;
+    ret = dump_to_db(timestamp);
     if (ret < 0) {
         log_error("dump_to_db fail: %d", ret);
+    }
+
+    ret = clear_slice(timestamp);
+    if (ret < 0) {
+        log_error("clear_slice fail: %d", ret);
     }
 
     exit(0);

@@ -3,11 +3,8 @@
  *     History: yang@haipo.me, 2017/03/16, create
  */
 
-# include "ut_signal.h"
 # include "me_config.h"
-# include "me_cli.h"
 # include "me_operlog.h"
-# include "me_server.h"
 # include "me_market.h"
 # include "me_balance.h"
 # include "me_update.h"
@@ -15,6 +12,8 @@
 # include "me_persist.h"
 # include "me_history.h"
 # include "me_message.h"
+# include "me_cli.h"
+# include "me_server.h"
 
 const char *__process__ = "matchengine";
 const char *__version__ = "0.1.0";
@@ -61,7 +60,7 @@ int main(int argc, char *argv[])
     printf("process: %s version: %s, compile date: %s %s\n", __process__, __version__, __DATE__, __TIME__);
 
     if (argc < 2) {
-        printf("usage: %s config.json [dump]\n", argv[0]);
+        printf("usage: %s config.json\n", argv[0]);
         exit(EXIT_FAILURE);
     }
     if (process_exist(__process__) != 0) {
@@ -98,7 +97,6 @@ int main(int argc, char *argv[])
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init trade fail: %d", ret);
     }
-
     ret = init_from_db();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init from db fail: %d", ret);
@@ -111,27 +109,22 @@ int main(int argc, char *argv[])
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init oper log fail: %d", ret);
     }
-
     ret = init_history();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init history fail: %d", ret);
     }
-
-    ret = init_persist();
-    if (ret < 0) {
-        error(EXIT_FAILURE, errno, "init persist fail: %d", ret);
-    }
-
     ret = init_message();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init message fail: %d", ret);
     }
-
+    ret = init_persist();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init persist fail: %d", ret);
+    }
     ret = init_cli();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init cli fail: %d", ret);
     }
-
     ret = init_server();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init server fail: %d", ret);

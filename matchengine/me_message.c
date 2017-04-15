@@ -9,8 +9,15 @@
 # include <librdkafka/rdkafka.h>
 
 static rd_kafka_t *rk;
+
 static rd_kafka_topic_t *rkt_deals;
+static rd_kafka_topic_t *rkt_orders;
+static rd_kafka_topic_t *rkt_balances;
+
 static list_t *list_deals;
+static list_t *list_orders;
+static list_t *list_balances;
+
 static nw_timer timer;
 
 static void on_delivery(rd_kafka_t *rk, const rd_kafka_message_t *rkmessage, void *opaque)
@@ -27,21 +34,35 @@ static void on_logger(const rd_kafka_t *rk, int level, const char *fac, const ch
     log_error("RDKAFKA-%i-%s: %s: %s\n", level, fac, rk ? rd_kafka_name(rk) : NULL, buf);
 }
 
-static void on_timer(nw_timer *t, void *privdata)
+static void produce_list(list_t *list, rd_kafka_topic_t *topic)
 {
     list_node *node;
-    list_iter *iter = list_get_iterator(list_deals, LIST_START_HEAD);
+    list_iter *iter = list_get_iterator(list, LIST_START_HEAD);
     while ((node = list_next(iter)) != NULL) {
-        int ret = rd_kafka_produce(rkt_deals, RD_KAFKA_PARTITION_UA, RD_KAFKA_MSG_F_COPY, node->value, strlen(node->value), NULL, 0, NULL);
+        int ret = rd_kafka_produce(topic, RD_KAFKA_PARTITION_UA, RD_KAFKA_MSG_F_COPY, node->value, strlen(node->value), NULL, 0, NULL);
         if (ret == -1) {
             log_error("Failed to produce: %s to topic %s: %s\n", (char *)node->value, rd_kafka_topic_name(rkt_deals), rd_kafka_err2str(rd_kafka_last_error()));
             if (rd_kafka_last_error() == RD_KAFKA_RESP_ERR__QUEUE_FULL) {
                 break;
             }
         }
-        list_del(list_deals, node);
+        list_del(list, node);
+        rd_kafka_poll(rk, 0);
     }
     list_release_iterator(iter);
+}
+
+static void on_timer(nw_timer *t, void *privdata)
+{
+    if (list_deals->len) {
+        produce_list(list_deals, rkt_deals);
+    }
+    if (list_orders->len) {
+        produce_list(list_orders, rkt_orders);
+    }
+    if (list_balances->len) {
+        produce_list(list_balances, rkt_balances);
+    }
 
     rd_kafka_poll(rk, 0);
 }
@@ -71,19 +92,35 @@ int init_message(void)
     rkt_deals = rd_kafka_topic_new(rk, "deals", NULL);
     if (rkt_deals == NULL) {
         log_stderr("Failed to create topic object: %s", rd_kafka_err2str(rd_kafka_last_error()));
-        rd_kafka_destroy(rk);
         return -__LINE__;
     }
-
-    nw_timer_set(&timer, 0.1, true, on_timer, NULL);
-    nw_timer_start(&timer);
+    rkt_orders = rd_kafka_topic_new(rk, "orders", NULL);
+    if (rkt_orders == NULL) {
+        log_stderr("Failed to create topic object: %s", rd_kafka_err2str(rd_kafka_last_error()));
+        return -__LINE__;
+    }
+    rkt_balances = rd_kafka_topic_new(rk, "balances", NULL);
+    if (rkt_balances == NULL) {
+        log_stderr("Failed to create topic object: %s", rd_kafka_err2str(rd_kafka_last_error()));
+        return -__LINE__;
+    }
 
     list_type lt;
     memset(&lt, 0, sizeof(lt));
     lt.free = on_list_free;
+
     list_deals = list_create(&lt);
     if (list_deals == NULL)
         return -__LINE__;
+    list_orders = list_create(&lt);
+    if (list_orders == NULL)
+        return -__LINE__;
+    list_balances = list_create(&lt);
+    if (list_balances == NULL)
+        return -__LINE__;
+
+    nw_timer_set(&timer, 0.1, true, on_timer, NULL);
+    nw_timer_start(&timer);
 
     return 0;
 }
@@ -107,6 +144,28 @@ static json_t *json_array_append_mpd(json_t *message, mpd_t *val)
     return message;
 }
 
+static int push_message(char *message, rd_kafka_topic_t *topic, list_t *list)
+{
+    if (list->len) {
+        list_add_node_tail(list, message);
+        return 0;
+    }
+
+    int ret = rd_kafka_produce(rkt_deals, RD_KAFKA_PARTITION_UA, RD_KAFKA_MSG_F_COPY, message, strlen(message), NULL, 0, NULL);
+    if (ret == -1) {
+        log_error("Failed to produce: %s to topic %s: %s\n", message, rd_kafka_topic_name(rkt_deals), rd_kafka_err2str(rd_kafka_last_error()));
+        if (rd_kafka_last_error() == RD_KAFKA_RESP_ERR__QUEUE_FULL) {
+            list_add_node_tail(list_deals, message);
+            return 0;
+        }
+        return -__LINE__;
+    }
+    free(message);
+    rd_kafka_poll(rk, 0);
+
+    return 0;
+}
+
 int push_deal_message(double t, const char *market, order_t *ask, order_t *bid, mpd_t *price, mpd_t *amount, mpd_t *ask_fee, mpd_t *bid_fee)
 {
     json_t *message = json_array();
@@ -121,8 +180,7 @@ int push_deal_message(double t, const char *market, order_t *ask, order_t *bid, 
     json_array_append_mpd(message, ask_fee);
     json_array_append_mpd(message, bid_fee);
 
-    char *str = json_dumps(message, 0);
-    list_add_node_tail(list_deals, str);
+    push_message(json_dumps(message, 0), rkt_deals, list_deals);
     json_decref(message);
 
     return 0;
@@ -132,6 +190,11 @@ bool is_message_block(void)
 {
     if (list_deals->len >= MAX_PENDING_MESSAGE)
         return true;
+    if (list_orders->len >= MAX_PENDING_MESSAGE)
+        return true;
+    if (list_balances->len >= MAX_PENDING_MESSAGE)
+        return true;
+
     return false;
 }
 

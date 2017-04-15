@@ -54,14 +54,14 @@ static void produce_list(list_t *list, rd_kafka_topic_t *topic)
 
 static void on_timer(nw_timer *t, void *privdata)
 {
-    if (list_deals->len) {
-        produce_list(list_deals, rkt_deals);
+    if (list_balances->len) {
+        produce_list(list_balances, rkt_balances);
     }
     if (list_orders->len) {
         produce_list(list_orders, rkt_orders);
     }
-    if (list_balances->len) {
-        produce_list(list_balances, rkt_balances);
+    if (list_deals->len) {
+        produce_list(list_deals, rkt_deals);
     }
 
     rd_kafka_poll(rk, 0);
@@ -130,6 +130,8 @@ int fini_message(void)
     on_timer(NULL, NULL);
 
     rd_kafka_flush(rk, 1000);
+    rd_kafka_topic_destroy(rkt_balances);
+    rd_kafka_topic_destroy(rkt_orders);
     rd_kafka_topic_destroy(rkt_deals);
     rd_kafka_destroy(rk);
 
@@ -162,6 +164,33 @@ static int push_message(char *message, rd_kafka_topic_t *topic, list_t *list)
     }
     free(message);
     rd_kafka_poll(rk, 0);
+
+    return 0;
+}
+
+int push_balance_message(double t, uint32_t user_id, const char *asset, const char *business, mpd_t *change)
+{
+    json_t *message = json_array();
+    json_array_append_new(message, json_real(t));
+    json_array_append_new(message, json_integer(user_id));
+    json_array_append_new(message, json_string(asset));
+    json_array_append_new(message, json_string(business));
+    json_array_append_mpd(message, change);
+
+    push_message(json_dumps(message, 0), rkt_balances, list_balances);
+    json_decref(message);
+
+    return 0;
+}
+
+int push_order_message(uint32_t event, order_t *order)
+{
+    json_t *message = json_object();
+    json_object_set_new(message, "event", json_integer(event));
+    json_object_set_new(message, "order", get_order_info(order));
+
+    push_message(json_dumps(message, 0), rkt_orders, list_orders);
+    json_decref(message);
 
     return 0;
 }

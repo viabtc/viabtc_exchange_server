@@ -88,22 +88,6 @@ static int reply_success(nw_ses *ses, rpc_pkg *pkg)
     return reply_result(ses, pkg, result);
 }
 
-static inline int json_object_set_new_mpd(json_t *obj, const char *key, mpd_t *value)
-{
-    char *str = mpd_to_sci(value, 0);
-    int ret = json_object_set_new(obj, key, json_string(str));
-    free(str);
-    return ret;
-}
-
-static inline int json_array_append_new_mpd(json_t *obj, mpd_t *value)
-{
-    char *str = mpd_to_sci(value, 0);
-    int ret = json_array_append_new(obj, json_string(str));
-    free(str);
-    return ret;
-}
-
 static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 {
     size_t request_size = json_array_size(params);
@@ -366,28 +350,6 @@ static int on_cmd_order_put_market(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 
     append_operlog("market_order", params);
     return reply_success(ses, pkg);
-}
-
-static json_t *get_order_info(order_t *order)
-{
-    json_t *info = json_object();
-    json_object_set_new(info, "id", json_integer(order->id));
-    json_object_set_new(info, "type", json_integer(order->type));
-    json_object_set_new(info, "side", json_integer(order->side));
-    json_object_set_new(info, "user", json_integer(order->user_id));
-    json_object_set_new(info, "create_time", json_real(order->create_time));
-    json_object_set_new(info, "update_time", json_real(order->update_time));
-    json_object_set_new(info, "market", json_string(order->market));
-
-    json_object_set_new_mpd(info, "price", order->price);
-    json_object_set_new_mpd(info, "amount", order->amount);
-    json_object_set_new_mpd(info, "fee", order->fee);
-    json_object_set_new_mpd(info, "left", order->left);
-    json_object_set_new_mpd(info, "deal_stock", order->deal_stock);
-    json_object_set_new_mpd(info, "deal_money", order->deal_money);
-    json_object_set_new_mpd(info, "deal_fee", order->deal_fee);
-
-    return info;
 }
 
 static int on_cmd_order_query(nw_ses *ses, rpc_pkg *pkg, json_t *params)

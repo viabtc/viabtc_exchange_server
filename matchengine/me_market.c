@@ -126,6 +126,28 @@ static void order_free(order_t *order)
     free(order);
 }
 
+json_t *get_order_info(order_t *order)
+{
+    json_t *info = json_object();
+    json_object_set_new(info, "id", json_integer(order->id));
+    json_object_set_new(info, "market", json_string(order->market));
+    json_object_set_new(info, "type", json_integer(order->type));
+    json_object_set_new(info, "side", json_integer(order->side));
+    json_object_set_new(info, "user", json_integer(order->user_id));
+    json_object_set_new(info, "ctime", json_real(order->create_time));
+    json_object_set_new(info, "mtime", json_real(order->update_time));
+
+    json_object_set_new_mpd(info, "price", order->price);
+    json_object_set_new_mpd(info, "amount", order->amount);
+    json_object_set_new_mpd(info, "fee", order->fee);
+    json_object_set_new_mpd(info, "left", order->left);
+    json_object_set_new_mpd(info, "deal_stock", order->deal_stock);
+    json_object_set_new_mpd(info, "deal_money", order->deal_money);
+    json_object_set_new_mpd(info, "deal_fee", order->deal_fee);
+
+    return info;
+}
+
 static int order_put(market_t *m, order_t *order)
 {
     if (order->type != MARKET_ORDER_TYPE_LIMIT)
@@ -276,14 +298,6 @@ market_t *market_create(struct market *conf)
     return m;
 }
 
-static inline int json_object_set_new_mpd(json_t *obj, const char *key, mpd_t *value)
-{
-    char *str = mpd_to_sci(value, 0);
-    int ret = json_object_set_new(obj, key, json_string(str));
-    free(str);
-    return ret;
-}
-
 static int append_balance_trade_add(order_t *order, const char *asset, const char *business, mpd_t *change, mpd_t *price, mpd_t *amount)
 {
     json_t *detail = json_object();
@@ -410,7 +424,14 @@ static int execute_limit_ask_order(bool real, market_t *m, order_t *order)
         free(str_bid_fee);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
+            if (real) {
+                push_order_message(ORDER_EVENT_FINISH, pending);
+            }
             order_finish(real, m, pending);
+        } else {
+            if (real) {
+                push_order_message(ORDER_EVENT_UPDATE, pending);
+            }
         }
     }
     skiplist_release_iterator(iter);
@@ -522,7 +543,14 @@ static int execute_limit_bid_order(bool real, market_t *m, order_t *order)
         free(str_bid_fee);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
+            if (real) {
+                push_order_message(ORDER_EVENT_FINISH, pending);
+            }
             order_finish(real, m, pending);
+        } else {
+            if (real) {
+                push_order_message(ORDER_EVENT_UPDATE, pending);
+            }
         }
     }
     skiplist_release_iterator(iter);
@@ -605,6 +633,9 @@ int market_put_limit_order(bool real, market_t *m, uint32_t user_id, uint32_t si
         }
         order_free(order);
     } else {
+        if (real) {
+            push_order_message(ORDER_EVENT_PUT, order);
+        }
         ret = order_put(m, order);
         if (ret < 0) {
             log_fatal("order_put fail: %d, order: %"PRIu64"", ret, order->id);
@@ -707,7 +738,14 @@ static int execute_market_ask_order(bool real, market_t *m, order_t *order)
         free(str_bid_fee);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
+            if (real) {
+                push_order_message(ORDER_EVENT_FINISH, pending);
+            }
             order_finish(real, m, pending);
+        } else {
+            if (real) {
+                push_order_message(ORDER_EVENT_UPDATE, pending);
+            }
         }
     }
     skiplist_release_iterator(iter);
@@ -830,7 +868,14 @@ static int execute_market_bid_order(bool real, market_t *m, order_t *order)
         free(str_bid_fee);
 
         if (mpd_cmp(pending->left, mpd_zero, &mpd_ctx) == 0) {
+            if (real) {
+                push_order_message(ORDER_EVENT_FINISH, pending);
+            }
             order_finish(real, m, pending);
+        } else {
+            if (real) {
+                push_order_message(ORDER_EVENT_UPDATE, pending);
+            }
         }
     }
     skiplist_release_iterator(iter);
@@ -905,6 +950,7 @@ int market_put_market_order(bool real, market_t *m, uint32_t user_id, uint32_t s
         if (ret < 0) {
             log_fatal("append_order_history fail: %d, order: %"PRIu64"", ret, order->id);
         }
+        push_order_message(ORDER_EVENT_FINISH, order);
     }
 
     order_free(order);
@@ -913,7 +959,11 @@ int market_put_market_order(bool real, market_t *m, uint32_t user_id, uint32_t s
 
 int market_cancel_order(bool real, market_t *m, order_t *order)
 {
-    return order_finish(real, m, order);
+    if (real) {
+        push_order_message(ORDER_EVENT_FINISH, order);
+    }
+    order_finish(real, m, order);
+    return 0;
 }
 
 int market_put_order(market_t *m, order_t *order)

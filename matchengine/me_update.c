@@ -7,6 +7,7 @@
 # include "me_update.h"
 # include "me_balance.h"
 # include "me_history.h"
+# include "me_message.h"
 
 static dict_t *dict_update;
 static nw_timer timer;
@@ -123,12 +124,14 @@ int update_user_balance(bool real, uint32_t user_id, uint32_t type,
     dict_add(dict_update, &key, &val);
 
     if (real) {
+        double now = current_timestamp();
         json_t *detail = json_object();
         json_object_set_new(detail, "id", json_integer(business_id));
         char *detail_str = json_dumps(detail, 0);
-        append_user_balance_history(current_timestamp(), user_id, asset, business, change, detail_str);
+        append_user_balance_history(now, user_id, asset, business, change, detail_str);
         free(detail_str);
         json_decref(detail);
+        push_balance_message(now, user_id, asset, business, change);
     }
 
     return 0;

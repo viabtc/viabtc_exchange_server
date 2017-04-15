@@ -266,6 +266,20 @@ int load_cfg_mysql(json_t *root,  const char *key, mysql_cfg *cfg)
     return 0;
 }
 
+int load_cfg_kafka(json_t *root, const char *key, kafka_consumer_cfg *cfg)
+{
+    json_t *node = json_object_get(root, key);
+    if (!node || !json_is_object(node))
+        return -__LINE__;
+
+    ERR_RET(read_cfg_str(node, "brokers", &cfg->brokers, NULL));
+    ERR_RET(read_cfg_str(node, "topic", &cfg->topic, NULL));
+    ERR_RET(read_cfg_int(node, "partition", &cfg->partition, false, RD_KAFKA_PARTITION_UA));
+    ERR_RET(read_cfg_int64(node, "offset", &cfg->offset, false, RD_KAFKA_OFFSET_STORED));
+
+    return 0;
+}
+
 int read_cfg_str(json_t *root, const char *key, char **val, const char *default_val)
 {
     json_t *node = json_object_get(root, key);

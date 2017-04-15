@@ -148,6 +148,8 @@ static json_t *json_array_append_mpd(json_t *message, mpd_t *val)
 
 static int push_message(char *message, rd_kafka_topic_t *topic, list_t *list)
 {
+    log_trace("push %s message: %s", rd_kafka_topic_name(topic), message);
+
     if (list->len) {
         list_add_node_tail(list, message);
         return 0;

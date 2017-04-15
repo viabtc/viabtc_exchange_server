@@ -25,7 +25,7 @@ static void on_delivery(rd_kafka_t *rk, const rd_kafka_message_t *rkmessage, voi
     if (rkmessage->err) {
         log_error("Message delivery failed: %s", rd_kafka_err2str(rkmessage->err));
     } else {
-        log_trace("Message delivered (%zd bytes, partition %"PRId32")", rkmessage->len, rkmessage->partition);
+        log_trace("Message delivered (topic: %s, %zd bytes, partition %"PRId32")", rd_kafka_topic_name(rkmessage->rkt), rkmessage->len, rkmessage->partition);
     }
 }
 
@@ -89,8 +89,8 @@ int init_message(void)
         return -__LINE__;
     }
 
-    rkt_deals = rd_kafka_topic_new(rk, "deals", NULL);
-    if (rkt_deals == NULL) {
+    rkt_balances = rd_kafka_topic_new(rk, "balances", NULL);
+    if (rkt_balances == NULL) {
         log_stderr("Failed to create topic object: %s", rd_kafka_err2str(rd_kafka_last_error()));
         return -__LINE__;
     }
@@ -99,8 +99,8 @@ int init_message(void)
         log_stderr("Failed to create topic object: %s", rd_kafka_err2str(rd_kafka_last_error()));
         return -__LINE__;
     }
-    rkt_balances = rd_kafka_topic_new(rk, "balances", NULL);
-    if (rkt_balances == NULL) {
+    rkt_deals = rd_kafka_topic_new(rk, "deals", NULL);
+    if (rkt_deals == NULL) {
         log_stderr("Failed to create topic object: %s", rd_kafka_err2str(rd_kafka_last_error()));
         return -__LINE__;
     }
@@ -155,7 +155,7 @@ static int push_message(char *message, rd_kafka_topic_t *topic, list_t *list)
         return 0;
     }
 
-    int ret = rd_kafka_produce(rkt_deals, RD_KAFKA_PARTITION_UA, RD_KAFKA_MSG_F_COPY, message, strlen(message), NULL, 0, NULL);
+    int ret = rd_kafka_produce(topic, RD_KAFKA_PARTITION_UA, RD_KAFKA_MSG_F_COPY, message, strlen(message), NULL, 0, NULL);
     if (ret == -1) {
         log_error("Failed to produce: %s to topic %s: %s\n", message, rd_kafka_topic_name(rkt_deals), rd_kafka_err2str(rd_kafka_last_error()));
         if (rd_kafka_last_error() == RD_KAFKA_RESP_ERR__QUEUE_FULL) {

@@ -78,6 +78,7 @@ struct settings {
     char                *brokers;
     int                 slice_interval;
     int                 slice_keeptime;
+    int                 history_thread;
 };
 
 extern struct settings settings;

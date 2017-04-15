@@ -124,6 +124,11 @@ static int read_config_from_json(json_t *root)
         printf("load slice_keeptime fail: %d", ret);
         return -__LINE__;
     }
+    ret = read_cfg_int(root, "history_thread", &settings.history_thread, false, 10);
+    if (ret < 0) {
+        printf("load history_thread fail: %d", ret);
+        return -__LINE__;
+    }
 
     return 0;
 }

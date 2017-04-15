@@ -121,7 +121,7 @@ int init_history(void)
     jt.on_cleanup = on_job_cleanup;
     jt.on_release = on_job_release;
 
-    job = nw_job_create(&jt, 20);
+    job = nw_job_create(&jt, settings.history_thread);
     if (job == NULL)
         return -__LINE__;
 

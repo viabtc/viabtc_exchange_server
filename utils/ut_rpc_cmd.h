@@ -18,6 +18,7 @@
 # define CMD_ORDER_BOOK             205
 # define CMD_ORDER_BOOK_DEPTH       206
 # define CMD_ORDER_BOOK_MERGE       207
+# define CMD_ORDER_DETAIL           208
 
 # endif
 

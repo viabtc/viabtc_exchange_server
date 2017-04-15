@@ -737,6 +737,32 @@ static int on_cmd_order_book_merge(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     return reply_result(ses, pkg, result);
 }
 
+static int on_cmd_order_detail(nw_ses *ses, rpc_pkg *pkg, json_t *params)
+{
+    if (json_array_size(params) != 2)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // market
+    if (!json_is_string(json_array_get(params, 0)))
+        return reply_error_invalid_argument(ses, pkg);
+    const char *market_name = json_string_value(json_array_get(params, 0));
+    market_t *market = get_market(market_name);
+    if (market == NULL)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // order_id
+    if (!json_is_integer(json_array_get(params, 2)))
+        return reply_error_invalid_argument(ses, pkg);
+    uint64_t order_id = json_integer_value(json_array_get(params, 2));
+
+    order_t *order = market_get_order(market, order_id);
+    if (order == NULL) {
+        return reply_result(ses, pkg, json_null());
+    }
+
+    return reply_result(ses, pkg, get_order_info(order));
+}
+
 static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
 {
     json_t *params = json_loadb(pkg->body, pkg->body_size, 0, NULL);
@@ -824,6 +850,13 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         ret = on_cmd_order_book_merge(ses, pkg, params);
         if (ret < 0) {
             log_error("on_cmd_order_book_merge %s fail: %d", params_str, ret);
+        }
+        break;
+    case CMD_ORDER_DETAIL:
+        log_debug("from: %s cmd order detail, params: %s", nw_sock_human_addr(&ses->peer_addr), params_str);
+        ret = on_cmd_order_detail(ses, pkg, params);
+        if (ret < 0) {
+            log_error("on_cmd_order_detail %s fail: %d", params_str, ret);
         }
         break;
     default:

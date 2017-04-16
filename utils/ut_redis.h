@@ -28,21 +28,21 @@ typedef struct redis_sentinel_node {
     struct redis_sentinel_node *next;
 } redis_sentinel_node;
 
-typedef struct redis_sentinel {
+typedef struct redis_sentinel_t {
     char *name;
     redis_sentinel_node *list;
     int db;
-} redis_sentinel;
+} redis_sentinel_t;
 
-redis_sentinel *redis_sentinel_create(redis_sentinel_cfg *cfg);
-void redis_sentinel_release(redis_sentinel *context);
+redis_sentinel_t *redis_sentinel_create(redis_sentinel_cfg *cfg);
+void redis_sentinel_release(redis_sentinel_t *context);
 
 /* host should be freed by caller */
-int redis_sentinel_get_master_addr(redis_sentinel *context, redis_addr *addr);
-int redis_sentinel_get_slave_addr(redis_sentinel *context, redis_addr *addr);
+int redis_sentinel_get_master_addr(redis_sentinel_t *context, redis_addr *addr);
+int redis_sentinel_get_slave_addr(redis_sentinel_t *context, redis_addr *addr);
 
-redisContext *redis_sentinel_connect_master(redis_sentinel *context);
-redisContext *redis_sentinel_connect_slave(redis_sentinel *context);
+redisContext *redis_sentinel_connect_master(redis_sentinel_t *context);
+redisContext *redis_sentinel_connect_slave(redis_sentinel_t *context);
 
 int redis_addr_cfg_parse(const char *cfg, redis_addr *addr);
 

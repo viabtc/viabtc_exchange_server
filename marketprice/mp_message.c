@@ -6,7 +6,8 @@
 # include "mp_config.h"
 # include "mp_message.h"
 
-static kafka_consumer_t *consumer_deals;
+static redis_sentinel_t *redis;
+static kafka_consumer_t *deals;
 
 static void on_deals_message(sds message, int64_t offset)
 {
@@ -15,8 +16,12 @@ static void on_deals_message(sds message, int64_t offset)
 
 int init_message(void)
 {
-    consumer_deals = kafka_consumer_create(&settings.deals, on_deals_message);
-    if (consumer_deals == NULL) {
+    redis = redis_sentinel_create(&settings.redis);
+    if (redis == NULL)
+        return -__LINE__;
+
+    deals = kafka_consumer_create(&settings.deals, on_deals_message);
+    if (deals == NULL) {
         return -__LINE__;
     }
 

@@ -11,7 +11,7 @@
 # include "ut_log.h"
 # include "ut_redis.h"
 
-static void append_node(redis_sentinel *context, redis_sentinel_node *node)
+static void append_node(redis_sentinel_t *context, redis_sentinel_node *node)
 {
     if (context->list == NULL) {
         context->list = node;
@@ -25,7 +25,7 @@ static void append_node(redis_sentinel *context, redis_sentinel_node *node)
     node->prev = curr;
 }
 
-static void move_to_front(redis_sentinel *context, redis_sentinel_node *node)
+static void move_to_front(redis_sentinel_t *context, redis_sentinel_node *node)
 {
     if (node == context->list)
         return;
@@ -39,12 +39,12 @@ static void move_to_front(redis_sentinel *context, redis_sentinel_node *node)
     context->list = node;
 }
 
-redis_sentinel *redis_sentinel_create(redis_sentinel_cfg *cfg)
+redis_sentinel_t *redis_sentinel_create(redis_sentinel_cfg *cfg)
 {
-    redis_sentinel *context = malloc(sizeof(redis_sentinel));
+    redis_sentinel_t *context = malloc(sizeof(redis_sentinel_t));
     if (context == NULL)
         return NULL;
-    memset(context, 0, sizeof(redis_sentinel));
+    memset(context, 0, sizeof(redis_sentinel_t));
     context->db = cfg->db;
     context->name = strdup(cfg->name);
     if (context->name == NULL) {
@@ -72,7 +72,7 @@ redis_sentinel *redis_sentinel_create(redis_sentinel_cfg *cfg)
     return context;
 }
 
-void redis_sentinel_release(redis_sentinel *context)
+void redis_sentinel_release(redis_sentinel_t *context)
 {
     redis_sentinel_node *curr = context->list;
     redis_sentinel_node *next;
@@ -85,7 +85,7 @@ void redis_sentinel_release(redis_sentinel *context)
     free(context);
 }
 
-int redis_sentinel_get_master_addr(redis_sentinel *context, redis_addr *addr)
+int redis_sentinel_get_master_addr(redis_sentinel_t *context, redis_addr *addr)
 {
     redis_sentinel_node *curr = context->list;
     while (curr) {
@@ -130,7 +130,7 @@ static char *get_slave_info(size_t elements, redisReply **element, char *key)
     return NULL;
 }
 
-int redis_sentinel_get_slave_addr(redis_sentinel *context, redis_addr *addr)
+int redis_sentinel_get_slave_addr(redis_sentinel_t *context, redis_addr *addr)
 {
     redis_sentinel_node *curr = context->list;
     while (curr) {
@@ -182,7 +182,7 @@ int redis_sentinel_get_slave_addr(redis_sentinel *context, redis_addr *addr)
     return -1;
 }
 
-redisContext *redis_sentinel_connect_master(redis_sentinel *context)
+redisContext *redis_sentinel_connect_master(redis_sentinel_t *context)
 {
     for (int i = 0; i < 3; ++i) {
         redis_addr addr;
@@ -234,7 +234,7 @@ redisContext *redis_sentinel_connect_master(redis_sentinel *context)
     return NULL;
 }
 
-redisContext *redis_sentinel_connect_slave(redis_sentinel *context)
+redisContext *redis_sentinel_connect_slave(redis_sentinel_t *context)
 {
     for (int i = 0; i < 3; ++i) {
         redis_addr addr;

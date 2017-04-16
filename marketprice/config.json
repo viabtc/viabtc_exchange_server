@@ -17,5 +17,10 @@
         "max_pkg_size": 10240,
         "heartbeat_check": false
     },
-    "cli": "tcp@127.0.0.1:7417"
+    "cli": "tcp@127.0.0.1:7417",
+    "deals": {
+        "brokers": "127.0.0.1:9092",
+        "topic": "deals",
+        "partition": 0
+    }
 }

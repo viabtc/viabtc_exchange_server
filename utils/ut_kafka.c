@@ -31,7 +31,7 @@ static void *thread_routine(void *data)
 {
     kafka_consumer_t *consumer = data;
     pthread_mutex_lock(&consumer->lock);
-    consumer ->running = true;
+    consumer->running = true;
     pthread_mutex_unlock(&consumer->lock);
 
     while (consumer->shutdown == false) {
@@ -45,8 +45,10 @@ static void *thread_routine(void *data)
         if (!rkmessage)
             continue;
         if (rkmessage->err) {
-            log_error("Consume error for topic \"%s\" [%"PRId32"] offset %"PRId64": %s", rd_kafka_topic_name(rkmessage->rkt),
-                    rkmessage->partition, rkmessage->offset, rd_kafka_message_errstr(rkmessage));
+            if (rkmessage->err != RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+                log_error("Consume error for topic \"%s\" [%"PRId32"] offset %"PRId64": %s", rd_kafka_topic_name(rkmessage->rkt),
+                        rkmessage->partition, rkmessage->offset, rd_kafka_message_errstr(rkmessage));
+            }
         } else {
             struct message_t *m = malloc(sizeof(message_t));
             m->message = sdsnewlen(rkmessage->payload, rkmessage->len);
@@ -59,6 +61,7 @@ static void *thread_routine(void *data)
         rd_kafka_message_destroy(rkmessage);
     }
 
+    rd_kafka_consume_stop(consumer->rkt, consumer->partition);
     return data;
 }
 
@@ -128,6 +131,7 @@ kafka_consumer_t *kafka_consumer_create(kafka_consumer_cfg *cfg, kafka_message_c
         kafka_consumer_release(consumer);
         return NULL;
     }
+    consumer->conf = NULL;
     if (rd_kafka_brokers_add(consumer->rk, cfg->brokers) == 0) {
         log_error("No valid brokers specified: %s", rd_kafka_err2str(rd_kafka_last_error()));
         log_stderr("No valid brokers specified: %s", rd_kafka_err2str(rd_kafka_last_error()));
@@ -143,11 +147,10 @@ kafka_consumer_t *kafka_consumer_create(kafka_consumer_cfg *cfg, kafka_message_c
     }
     if (rd_kafka_consume_start(consumer->rkt, cfg->partition, cfg->offset) == -1) {
         log_error("Failed to start consumer: %s", rd_kafka_err2str(rd_kafka_last_error()));
-        log_error("Failed to start consumer: %s", rd_kafka_err2str(rd_kafka_last_error()));
+        log_stderr("Failed to start consumer: %s", rd_kafka_err2str(rd_kafka_last_error()));
         kafka_consumer_release(consumer);
         return NULL;
     }
-
     if (pthread_mutex_init(&consumer->lock, NULL) != 0) {
         kafka_consumer_release(consumer);
         return NULL;

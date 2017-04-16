@@ -35,6 +35,11 @@ static int read_config_from_json(json_t *root)
         printf("load cli config fail: %d\n", ret);
         return -__LINE__;
     }
+    ret = load_cfg_kafka(root, "deals", &settings.deals);
+    if (ret < 0) {
+        printf("load kafka deals config fail: %d\n", ret);
+        return -__LINE__;
+    }
 
     return 0;
 }

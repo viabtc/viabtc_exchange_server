@@ -4,6 +4,7 @@
  */
 
 # include "mp_config.h"
+# include "mp_message.h"
 
 const char *__process__ = "marketprice";
 const char *__version__ = "0.1.0";
@@ -78,6 +79,11 @@ int main(int argc, char *argv[])
 
     daemon(1, 1);
     process_keepalive();
+
+    ret = init_message();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init message fail: %d", ret);
+    }
 
     nw_timer_set(&cron_timer, 0.5, true, on_cron_check, NULL);
     nw_timer_start(&cron_timer);

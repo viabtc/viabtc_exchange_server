@@ -39,7 +39,7 @@ static void produce_list(list_t *list, rd_kafka_topic_t *topic)
     list_node *node;
     list_iter *iter = list_get_iterator(list, LIST_START_HEAD);
     while ((node = list_next(iter)) != NULL) {
-        int ret = rd_kafka_produce(topic, RD_KAFKA_PARTITION_UA, RD_KAFKA_MSG_F_COPY, node->value, strlen(node->value), NULL, 0, NULL);
+        int ret = rd_kafka_produce(topic, 0, RD_KAFKA_MSG_F_COPY, node->value, strlen(node->value), NULL, 0, NULL);
         if (ret == -1) {
             log_error("Failed to produce: %s to topic %s: %s\n", (char *)node->value, rd_kafka_topic_name(rkt_deals), rd_kafka_err2str(rd_kafka_last_error()));
             if (rd_kafka_last_error() == RD_KAFKA_RESP_ERR__QUEUE_FULL) {
@@ -155,7 +155,7 @@ static int push_message(char *message, rd_kafka_topic_t *topic, list_t *list)
         return 0;
     }
 
-    int ret = rd_kafka_produce(topic, RD_KAFKA_PARTITION_UA, RD_KAFKA_MSG_F_COPY, message, strlen(message), NULL, 0, NULL);
+    int ret = rd_kafka_produce(topic, 0, RD_KAFKA_MSG_F_COPY, message, strlen(message), NULL, 0, NULL);
     if (ret == -1) {
         log_error("Failed to produce: %s to topic %s: %s\n", message, rd_kafka_topic_name(rkt_deals), rd_kafka_err2str(rd_kafka_last_error()));
         if (rd_kafka_last_error() == RD_KAFKA_RESP_ERR__QUEUE_FULL) {

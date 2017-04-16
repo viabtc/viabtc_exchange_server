@@ -27,6 +27,7 @@
 # include "ut_cli.h"
 # include "ut_misc.h"
 # include "ut_list.h"
+# include "ut_kafka.h"
 # include "ut_signal.h"
 # include "ut_config.h"
 # include "ut_decimal.h"
@@ -40,6 +41,7 @@ struct settings {
     log_cfg             log;
     rpc_svr_cfg         svr;
     cli_svr_cfg         cli;
+    kafka_consumer_cfg  deals;
 };
 
 extern struct settings settings;

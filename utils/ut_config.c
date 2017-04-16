@@ -275,6 +275,7 @@ int load_cfg_kafka(json_t *root, const char *key, kafka_consumer_cfg *cfg)
     ERR_RET(read_cfg_str(node, "brokers", &cfg->brokers, NULL));
     ERR_RET(read_cfg_str(node, "topic", &cfg->topic, NULL));
     ERR_RET(read_cfg_int(node, "partition", &cfg->partition, false, RD_KAFKA_PARTITION_UA));
+    ERR_RET(read_cfg_int(node, "offset", &cfg->limit, false, 1000));
     ERR_RET(read_cfg_int64(node, "offset", &cfg->offset, false, RD_KAFKA_OFFSET_STORED));
 
     return 0;

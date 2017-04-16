@@ -35,6 +35,11 @@ static void *thread_routine(void *data)
     pthread_mutex_unlock(&consumer->lock);
 
     while (consumer->shutdown == false) {
+        if (consumer->list->len >= consumer->limit) {
+            usleep(100 * 1000);
+            continue;
+        }
+
         rd_kafka_poll(consumer->rk, 0);
         rd_kafka_message_t *rkmessage = rd_kafka_consume(consumer->rkt, consumer->partition, 100);
         if (!rkmessage)
@@ -110,6 +115,7 @@ kafka_consumer_t *kafka_consumer_create(kafka_consumer_cfg *cfg, kafka_message_c
         kafka_consumer_release(consumer);
         return NULL;
     }
+    consumer->limit = cfg->limit;
 
     char errstr[1024];
     consumer->partition = cfg->partition;

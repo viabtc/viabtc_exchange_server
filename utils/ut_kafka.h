@@ -22,6 +22,7 @@ typedef struct kafka_consumer_cfg {
     char    *brokers;
     char    *topic;
     int     partition;
+    int     limit;
     int64_t offset;
 } kafka_consumer_cfg;
 
@@ -37,8 +38,8 @@ typedef struct kafka_consumer_t {
     rd_kafka_t *rk;
     rd_kafka_topic_t *rkt;
     int32_t partition;
-    size_t count;
     list_t *list;
+    int limit;
     kafka_message_callback callback;
 } kafka_consumer_t;
 

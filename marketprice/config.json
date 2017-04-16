@@ -1,0 +1,21 @@
+{
+    "debug": true,
+    "process": {
+        "file_limit": 1000000,
+        "core_limit": 1000000000
+    },
+    "log": {
+        "path": "/var/log/trade/marketprice",
+        "flag": "fatal,error,warn,info,debug,trace"
+    },
+    "svr": {
+        "bind": [
+            "tcp@0.0.0.0:7416",
+            "udp@0.0.0.0:7416"
+        ],
+        "buf_limit": 100,
+        "max_pkg_size": 10240,
+        "heartbeat_check": false
+    },
+    "cli": "tcp@127.0.0.1:7417"
+}

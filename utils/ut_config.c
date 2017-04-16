@@ -266,7 +266,7 @@ int load_cfg_mysql(json_t *root,  const char *key, mysql_cfg *cfg)
     return 0;
 }
 
-int load_cfg_kafka(json_t *root, const char *key, kafka_consumer_cfg *cfg)
+int load_cfg_kafka_consumer(json_t *root, const char *key, kafka_consumer_cfg *cfg)
 {
     json_t *node = json_object_get(root, key);
     if (!node || !json_is_object(node))
@@ -277,6 +277,35 @@ int load_cfg_kafka(json_t *root, const char *key, kafka_consumer_cfg *cfg)
     ERR_RET(read_cfg_int(node, "partition", &cfg->partition, false, 0));
     ERR_RET(read_cfg_int(node, "limit", &cfg->limit, false, 1000));
     ERR_RET(read_cfg_int64(node, "offset", &cfg->offset, false, 0));
+
+    return 0;
+}
+
+int load_cfg_redis_sentinel(json_t *root, const char *key, redis_sentinel_cfg *cfg)
+{
+    json_t *node = json_object_get(root, key);
+    if (!node || !json_is_object(node))
+        return -__LINE__;
+
+    ERR_RET(read_cfg_str(node, "name", &cfg->name, NULL));
+    ERR_RET(read_cfg_int(node, "db", &cfg->db, false, 0));
+
+    json_t *addr = json_object_get(node, "addr");
+    if (!addr || !json_is_array(addr))
+        return -__LINE__;
+    cfg->addr_count = json_array_size(addr);
+    if (cfg->addr_count == 0)
+        return -__LINE__;
+    cfg->addr_arr = malloc(sizeof(redis_addr) * cfg->addr_count);
+    if (cfg->addr_arr == NULL)
+        return -__LINE__;
+    for (size_t i = 0; i < cfg->addr_count; ++i) {
+        json_t *row = json_array_get(addr, i);
+        if (!row || !json_is_string(row))
+            return -__LINE__;
+        if (redis_addr_cfg_parse(json_string_value(row), &cfg->addr_arr[i]) < 0)
+            return -__LINE__;
+    }
 
     return 0;
 }

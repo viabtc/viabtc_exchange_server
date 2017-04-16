@@ -42,6 +42,7 @@ struct settings {
     rpc_svr_cfg         svr;
     cli_svr_cfg         cli;
     kafka_consumer_cfg  deals;
+    redis_sentinel_cfg  redis;
 };
 
 extern struct settings settings;

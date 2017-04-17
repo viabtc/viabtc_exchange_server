@@ -321,3 +321,18 @@ void *redisCmd(redisContext *c, const char *format, ...)
     return reply;
 }
 
+void *redisRawCmd(redisContext *c, const char *cmd)
+{
+    redisReply *reply = redisCommand(c, cmd);
+    if (reply == NULL) {
+        log_error("redisCommand fail: %d: %s", c->err, strerror(errno));
+        return NULL;
+    }
+    if (reply->type == REDIS_REPLY_ERROR) {
+        log_error("redisCommand error: %s", reply->str);
+        freeReplyObject(reply);
+        return NULL;
+    }
+    return reply;
+}
+

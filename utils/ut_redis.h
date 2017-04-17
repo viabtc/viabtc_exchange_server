@@ -47,6 +47,7 @@ redisContext *redis_sentinel_connect_slave(redis_sentinel_t *context);
 int redis_addr_cfg_parse(const char *cfg, redis_addr *addr);
 
 void *redisCmd(redisContext *c, const char *format, ...) __attribute__ ((format(printf, 2, 3)));
+void *redisRawCmd(redisContext *c, const char *cmd);
 
 # endif
 

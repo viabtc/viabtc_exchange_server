@@ -8,7 +8,7 @@
 # include "mp_kline.h"
 
 struct market_info {
-    char  *name;
+    char   *name;
     time_t sec_update;
     struct kline_info *sec;
     time_t min_update;
@@ -22,8 +22,8 @@ static kafka_consumer_t *deals;
 static dict_t *dict_market;
 static nw_timer timer;
 
-static time_t flush_sec_error;
-static time_t flush_min_error;
+static time_t flush_sec_error_start;
+static time_t flush_min_error_start;
 
 static uint32_t dict_sds_key_hash_func(const void *key)
 {
@@ -64,15 +64,15 @@ static void dict_time_key_free(void *key)
 
 static int load_market_sec(redisContext *context, struct market_info *market)
 {
-    time_t start = time(NULL) / 60 * 60 - 86400;
-    time_t end = start + 86400;
+    time_t end = time(NULL);
+    time_t start = end / 60 * 60 - 86400;
     sds cmd = sdsnew("HMGET k:%s:1s");
     for (time_t timestamp = start; timestamp < end; timestamp++) {
         cmd = sdscatprintf(cmd, " %ld", timestamp);
     }
+
     redisReply *reply = redisRawCmd(context, cmd);
     if (reply == NULL) {
-        log_error("redis cmd: %s fail", cmd);
         sdsfree(cmd);
         return -__LINE__;
     }
@@ -90,20 +90,19 @@ static int load_market_sec(redisContext *context, struct market_info *market)
         }
         dict_add(market->dict_sec, &timestamp, info);
     }
-
     freeReplyObject(reply);
+
     return 0;
 }
 
-static int load_market_min(redisContext *context, struct market_info *market)
+static int init_market_min(struct market_info *market)
 {
-    time_t start = time(NULL) / 60 * 60 - 86400;
-    time_t end = start + 86400;
+    time_t end = time(NULL);
+    time_t start = end / 60 * 60 - 86400;
     for (time_t timestamp = start; timestamp < end; timestamp++) {
         dict_entry *entry = dict_find(market->dict_sec, &timestamp);
-        if (!entry) {
+        if (!entry)
             continue;
-        }
         struct kline_info *info = entry->val;
         if (timestamp / 60 > market->min_update / 60) {
             if (market->min_update && market->min) {
@@ -130,12 +129,13 @@ static int load_market_kline(struct market_info *market)
         redisFree(context);
         return ret;
     }
-    ret = load_market_min(context, market);
+    redisFree(context);
+    ret = init_market_min(market);
     if (ret < 0) {
         redisFree(context);
         return ret;
     }
-    redisFree(context);
+
     return 0;
 }
 
@@ -155,27 +155,8 @@ static int64_t get_message_offset(void)
     }
     freeReplyObject(reply);
     redisFree(context);
-    return offset;
-}
 
-static sds *get_markets_list(size_t *count)
-{
-    redisContext *context = redis_sentinel_connect_master(redis);
-    if (context == NULL)
-        return NULL;
-    redisReply *reply = redisCmd(context, "SMEMBERS k:markets");
-    if (reply == NULL) {
-        redisFree(context);
-        return NULL;
-    }
-    *count = reply->elements;
-    sds *markets = malloc(sizeof(sds) * reply->elements);
-    for (size_t i = 0; i < reply->elements; ++i) {
-        markets[i] = sdsnewlen(reply->element[i]->str, reply->element[i]->len);
-    }
-    freeReplyObject(reply);
-    redisFree(context);
-    return markets;
+    return offset;
 }
 
 static int add_markets_list(const char *market)
@@ -190,6 +171,7 @@ static int add_markets_list(const char *market)
     }
     freeReplyObject(reply);
     redisFree(context);
+
     return 0;
 }
 
@@ -212,6 +194,7 @@ static struct market_info *create_market(const char *market)
 
     sds key = sdsnew(market);
     dict_add(dict_market, key, info);
+
     return info;
 }
 
@@ -226,19 +209,29 @@ static int init_market(void)
     if (dict_market == NULL)
         return -__LINE__;
 
-    size_t count;
-    sds *markets = get_markets_list(&count);
-    if (markets == NULL)
+    redisContext *context = redis_sentinel_connect_master(redis);
+    if (context == NULL)
         return -__LINE__;
-
-    for (size_t i = 0; i < count; ++i) {
-        struct market_info *info = create_market(markets[i]);
-        if (info == NULL)
-            return -__LINE__;
-        int ret = load_market_kline(info);
-        if (ret < 0)
-            return ret;
+    redisReply *reply = redisCmd(context, "SMEMBERS k:markets");
+    if (reply == NULL) {
+        redisFree(context);
+        return -__LINE__;
     }
+    redisFree(context);
+
+    for (size_t i = 0; i < reply->elements; ++i) {
+        struct market_info *info = create_market(reply->element[i]->str);
+        if (info == NULL) {
+            freeReplyObject(reply);
+            return -__LINE__;
+        }
+        int ret = load_market_kline(info);
+        if (ret < 0) {
+            freeReplyObject(reply);
+            return ret;
+        }
+    }
+    freeReplyObject(reply);
 
     return 0;
 }
@@ -247,12 +240,12 @@ static struct market_info *market_query(const char *market)
 {
     sds key = sdsnew(market);
     dict_entry *entry = dict_find(dict_market, key);
-    struct market_info *info = NULL;
     if (entry) {
-        info = entry->val;
+        sdsfree(key);
+        return entry->val;
     }
     sdsfree(key);
-    return info;
+    return NULL;
 }
 
 static int flush_kline_sec(const char *market, time_t timestamp, struct kline_info *info)
@@ -275,7 +268,7 @@ static int flush_kline_sec(const char *market, time_t timestamp, struct kline_in
     free(str);
     freeReplyObject(reply);
 
-    if (flush_sec_error == 0 && flush_min_error == 0) {
+    if (flush_sec_error_start == 0 && flush_min_error_start == 0) {
         reply = redisCmd(context, "SET k:offset %"PRIi64, info->offset);
         if (reply == NULL) {
             redisFree(context);
@@ -333,8 +326,8 @@ static int market_update(const char *market, time_t timestamp, mpd_t *price, mpd
             int ret = flush_kline_sec(info->name, info->sec_update, info->sec);
             if (ret < 0) {
                 log_fatal("flush_kline_sec: %ld fail: %d", info->sec_update, ret);
-                if (flush_sec_error == 0)
-                    flush_sec_error = info->sec_update;
+                if (flush_sec_error_start == 0)
+                    flush_sec_error_start = info->sec_update;
             }
         }
         info->sec = kline_info_new(price);
@@ -349,8 +342,8 @@ static int market_update(const char *market, time_t timestamp, mpd_t *price, mpd
             int ret = flush_kline_min(info->name, start, info->min);
             if (ret < 0) {
                 log_fatal("flush_kline_min: %ld fail: %d", start, ret);
-                if (flush_sec_error == 0)
-                    flush_min_error = start;
+                if (flush_sec_error_start == 0)
+                    flush_min_error_start = start;
             }
         }
         info->min = kline_info_new(price);
@@ -397,9 +390,9 @@ static void on_deals_message(sds message, int64_t offset)
         goto cleanup;
     }
 
-    json_decref(obj);
     mpd_del(price);
     mpd_del(amount);
+    json_decref(obj);
     return;
 
 cleanup:
@@ -416,12 +409,12 @@ static int clear_kline_dict(dict_t *dict, time_t start)
     dict_iterator *iter = dict_get_iterator(dict);
     dict_entry *entry;
     while ((entry = dict_next(iter)) != NULL) {
-        time_t t = *(time_t *)entry->key;
-        if (t < start) {
+        if (*(time_t *)entry->key < start) {
             dict_delete(dict, entry->key);
         }
     }
     dict_release_iterator(iter);
+
     return 0;
 }
 
@@ -436,6 +429,7 @@ static int clear_expire_kline(void)
         clear_kline_dict(info->dict_min, start);
     }
     dict_release_iterator(iter);
+
     return 0;
 }
 
@@ -475,22 +469,23 @@ static int flush_min_dict(const char *market, dict_t *dict, time_t *start, time_
 
 static int flush_error_kline(void)
 {
-    if (flush_sec_error == 0 && flush_min_error == 0)
+    if (flush_sec_error_start == 0 && flush_min_error_start == 0)
         return 0;
+
     time_t now = time(NULL);
     dict_iterator *iter = dict_get_iterator(dict_market);
     dict_entry *entry;
     while ((entry = dict_next(iter)) != NULL) {
         struct market_info *info = entry->val;
-        if (flush_sec_error) {
-            int ret = flush_sec_dict(info->name, info->dict_sec, &flush_sec_error, now);
+        if (flush_sec_error_start) {
+            int ret = flush_sec_dict(info->name, info->dict_sec, &flush_sec_error_start, now);
             if (ret < 0) {
                 dict_release_iterator(iter);
                 return -__LINE__;
             }
         }
-        if (flush_min_error) {
-            int ret = flush_min_dict(info->name, info->dict_min, &flush_min_error, now);
+        if (flush_min_error_start) {
+            int ret = flush_min_dict(info->name, info->dict_min, &flush_min_error_start, now);
             if (ret < 0) {
                 dict_release_iterator(iter);
                 return -__LINE__;
@@ -499,8 +494,8 @@ static int flush_error_kline(void)
     }
     dict_release_iterator(iter);
 
-    flush_sec_error = 0;
-    flush_min_error = 0;
+    flush_sec_error_start = 0;
+    flush_min_error_start = 0;
 
     return 0;
 }

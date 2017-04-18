@@ -11,6 +11,7 @@ struct kline_info *kline_info_new(mpd_t *open)
     struct kline_info *info = malloc(sizeof(struct kline_info));
     if (info == NULL)
         return NULL;
+
     info->open  = mpd_qncopy(open);
     info->close = mpd_qncopy(open);
     info->high  = mpd_qncopy(open);
@@ -74,25 +75,25 @@ struct kline_info *kline_from_str(char *str)
         json_decref(obj);
         return NULL;
     }
-
     memset(info, 0, sizeof(struct kline_info));
+
     const char *open = json_string_value(json_array_get(obj, 0));
     if (!open || (info->open = decimal(open, 0)) == NULL) {
         goto cleanup;
     }
-    const char *close = json_string_value(json_array_get(obj, 0));
+    const char *close = json_string_value(json_array_get(obj, 1));
     if (!close || (info->close = decimal(close, 1)) == NULL) {
         goto cleanup;
     }
-    const char *high = json_string_value(json_array_get(obj, 0));
+    const char *high = json_string_value(json_array_get(obj, 2));
     if (!high || (info->high = decimal(high, 2)) == NULL) {
         goto cleanup;
     }
-    const char *low = json_string_value(json_array_get(obj, 0));
+    const char *low = json_string_value(json_array_get(obj, 3));
     if (!low || (info->low = decimal(low, 3)) == NULL) {
         goto cleanup;
     }
-    const char *volume = json_string_value(json_array_get(obj, 0));
+    const char *volume = json_string_value(json_array_get(obj, 4));
     if (!volume || (info->volume = decimal(volume, 4)) == NULL) {
         goto cleanup;
     }

@@ -5,15 +5,7 @@
 
 # include "mp_config.h"
 # include "mp_message.h"
-
-struct kline_info {
-    mpd_t *open;
-    mpd_t *close;
-    mpd_t *high;
-    mpd_t *low;
-    mpd_t *volume;
-    int64_t offset;
-};
+# include "mp_kline.h"
 
 struct market_info {
     char  *name;
@@ -31,119 +23,6 @@ static dict_t *dict_market;
 
 static time_t flush_sec_error;
 static time_t flush_min_error;
-
-static struct kline_info *kline_info_new(mpd_t *open)
-{
-    struct kline_info *info = malloc(sizeof(struct kline_info));
-    if (info == NULL)
-        return NULL;
-    info->open  = mpd_qncopy(open);
-    info->close = mpd_qncopy(open);
-    info->high  = mpd_qncopy(open);
-    info->low   = mpd_qncopy(open);
-    info->volume = mpd_qncopy(mpd_zero);
-    info->offset = 0;
-
-    return info;
-}
-
-static void kline_info_update(struct kline_info *info, mpd_t *price, mpd_t *amount, int64_t offset)
-{
-    mpd_copy(info->close, price, &mpd_ctx);
-    mpd_add(info->volume, info->volume, amount, &mpd_ctx);
-    if (mpd_cmp(price, info->high, &mpd_ctx) > 0)
-        mpd_copy(info->high, price, &mpd_ctx);
-    if (mpd_cmp(price, info->low, &mpd_ctx) < 0)
-        mpd_copy(info->low, price, &mpd_ctx);
-    if (offset > info->offset)
-        info->offset = offset;
-}
-
-static void kline_info_merge(struct kline_info *info, struct kline_info *update)
-{
-    mpd_copy(info->close, update->close, &mpd_ctx);
-    mpd_add(info->volume, info->volume, update->volume, &mpd_ctx);
-    if (mpd_cmp(update->high, info->high, &mpd_ctx) > 0)
-        mpd_copy(info->high, update->high, &mpd_ctx);
-    if (mpd_cmp(update->low, info->low, &mpd_ctx) < 0)
-        mpd_copy(info->low, update->low, &mpd_ctx);
-    info->offset = update->offset;
-}
-
-static void kline_info_free(struct kline_info *info)
-{
-    if (info->open)
-        mpd_del(info->open);
-    if (info->close)
-        mpd_del(info->close);
-    if (info->high)
-        mpd_del(info->high);
-    if (info->low)
-        mpd_del(info->low);
-    if (info->volume)
-        mpd_del(info->volume);
-    free(info);
-}
-
-static struct kline_info *kline_from_str(char *str)
-{
-    json_t *obj = json_loadb(str, strlen(str), 0, NULL);
-    if (obj == NULL) {
-        return NULL;
-    }
-    if (!json_is_array(obj) || json_array_size(obj) != 5) {
-        json_decref(obj);
-        return NULL;
-    }
-    struct kline_info *info = malloc(sizeof(struct kline_info));
-    if (info == NULL) {
-        json_decref(obj);
-        return NULL;
-    }
-
-    memset(info, 0, sizeof(struct kline_info));
-    const char *open = json_string_value(json_array_get(obj, 0));
-    if (!open || (info->open = decimal(open, 0)) == NULL) {
-        goto cleanup;
-    }
-    const char *close = json_string_value(json_array_get(obj, 0));
-    if (!close || (info->close = decimal(close, 1)) == NULL) {
-        goto cleanup;
-    }
-    const char *high = json_string_value(json_array_get(obj, 0));
-    if (!high || (info->high = decimal(high, 2)) == NULL) {
-        goto cleanup;
-    }
-    const char *low = json_string_value(json_array_get(obj, 0));
-    if (!low || (info->low = decimal(low, 3)) == NULL) {
-        goto cleanup;
-    }
-    const char *volume = json_string_value(json_array_get(obj, 0));
-    if (!volume || (info->volume = decimal(volume, 4)) == NULL) {
-        goto cleanup;
-    }
-
-    json_decref(obj);
-    return info;
-
-cleanup:
-    json_decref(obj);
-    kline_info_free(info);
-    return NULL;
-}
-
-static char *kline_to_str(struct kline_info *info)
-{
-    json_t *obj = json_array();
-    json_array_append_new_mpd(obj, info->open);
-    json_array_append_new_mpd(obj, info->close);
-    json_array_append_new_mpd(obj, info->high);
-    json_array_append_new_mpd(obj, info->low);
-    json_array_append_new_mpd(obj, info->volume);
-    char *str = json_dumps(obj, 0);
-    json_decref(obj);
-    return str;
-}
 
 static uint32_t dict_sds_key_hash_func(const void *key)
 {
@@ -416,6 +295,7 @@ static int flush_kline_min(const char *market, time_t timestamp, struct kline_in
         free(str);
         return -__LINE__;
     }
+
     redisReply *reply = redisCmd(context, "HSET k:%s:1m %ld %s", market, timestamp, str);
     if (reply == NULL) {
         free(str);
@@ -424,6 +304,7 @@ static int flush_kline_min(const char *market, time_t timestamp, struct kline_in
     }
     free(str);
     freeReplyObject(reply);
+
     redisFree(context);
     return 0;
 }
@@ -438,7 +319,7 @@ static int market_update(const char *market, time_t timestamp, mpd_t *price, mpd
         }
         int ret = add_markets_list(market);
         if (ret < 0) {
-            log_error("add market: %s fail: %d", market, ret);
+            log_fatal("add market: %s fail: %d", market, ret);
             return -__LINE__;
         }
     }
@@ -448,7 +329,7 @@ static int market_update(const char *market, time_t timestamp, mpd_t *price, mpd
             dict_add(info->dict_sec, &info->sec_update, info->sec);
             int ret = flush_kline_sec(info->name, info->sec_update, info->sec);
             if (ret < 0) {
-                log_error("flush_kline_sec: %ld fail: %d", info->sec_update, ret);
+                log_fatal("flush_kline_sec: %ld fail: %d", info->sec_update, ret);
                 flush_sec_error = info->sec_update;
             }
         }
@@ -463,7 +344,7 @@ static int market_update(const char *market, time_t timestamp, mpd_t *price, mpd
             dict_add(info->dict_min, &start, info->min);
             int ret = flush_kline_min(info->name, start, info->min);
             if (ret < 0) {
-                log_error("flush_kline_min: %ld fail: %d", start, ret);
+                log_fatal("flush_kline_min: %ld fail: %d", start, ret);
                 flush_min_error = start;
             }
         }
@@ -510,6 +391,11 @@ static void on_deals_message(sds message, int64_t offset)
     if (ret < 0) {
         goto cleanup;
     }
+
+    json_decref(obj);
+    mpd_del(price);
+    mpd_del(amount);
+    return;
 
 cleanup:
     log_error("invalid message: %s, offset: %"PRIi64, message, offset);

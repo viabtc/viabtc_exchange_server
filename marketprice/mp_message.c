@@ -488,10 +488,11 @@ static void on_timer(nw_timer *timer, void *privdata)
 
 int init_message(void)
 {
+    int ret;
     redis = redis_sentinel_create(&settings.redis);
     if (redis == NULL)
         return -__LINE__;
-    int ret = init_market();
+    ret = init_market();
     if (ret < 0) {
         return ret;
     }

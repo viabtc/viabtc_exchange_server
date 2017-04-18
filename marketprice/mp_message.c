@@ -20,6 +20,7 @@ struct market_info {
 static redis_sentinel_t *redis;
 static kafka_consumer_t *deals;
 static dict_t *dict_market;
+static nw_timer timer;
 
 static time_t flush_sec_error;
 static time_t flush_min_error;
@@ -274,12 +275,14 @@ static int flush_kline_sec(const char *market, time_t timestamp, struct kline_in
     free(str);
     freeReplyObject(reply);
 
-    reply = redisCmd(context, "SET k:offset %"PRIi64, info->offset);
-    if (reply == NULL) {
-        redisFree(context);
-        return -__LINE__;
+    if (flush_sec_error == 0 && flush_min_error == 0) {
+        reply = redisCmd(context, "SET k:offset %"PRIi64, info->offset);
+        if (reply == NULL) {
+            redisFree(context);
+            return -__LINE__;
+        }
+        freeReplyObject(reply);
     }
-    freeReplyObject(reply);
 
     redisFree(context);
     return 0;
@@ -330,7 +333,8 @@ static int market_update(const char *market, time_t timestamp, mpd_t *price, mpd
             int ret = flush_kline_sec(info->name, info->sec_update, info->sec);
             if (ret < 0) {
                 log_fatal("flush_kline_sec: %ld fail: %d", info->sec_update, ret);
-                flush_sec_error = info->sec_update;
+                if (flush_sec_error == 0)
+                    flush_sec_error = info->sec_update;
             }
         }
         info->sec = kline_info_new(price);
@@ -345,7 +349,8 @@ static int market_update(const char *market, time_t timestamp, mpd_t *price, mpd
             int ret = flush_kline_min(info->name, start, info->min);
             if (ret < 0) {
                 log_fatal("flush_kline_min: %ld fail: %d", start, ret);
-                flush_min_error = start;
+                if (flush_sec_error == 0)
+                    flush_min_error = start;
             }
         }
         info->min = kline_info_new(price);
@@ -406,6 +411,113 @@ cleanup:
     json_decref(obj);
 }
 
+static int clear_kline_dict(dict_t *dict, time_t start)
+{
+    dict_iterator *iter = dict_get_iterator(dict);
+    dict_entry *entry;
+    while ((entry = dict_next(iter)) != NULL) {
+        time_t t = *(time_t *)entry->key;
+        if (t < start) {
+            dict_delete(dict, entry->key);
+        }
+    }
+    dict_release_iterator(iter);
+    return 0;
+}
+
+static int clear_expire_kline(void)
+{
+    time_t start = time(NULL) / 60 * 60 - 86400;
+    dict_iterator *iter = dict_get_iterator(dict_market);
+    dict_entry *entry;
+    while ((entry = dict_next(iter)) != NULL) {
+        struct market_info *info = entry->val;
+        clear_kline_dict(info->dict_sec, start);
+        clear_kline_dict(info->dict_min, start);
+    }
+    dict_release_iterator(iter);
+    return 0;
+}
+
+static int flush_sec_dict(const char *market, dict_t *dict, time_t *start, time_t end)
+{
+    while (*start < end) {
+        dict_entry *entry = dict_find(dict, start);
+        if (!entry)
+            continue;
+        int ret = flush_kline_sec(market, *start, entry->val);
+        if (ret < 0) {
+            log_error("flush_kline_sec %ld fail: %d", *start, ret);
+            break;
+        }
+        *start += 1;
+    }
+
+    return 0;
+}
+
+static int flush_min_dict(const char *market, dict_t *dict, time_t *start, time_t end)
+{
+    while (*start < end) {
+        dict_entry *entry = dict_find(dict, start);
+        if (!entry)
+            continue;
+        int ret = flush_kline_min(market, *start, entry->val);
+        if (ret < 0) {
+            log_error("flush_kline_min %ld fail: %d", *start, ret);
+            return -__LINE__;
+        }
+        *start += 60;
+    }
+
+    return 0;
+}
+
+static int flush_error_kline(void)
+{
+    if (flush_sec_error == 0 && flush_min_error == 0)
+        return 0;
+    time_t now = time(NULL);
+    dict_iterator *iter = dict_get_iterator(dict_market);
+    dict_entry *entry;
+    while ((entry = dict_next(iter)) != NULL) {
+        struct market_info *info = entry->val;
+        if (flush_sec_error) {
+            int ret = flush_sec_dict(info->name, info->dict_sec, &flush_sec_error, now);
+            if (ret < 0) {
+                dict_release_iterator(iter);
+                return -__LINE__;
+            }
+        }
+        if (flush_min_error) {
+            int ret = flush_min_dict(info->name, info->dict_min, &flush_min_error, now);
+            if (ret < 0) {
+                dict_release_iterator(iter);
+                return -__LINE__;
+            }
+        }
+    }
+    dict_release_iterator(iter);
+
+    flush_sec_error = 0;
+    flush_min_error = 0;
+
+    return 0;
+}
+
+static void on_timer(nw_timer *timer, void *privdata)
+{
+    int ret;
+    ret = clear_expire_kline();
+    if (ret < 0) {
+        log_error("clear_expire_kline fail: %d", ret);
+    }
+    ret = flush_error_kline();
+    if (ret < 0) {
+        log_error("flush_error_kline fail: %d", ret);
+    }
+}
+
 int init_message(void)
 {
     redis = redis_sentinel_create(&settings.redis);
@@ -424,6 +536,9 @@ int init_message(void)
     if (deals == NULL) {
         return -__LINE__;
     }
+
+    nw_timer_set(&timer, 60, true, on_timer, NULL);
+    nw_timer_start(&timer);
 
     return 0;
 }

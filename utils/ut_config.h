@@ -17,6 +17,7 @@
 # include "ut_log.h"
 # include "ut_kafka.h"
 # include "ut_redis.h"
+# include "ut_decimal.h"
 # include "ut_rpc_clt.h"
 # include "ut_rpc_svr.h"
 
@@ -63,6 +64,7 @@ int load_cfg_kafka_consumer(json_t *root, const char *key, kafka_consumer_cfg *c
 int load_cfg_redis_sentinel(json_t *root, const char *key, redis_sentinel_cfg *cfg);
 
 int read_cfg_str(json_t *root, const char *key, char **val, const char *default_val);
+int read_cfg_mpd(json_t *root, const char *key, mpd_t **val, const mpd_t *default_val);
 int read_cfg_int(json_t *root, const char *key, int *val, bool required, int default_val);
 int read_cfg_int32(json_t *root, const char *key, int32_t *val, bool required, int32_t default_val);
 int read_cfg_int64(json_t *root, const char *key, int64_t *val, bool required, int64_t default_val);

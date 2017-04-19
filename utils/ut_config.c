@@ -315,13 +315,31 @@ int read_cfg_str(json_t *root, const char *key, char **val, const char *default_
     json_t *node = json_object_get(root, key);
     if (!node && default_val) {
         *val = strdup(default_val);
-        if (val == NULL)
+        if (*val == NULL)
             return -__LINE__;
         return 0;
     }
     if (!node || !json_is_string(node))
         return -__LINE__;
     *val = strdup(json_string_value(node));
+    if (*val == NULL)
+        return -__LINE__;
+
+    return 0;
+}
+
+int read_cfg_mpd(json_t *root, const char *key, mpd_t **val, const mpd_t *default_val)
+{
+    json_t *node = json_object_get(root, key);
+    if (!node && default_val) {
+        *val = mpd_qncopy(default_val);
+        if (*val == NULL)
+            return -__LINE__;
+        return 0;
+    }
+    if (!node || !json_is_string(node))
+        return -__LINE__;
+    *val = decimal(json_string_value(node), 0);
     if (*val == NULL)
         return -__LINE__;
 

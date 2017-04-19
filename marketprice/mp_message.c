@@ -370,7 +370,7 @@ static void on_deals_message(sds message, int64_t offset)
     mpd_t *price = NULL;
     mpd_t *amount = NULL;
 
-    if (!json_is_array(obj) || json_array_size(obj) != 10) {
+    if (!json_is_array(obj) || json_array_size(obj) < 11) {
         goto cleanup;
     }
     double timestamp = json_real_value(json_array_get(obj, 0));

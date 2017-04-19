@@ -11,6 +11,7 @@ struct market_info {
     char   *name;
     dict_t *sec;
     dict_t *min;
+    mpd_t  *last;
 };
 
 static redis_sentinel_t *redis;
@@ -58,14 +59,10 @@ static void dict_time_key_free(void *key)
     free(key);
 }
 
-static int load_market_sec(struct market_info *market)
+static int load_market_sec(redisContext *context, struct market_info *market)
 {
-    redisContext *context = redis_sentinel_connect_master(redis);
-    if (context == NULL)
-        return -__LINE__;
     redisReply *reply = redisCmd(context, "HGETALL k:%s:1s", market->name);
     if (reply == NULL) {
-        redisFree(context);
         return -__LINE__;
     }
     for (size_t i = 0; i < reply->elements; i += 2) {
@@ -76,7 +73,6 @@ static int load_market_sec(struct market_info *market)
         }
     }
     freeReplyObject(reply);
-    redisFree(context);
 
     return 0;
 }
@@ -104,10 +100,32 @@ static int init_market_min(struct market_info *market)
     return 0;
 }
 
-static int load_market_kline(struct market_info *market)
+static int load_market_last(redisContext *context, struct market_info *market)
+{
+    redisReply *reply = redisCmd(context, "GET k:%s:last", market->name);
+    if (reply == NULL) {
+        return -__LINE__;
+    }
+    if (reply->type == REDIS_REPLY_STRING) {
+        market->last = decimal(reply->str, 0);
+        if (market->last == NULL) {
+            freeReplyObject(reply);
+            return -__LINE__;
+        }
+    }
+    freeReplyObject(reply);
+
+    return 0;
+}
+
+static int load_market_kline(redisContext *context, struct market_info *market)
 {
     int ret;
-    ret = load_market_sec(market);
+    ret = load_market_sec(context, market);
+    if (ret < 0) {
+        return ret;
+    }
+    ret = load_market_last(context, market);
     if (ret < 0) {
         return ret;
     }
@@ -171,6 +189,7 @@ static struct market_info *create_market(const char *market)
     info->min = dict_create(&type, 1024);
     if (info->sec == NULL || info->min == NULL)
         return NULL;
+    info->last = mpd_qncopy(mpd_zero);
 
     sds key = sdsnew(market);
     dict_add(dict_market, key, info);
@@ -197,21 +216,24 @@ static int init_market(void)
         redisFree(context);
         return -__LINE__;
     }
-    redisFree(context);
 
     for (size_t i = 0; i < reply->elements; ++i) {
         struct market_info *info = create_market(reply->element[i]->str);
         if (info == NULL) {
             freeReplyObject(reply);
+            redisFree(context);
             return -__LINE__;
         }
-        int ret = load_market_kline(info);
+        int ret = load_market_kline(context, info);
         if (ret < 0) {
             freeReplyObject(reply);
+            redisFree(context);
             return ret;
         }
     }
     freeReplyObject(reply);
+    redisFree(context);
+
     last_flush = current_timestamp();
 
     return 0;
@@ -272,6 +294,22 @@ static int flush_offset(redisContext *context, int64_t offset)
     return 0;
 }
 
+static int flush_last(redisContext *context, const char *market, mpd_t *last)
+{
+    char *last_str = mpd_to_sci(last, 0);
+    if (last_str == NULL)
+        return -__LINE__;
+    redisReply *reply = redisCmd(context, "SET k:%s:last %s", market, last_str);
+    if (reply == NULL) {
+        free(last_str);
+        return -__LINE__;
+    }
+    free(last_str);
+    freeReplyObject(reply);
+
+    return 0;
+}
+
 static int market_update(const char *market, time_t timestamp, mpd_t *price, mpd_t *amount)
 {
     struct market_info *info = market_query(market);
@@ -287,6 +325,7 @@ static int market_update(const char *market, time_t timestamp, mpd_t *price, mpd
         }
     }
 
+    // update sec
     dict_entry *entry;
     struct kline_info *kinfo;
     entry = dict_find(info->sec, &timestamp);
@@ -300,6 +339,7 @@ static int market_update(const char *market, time_t timestamp, mpd_t *price, mpd
     }
     kline_info_update(kinfo, price, amount);
 
+    // update min
     time_t base = timestamp / 60 * 60;
     entry = dict_find(info->min, &base);
     if (entry) {
@@ -311,6 +351,9 @@ static int market_update(const char *market, time_t timestamp, mpd_t *price, mpd
         dict_add(info->min, &base, kinfo);
     }
     kline_info_update(kinfo, price, amount);
+
+    // update min
+    mpd_copy(info->last, price, &mpd_ctx);
 
     return 0;
 }
@@ -455,6 +498,12 @@ static int flush_kline(void)
             return -__LINE__;
         }
         ret = flush_min_dict(context, info->name, info->min);
+        if (ret < 0) {
+            redisFree(context);
+            dict_release_iterator(iter);
+            return -__LINE__;
+        }
+        ret = flush_last(context, info->name, info->last);
         if (ret < 0) {
             redisFree(context);
             dict_release_iterator(iter);

@@ -20,5 +20,9 @@
 # define CMD_ORDER_BOOK_MERGE       207
 # define CMD_ORDER_DETAIL           208
 
+// market
+# define CMD_MARKET_STATUS          301
+# define CMD_MARKET_KLINE           302
+
 # endif
 

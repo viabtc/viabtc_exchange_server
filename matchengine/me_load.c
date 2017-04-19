@@ -16,7 +16,7 @@ int load_orders(MYSQL *conn, const char *table)
     while (true) {
         sds sql = sdsempty();
         sql = sdscatprintf(sql, "SELECT `id`, `t`, `side`, `create_time`, `update_time`, `user_id`, `market`, "
-                "`price`, `amount`, `fee`, `left`, `freeze`, `deal_stock`, `deal_money`, `deal_fee` FROM `%s` "
+                "`price`, `amount`, `taker_fee`, `maker_fee`, `left`, `freeze`, `deal_stock`, `deal_money`, `deal_fee` FROM `%s` "
                 "WHERE `id` > %"PRIu64" ORDER BY `id` LIMIT %zu", table, last_id, query_limit);
         log_trace("exec sql: %s", sql);
         int ret = mysql_real_query(conn, sql, sdslen(sql));
@@ -47,14 +47,15 @@ int load_orders(MYSQL *conn, const char *table)
             order->market = strdup(row[6]);
             order->price = decimal(row[7], market->money_prec);
             order->amount = decimal(row[8], market->stock_prec);
-            order->fee = decimal(row[9], market->fee_prec);
-            order->left = decimal(row[10], market->stock_prec);
-            order->freeze = decimal(row[11], 0);
-            order->deal_stock = decimal(row[12], 0);
-            order->deal_money = decimal(row[13], 0);
-            order->deal_fee = decimal(row[14], 0);
+            order->taker_fee = decimal(row[9], market->fee_prec);
+            order->maker_fee = decimal(row[10], market->fee_prec);
+            order->left = decimal(row[11], market->stock_prec);
+            order->freeze = decimal(row[12], 0);
+            order->deal_stock = decimal(row[13], 0);
+            order->deal_money = decimal(row[14], 0);
+            order->deal_fee = decimal(row[15], 0);
 
-            if (!order->market || !order->price || !order->amount || !order->fee || !order->left ||
+            if (!order->market || !order->price || !order->amount || !order->taker_fee || !order->maker_fee || !order->left ||
                     !order->freeze || !order->deal_stock || !order->deal_money || !order->deal_fee) {
                 log_error("get order detail of order id: %"PRIu64" fail", order->id);
                 mysql_free_result(result);
@@ -68,33 +69,6 @@ int load_orders(MYSQL *conn, const char *table)
         if (num_rows < query_limit)
             break;
     }
-
-    return 0;
-}
-
-int load_markets(MYSQL *conn, const char *table)
-{
-    sds sql = sdsempty();
-    sql = sdscatprintf(sql, "SELECT `market`, `id_start` from `%s`", table);
-    log_trace("exec sql: %s", sql);
-    int ret = mysql_real_query(conn, sql, sdslen(sql));
-    if (ret != 0) {
-        log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
-        sdsfree(sql);
-        return -__LINE__;
-    }
-    sdsfree(sql);
-
-    MYSQL_RES *result = mysql_store_result(conn);
-    size_t num_rows = mysql_num_rows(result);
-    for (size_t i = 0; i < num_rows; ++i) {
-        MYSQL_ROW row = mysql_fetch_row(result);
-        market_t *market = get_market(row[0]);
-        if (market == NULL)
-            continue;
-        market->id_start = strtoull(row[1], NULL, 0);
-    }
-    mysql_free_result(result);
 
     return 0;
 }
@@ -193,7 +167,7 @@ static int load_update_balance(json_t *params)
 
 static int load_limit_order(json_t *params)
 {
-    if (json_array_size(params) != 6)
+    if (json_array_size(params) != 7)
         return -__LINE__;
 
     // user_id
@@ -241,27 +215,45 @@ static int load_limit_order(json_t *params)
         return -__LINE__;
     }
 
-    // fee
+    // taker fee
     if (!json_is_string(json_array_get(params, 5)))
         return -__LINE__;
-    mpd_t *fee = decimal(json_string_value(json_array_get(params, 5)), market->fee_prec);
-    if (fee == NULL) {
+    mpd_t *taker_fee = decimal(json_string_value(json_array_get(params, 5)), market->fee_prec);
+    if (taker_fee == NULL) {
         mpd_del(amount);
         mpd_del(price);
         return -__LINE__;
     }
-    if (mpd_cmp(fee, mpd_zero, &mpd_ctx) < 0 || mpd_cmp(fee, mpd_one, &mpd_ctx) >= 0) {
+    if (mpd_cmp(taker_fee, mpd_zero, &mpd_ctx) < 0 || mpd_cmp(taker_fee, mpd_one, &mpd_ctx) >= 0) {
         mpd_del(amount);
         mpd_del(price);
-        mpd_del(fee);
+        mpd_del(taker_fee);
         return -__LINE__;
     }
 
-    int ret = market_put_limit_order(false, market, user_id, side, amount, price, fee);
+    // maker fee
+    if (!json_is_string(json_array_get(params, 6)))
+        return -__LINE__;
+    mpd_t *maker_fee = decimal(json_string_value(json_array_get(params, 6)), market->fee_prec);
+    if (maker_fee == NULL) {
+        mpd_del(amount);
+        mpd_del(price);
+        mpd_del(taker_fee);
+        return -__LINE__;
+    }
+    if (mpd_cmp(maker_fee, mpd_zero, &mpd_ctx) < 0 || mpd_cmp(maker_fee, mpd_one, &mpd_ctx) >= 0) {
+        mpd_del(amount);
+        mpd_del(price);
+        mpd_del(taker_fee);
+        mpd_del(maker_fee);
+        return -__LINE__;
+    }
+
+    int ret = market_put_limit_order(false, market, user_id, side, amount, price, taker_fee, maker_fee);
     mpd_del(amount);
     mpd_del(price);
-    mpd_del(fee);
-
+    mpd_del(taker_fee);
+    mpd_del(maker_fee);
     if (ret < 0) {
         return -__LINE__;
     }
@@ -305,27 +297,24 @@ static int load_market_order(json_t *params)
         return -__LINE__;
     }
 
-    // fee
+    // taker fee
     if (!json_is_string(json_array_get(params, 4)))
         return -__LINE__;
-    mpd_t *fee = decimal(json_string_value(json_array_get(params, 4)), market->fee_prec);
-    if (fee == NULL) {
+    mpd_t *taker_fee = decimal(json_string_value(json_array_get(params, 4)), market->fee_prec);
+    if (taker_fee == NULL) {
         mpd_del(amount);
         return -__LINE__;
     }
-    if (mpd_cmp(fee, mpd_zero, &mpd_ctx) < 0 || mpd_cmp(fee, mpd_one, &mpd_ctx) >= 0) {
+    if (mpd_cmp(taker_fee, mpd_zero, &mpd_ctx) < 0 || mpd_cmp(taker_fee, mpd_one, &mpd_ctx) >= 0) {
         mpd_del(amount);
-        mpd_del(fee);
+        mpd_del(taker_fee);
         return -__LINE__;
     }
 
-    int ret = market_put_market_order(false, market, user_id, side, amount, fee);
+    int ret = market_put_market_order(false, market, user_id, side, amount, taker_fee);
     mpd_del(amount);
-    mpd_del(fee);
-
+    mpd_del(taker_fee);
     if (ret < 0) {
-        log_error("market_put_market_order market: %s, user: %u, side: %u, amount: %s, fee: %s fail: %d",
-                market_name, user_id, side, mpd_to_sci(amount, 0), mpd_to_sci(fee, 0), ret);
         return -__LINE__;
     }
 

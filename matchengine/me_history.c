@@ -185,7 +185,7 @@ static int append_user_order(order_t *order)
 
     if (sdslen(sql) == 0) {
         sql = sdscatprintf(sql, "INSERT INTO `order_history_%u` (`id`, `create_time`, `finish_time`, `user_id`, "
-                "`market`, `t`, `side`, `price`, `amount`, `fee`, `deal_stock`, `deal_money`, `deal_fee`) VALUES ", key.hash);
+                "`market`, `t`, `side`, `price`, `amount`, `deal_stock`, `deal_money`, `deal_fee`) VALUES ", key.hash);
     } else {
         sql = sdscatprintf(sql, ", ");
     }
@@ -194,7 +194,6 @@ static int append_user_order(order_t *order)
         order->create_time, order->update_time, order->user_id, order->market, order->type, order->side);
     sql = sql_append_mpd(sql, order->price, true);
     sql = sql_append_mpd(sql, order->amount, true);
-    sql = sql_append_mpd(sql, order->fee, true);
     sql = sql_append_mpd(sql, order->deal_stock, true);
     sql = sql_append_mpd(sql, order->deal_money, true);
     sql = sql_append_mpd(sql, order->deal_fee, false);
@@ -216,7 +215,7 @@ static int append_order_detail(order_t *order)
 
     if (sdslen(sql) == 0) {
         sql = sdscatprintf(sql, "INSERT INTO `order_detail_%u` (`id`, `create_time`, `finish_time`, `user_id`, "
-                "`market`, `t`, `side`, `price`, `amount`, `fee`, `deal_stock`, `deal_money`, `deal_fee`) VALUES ", key.hash);
+                "`market`, `t`, `side`, `price`, `amount`, `deal_stock`, `deal_money`, `deal_fee`) VALUES ", key.hash);
     } else {
         sql = sdscatprintf(sql, ", ");
     }
@@ -225,7 +224,6 @@ static int append_order_detail(order_t *order)
         order->create_time, order->update_time, order->user_id, order->market, order->type, order->side);
     sql = sql_append_mpd(sql, order->price, true);
     sql = sql_append_mpd(sql, order->amount, true);
-    sql = sql_append_mpd(sql, order->fee, true);
     sql = sql_append_mpd(sql, order->deal_stock, true);
     sql = sql_append_mpd(sql, order->deal_money, true);
     sql = sql_append_mpd(sql, order->deal_fee, false);
@@ -236,7 +234,7 @@ static int append_order_detail(order_t *order)
     return 0;
 }
 
-static int append_order_deal(double t, uint64_t order_id, uint64_t deal_order_id, mpd_t *amount, mpd_t *price, mpd_t *deal, mpd_t *fee)
+static int append_order_deal(double t, uint64_t order_id, uint64_t deal_order_id, int role, mpd_t *amount, mpd_t *price, mpd_t *deal, mpd_t *fee)
 {
     struct dict_sql_key key;
     key.hash = order_id % HISTORY_HASH_NUM;
@@ -246,12 +244,12 @@ static int append_order_deal(double t, uint64_t order_id, uint64_t deal_order_id
         return -__LINE__;
 
     if (sdslen(sql) == 0) {
-        sql = sdscatprintf(sql, "INSERT INTO `deal_history_%u` (`id`, `time`, `order_id`, `deal_order_id`, `amount`, `price`, `deal`, `fee`) VALUES ", key.hash);
+        sql = sdscatprintf(sql, "INSERT INTO `deal_history_%u` (`id`, `time`, `order_id`, `deal_order_id`, `role`, `amount`, `price`, `deal`, `fee`) VALUES ", key.hash);
     } else {
         sql = sdscatprintf(sql, ", ");
     }
 
-    sql = sdscatprintf(sql, "(NULL, %f, %"PRIu64", %"PRIu64", ", t, order_id, deal_order_id);
+    sql = sdscatprintf(sql, "(NULL, %f, %"PRIu64", %"PRIu64", %d, ", t, order_id, deal_order_id, role);
     sql = sql_append_mpd(sql, amount, true);
     sql = sql_append_mpd(sql, price, true);
     sql = sql_append_mpd(sql, deal, true);
@@ -297,10 +295,10 @@ int append_order_history(order_t *order)
     return 0;
 }
 
-int append_order_deal_history(double t, uint64_t ask, uint64_t bid, mpd_t *amount, mpd_t *price, mpd_t *deal, mpd_t *ask_fee, mpd_t *bid_fee)
+int append_order_deal_history(double t, uint64_t ask, int ask_role, uint64_t bid, int bid_role, mpd_t *amount, mpd_t *price, mpd_t *deal, mpd_t *ask_fee, mpd_t *bid_fee)
 {
-    append_order_deal(t, ask, bid, amount, price, deal, ask_fee);
-    append_order_deal(t, bid, ask, amount, price, deal, bid_fee);
+    append_order_deal(t, ask, bid, ask_role, amount, price, deal, ask_fee);
+    append_order_deal(t, bid, ask, bid_role, amount, price, deal, bid_fee);
     return 0;
 }
 

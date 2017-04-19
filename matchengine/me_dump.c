@@ -31,7 +31,7 @@ static int dump_orders_list(MYSQL *conn, const char *table, skiplist_t *list)
         order_t *order = node->value;
         if (index == 0) {
             sql = sdscatprintf(sql, "INSERT INTO `%s` (`id`, `t`, `side`, `create_time`, `update_time`, `user_id`, `market`, "
-                    "`price`, `amount`, `fee`, `left`, `freeze`, `deal_stock`, `deal_money`, `deal_fee`) VALUES ", table);
+                    "`price`, `amount`, `taker_fee`, `maker_fee`, `left`, `freeze`, `deal_stock`, `deal_money`, `deal_fee`) VALUES ", table);
         } else {
             sql = sdscatprintf(sql, ", ");
         }
@@ -40,7 +40,8 @@ static int dump_orders_list(MYSQL *conn, const char *table, skiplist_t *list)
                 order->id, order->type, order->side, order->create_time, order->update_time, order->user_id, order->market);
         sql = sql_append_mpd(sql, order->price, true);
         sql = sql_append_mpd(sql, order->amount, true);
-        sql = sql_append_mpd(sql, order->fee, true);
+        sql = sql_append_mpd(sql, order->taker_fee, true);
+        sql = sql_append_mpd(sql, order->maker_fee, true);
         sql = sql_append_mpd(sql, order->left, true);
         sql = sql_append_mpd(sql, order->freeze, true);
         sql = sql_append_mpd(sql, order->deal_stock, true);
@@ -119,50 +120,6 @@ int dump_orders(MYSQL *conn, const char *table)
         }
     }
 
-    return 0;
-}
-
-int dump_markets(MYSQL *conn, const char *table)
-{
-    sds sql = sdsempty();
-
-    sql = sdscatprintf(sql, "DROP TABLE IF EXISTS `%s`", table);
-    log_trace("exec sql: %s", sql);
-    int ret = mysql_real_query(conn, sql, sdslen(sql));
-    if (ret != 0) {
-        log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
-        sdsfree(sql);
-        return -__LINE__;
-    }
-
-    sdsclear(sql);
-    sql = sdscatprintf(sql, "CREATE TABLE IF NOT EXISTS `%s` LIKE `slice_market_example`", table);
-    log_trace("exec sql: %s", sql);
-    ret = mysql_real_query(conn, sql, sdslen(sql));
-    if (ret != 0) {
-        log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
-        sdsfree(sql);
-        return -__LINE__;
-    }
-
-    for (size_t i = 0; i < settings.market_num; ++i) {
-        market_t *market = get_market(settings.markets[i].name);
-        if (market == NULL) {
-            return -__LINE__;
-        }
-        sdsclear(sql);
-        sql = sdscatprintf(sql, "INSERT INTO `%s` (`id`, `market`, `id_start`) VALUES (NULL, '%s', %"PRIu64")",
-                table, market->name, market->id_start);
-        log_trace("exec sql: %s", sql);
-        int ret = mysql_real_query(conn, sql, sdslen(sql));
-        if (ret != 0) {
-            log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
-            sdsfree(sql);
-            return -__LINE__;
-        }
-    }
-
-    sdsfree(sql);
     return 0;
 }
 

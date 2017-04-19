@@ -209,7 +209,7 @@ static int on_cmd_balance_update(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 
 static int on_cmd_order_put_limit(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 {
-    if (json_array_size(params) != 6)
+    if (json_array_size(params) != 7)
         return reply_error_invalid_argument(ses, pkg);
 
     // user_id
@@ -257,26 +257,45 @@ static int on_cmd_order_put_limit(nw_ses *ses, rpc_pkg *pkg, json_t *params)
         return reply_error_invalid_argument(ses, pkg);
     }
 
-    // fee
+    // taker fee
     if (!json_is_string(json_array_get(params, 5)))
         return reply_error_invalid_argument(ses, pkg);
-    mpd_t *fee = decimal(json_string_value(json_array_get(params, 5)), market->fee_prec);
-    if (fee == NULL) {
+    mpd_t *taker_fee = decimal(json_string_value(json_array_get(params, 5)), market->fee_prec);
+    if (taker_fee == NULL) {
         mpd_del(amount);
         mpd_del(price);
         return reply_error_invalid_argument(ses, pkg);
     }
-    if (mpd_cmp(fee, mpd_zero, &mpd_ctx) < 0 || mpd_cmp(fee, mpd_one, &mpd_ctx) >= 0) {
+    if (mpd_cmp(taker_fee, mpd_zero, &mpd_ctx) < 0 || mpd_cmp(taker_fee, mpd_one, &mpd_ctx) >= 0) {
         mpd_del(amount);
         mpd_del(price);
-        mpd_del(fee);
+        mpd_del(taker_fee);
         return reply_error_invalid_argument(ses, pkg);
     }
 
-    int ret = market_put_limit_order(true, market, user_id, side, amount, price, fee);
+    // maker fee
+    if (!json_is_string(json_array_get(params, 6)))
+        return reply_error_invalid_argument(ses, pkg);
+    mpd_t *maker_fee = decimal(json_string_value(json_array_get(params, 6)), market->fee_prec);
+    if (maker_fee == NULL) {
+        mpd_del(amount);
+        mpd_del(price);
+        mpd_del(taker_fee);
+        return reply_error_invalid_argument(ses, pkg);
+    }
+    if (mpd_cmp(maker_fee, mpd_zero, &mpd_ctx) < 0 || mpd_cmp(maker_fee, mpd_one, &mpd_ctx) >= 0) {
+        mpd_del(amount);
+        mpd_del(price);
+        mpd_del(taker_fee);
+        mpd_del(maker_fee);
+        return reply_error_invalid_argument(ses, pkg);
+    }
+
+    int ret = market_put_limit_order(true, market, user_id, side, amount, price, taker_fee, maker_fee);
     mpd_del(amount);
     mpd_del(price);
-    mpd_del(fee);
+    mpd_del(taker_fee);
+    mpd_del(maker_fee);
     if (ret == -1) {
         return reply_error(ses, pkg, 10, "balance not enough");
     } else if (ret < 0) {
@@ -324,23 +343,23 @@ static int on_cmd_order_put_market(nw_ses *ses, rpc_pkg *pkg, json_t *params)
         return reply_error_invalid_argument(ses, pkg);
     }
 
-    // fee
+    // taker fee
     if (!json_is_string(json_array_get(params, 4)))
         return reply_error_invalid_argument(ses, pkg);
-    mpd_t *fee = decimal(json_string_value(json_array_get(params, 4)), market->fee_prec);
-    if (fee == NULL) {
+    mpd_t *taker_fee = decimal(json_string_value(json_array_get(params, 4)), market->fee_prec);
+    if (taker_fee == NULL) {
         mpd_del(amount);
         return reply_error_invalid_argument(ses, pkg);
     }
-    if (mpd_cmp(fee, mpd_zero, &mpd_ctx) < 0 || mpd_cmp(fee, mpd_one, &mpd_ctx) >= 0) {
+    if (mpd_cmp(taker_fee, mpd_zero, &mpd_ctx) < 0 || mpd_cmp(taker_fee, mpd_one, &mpd_ctx) >= 0) {
         mpd_del(amount);
-        mpd_del(fee);
+        mpd_del(taker_fee);
         return reply_error_invalid_argument(ses, pkg);
     }
 
-    int ret = market_put_market_order(true, market, user_id, side, amount, fee);
+    int ret = market_put_market_order(true, market, user_id, side, amount, taker_fee);
     mpd_del(amount);
-    mpd_del(fee);
+    mpd_del(taker_fee);
     if (ret == -1) {
         return reply_error(ses, pkg, 10, "balance not enough");
     } else if (ret < 0) {

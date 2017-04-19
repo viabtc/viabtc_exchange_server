@@ -6,6 +6,7 @@
 # include "me_config.h"
 # include "me_persist.h"
 # include "me_operlog.h"
+# include "me_market.h"
 # include "me_load.h"
 # include "me_dump.h"
 
@@ -24,10 +25,10 @@ static time_t get_today_start(void)
     return mktime(&t);
 }
 
-static int get_last_slice(MYSQL *conn, time_t *timestamp, uint64_t *id)
+static int get_last_slice(MYSQL *conn, time_t *timestamp, uint64_t *last_oper_id, uint64_t *last_order_id)
 {
     sds sql = sdsempty();
-    sql = sdscatprintf(sql, "SELECT `time`, `end_id` from `slice_history` ORDER BY `id` DESC LIMIT 1");
+    sql = sdscatprintf(sql, "SELECT `time`, `end_oper_id`, `end_order_id` from `slice_history` ORDER BY `id` DESC LIMIT 1");
     log_stderr("get last slice time");
     log_trace("exec sql: %s", sql);
     int ret = mysql_real_query(conn, sql, sdslen(sql));
@@ -48,7 +49,8 @@ static int get_last_slice(MYSQL *conn, time_t *timestamp, uint64_t *id)
 
     MYSQL_ROW row = mysql_fetch_row(result);
     *timestamp = strtol(row[0], NULL, 0);
-    *id = strtoull(row[1], NULL, 0);
+    *last_oper_id = strtoull(row[1], NULL, 0);
+    *last_order_id = strtoull(row[2], NULL, 0);
     mysql_free_result(result);
 
     return 0;
@@ -69,22 +71,11 @@ static int load_slice_from_db(MYSQL *conn, time_t timestamp)
     }
 
     sdsclear(table);
-    table = sdscatprintf(table, "slice_market_%ld", timestamp);
-    log_stderr("load market from: %s", table);
-    ret = load_markets(conn, table);
-    if (ret < 0) {
-        log_error("load_markets from %s fail: %d", table, ret);
-        log_stderr("load_markets from %s fail: %d", table, ret);
-        sdsfree(table);
-        return -__LINE__;
-    }
-
-    sdsclear(table);
     table = sdscatprintf(table, "slice_balance_%ld", timestamp);
     log_stderr("load balance from: %s", table);
     ret = load_balance(conn, table);
     if (ret < 0) {
-        log_error("load_markets from %s fail: %d", table, ret);
+        log_error("load_balance from %s fail: %d", table, ret);
         log_stderr("load_balance from %s fail: %d", table, ret);
         sdsfree(table);
         return -__LINE__;
@@ -130,13 +121,14 @@ int init_from_db(void)
 
     time_t now = time(NULL);
     uint64_t last_oper_id = 0;
-    int ret = get_last_slice(conn, &last_slice_time, &last_oper_id);
+    uint64_t last_order_id = 0;
+    int ret = get_last_slice(conn, &last_slice_time, &last_oper_id, &last_order_id);
     if (ret < 0) {
         return ret;
     }
 
-    log_info("last_slice_time: %ld, last_oper_id: %"PRIu64"", last_slice_time, last_oper_id);
-    log_stderr("last_slice_time: %ld, last_oper_id: %"PRIu64"", last_slice_time, last_oper_id);
+    log_info("last_slice_time: %ld, last_oper_id: %"PRIu64", last_order_id: %"PRIu64, last_slice_time, last_oper_id, last_order_id);
+    log_stderr("last_slice_time: %ld, last_oper_id: %"PRIu64", last_order_id: %"PRIu64, last_slice_time, last_oper_id, last_order_id);
 
     if (last_slice_time == 0) {
         ret = load_operlog_from_db(conn, now, &last_oper_id);
@@ -160,8 +152,11 @@ int init_from_db(void)
     }
 
     operlog_id_start = last_oper_id;
-    log_stderr("load success");
+    order_id_start = last_order_id;
+
     mysql_close(conn);
+    log_stderr("load success");
+
     return 0;
 
 cleanup:
@@ -177,22 +172,6 @@ static int dump_order_to_db(MYSQL *conn, time_t end)
     int ret = dump_orders(conn, table);
     if (ret < 0) {
         log_error("dump_orders to %s fail: %d", table, ret);
-        sdsfree(table);
-        return -__LINE__;
-    }
-    sdsfree(table);
-
-    return 0;
-}
-
-static int dump_market_to_db(MYSQL *conn, time_t end)
-{
-    sds table = sdsempty();
-    table = sdscatprintf(table, "slice_market_%ld", end);
-    log_info("dump market to: %s", table);
-    int ret = dump_markets(conn, table);
-    if (ret < 0) {
-        log_error("dump_markets to %s fail: %d", table, ret);
         sdsfree(table);
         return -__LINE__;
     }
@@ -220,7 +199,7 @@ static int dump_balance_to_db(MYSQL *conn, time_t end)
 int update_slice_history(MYSQL *conn, time_t end)
 {
     sds sql = sdsempty();
-    sql = sdscatprintf(sql, "INSERT INTO `slice_history` (`id`, `time`, `end_id`) VALUES (NULL, %ld, %"PRIu64")", end, operlog_id_start);
+    sql = sdscatprintf(sql, "INSERT INTO `slice_history` (`id`, `time`, `end_oper_id`, `end_order_id`) VALUES (NULL, %ld, %"PRIu64", %"PRIu64")", end, operlog_id_start, order_id_start);
     log_info("update slice history to: %ld", end);
     log_trace("exec sql: %s", sql);
     int ret = mysql_real_query(conn, sql, sdslen(sql));
@@ -246,11 +225,6 @@ int dump_to_db(time_t timestamp)
 
     int ret;
     ret = dump_order_to_db(conn, timestamp);
-    if (ret < 0) {
-        goto cleanup;
-    }
-
-    ret = dump_market_to_db(conn, timestamp);
     if (ret < 0) {
         goto cleanup;
     }
@@ -309,15 +283,6 @@ static int delete_slice(MYSQL *conn, uint64_t id, time_t timestamp)
     int ret;
     sds sql = sdsempty();
     sql = sdscatprintf(sql, "DROP TABLE `slice_order_%ld", timestamp);
-    log_trace("exec sql: %s", sql);
-    ret = mysql_real_query(conn, sql, sdslen(sql));
-    if (ret != 0) {
-        log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
-        return -__LINE__;
-    }
-    sdsclear(sql);
-
-    sql = sdscatprintf(sql, "DROP TABLE `slice_market_%ld", timestamp);
     log_trace("exec sql: %s", sql);
     ret = mysql_real_query(conn, sql, sdslen(sql));
     if (ret != 0) {

@@ -14,7 +14,7 @@ int init_history(void);
 int fini_history(void);
 
 int append_order_history(order_t *order);
-int append_order_deal_history(double t, uint64_t ask, uint64_t bid, mpd_t *amount, mpd_t *price, mpd_t *deal, mpd_t *ask_fee, mpd_t *bid_fee);
+int append_order_deal_history(double t, uint64_t ask, int ask_role, uint64_t bid, int bid_role, mpd_t *amount, mpd_t *price, mpd_t *deal, mpd_t *ask_fee, mpd_t *bid_fee);
 int append_user_balance_history(double t, uint32_t user_id, const char *asset, const char *business, mpd_t *change, const char *detail);
 
 bool is_history_block(void);

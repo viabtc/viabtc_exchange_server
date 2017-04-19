@@ -16,7 +16,8 @@ CREATE TABLE `slice_order_example` (
     `market`        VARCHAR(30) NOT NULL,
     `price`         DECIMAL(30,10) NOT NULL,
     `amount`        DECIMAL(30,10) NOT NULL,
-    `fee`           DECIMAL(30,10) NOT NULL,
+    `taker_fee`     DECIMAL(30,10) NOT NULL,
+    `maker_fee`     DECIMAL(30,10) NOT NULL,
     `left`          DECIMAL(30,10) NOT NULL,
     `freeze`        DECIMAL(30,10) NOT NULL,
     `deal_stock`    DECIMAL(30,10) NOT NULL,
@@ -24,16 +25,11 @@ CREATE TABLE `slice_order_example` (
     `deal_fee`      DECIMAL(30,10) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-CREATE TABLE `slice_market_example` (
-    `id`            INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    `market`        VARCHAR(30) NOT NULL,
-    `id_start`      BIGINT UNSIGNED NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
 CREATE TABLE `slice_history` (
     `id`            INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
     `time`          BIGINT NOT NULL,
-    `end_id`        BIGINT UNSIGNED NOT NULL
+    `end_oper_id`   BIGINT UNSIGNED NOT NULL,
+    `end_order_id`  BIGINT UNSIGNED NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `operlog_example` (

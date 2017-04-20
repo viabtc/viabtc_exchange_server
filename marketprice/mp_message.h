@@ -9,6 +9,7 @@
 # define MARKET_SIDE_SELL   1
 # define MARKET_SIDE_BUY    2
 # define MARKET_DEALS_MAX   10000
+# define MARKET_NAME_MAX    12
 
 # include "mp_config.h"
 

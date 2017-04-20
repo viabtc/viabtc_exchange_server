@@ -12,7 +12,23 @@ struct market_info {
     mpd_t  *last;
     dict_t *sec;
     dict_t *min;
+    dict_t *hour;
+    dict_t *day;
+    dict_t *update;
     list_t *deals;
+    double update_time;
+};
+
+enum {
+    KLINE_SEC,
+    KLINE_MIN,
+    KLINE_HOUR,
+    KLINE_DAY,
+};
+
+struct update_key {
+    int kline_type;
+    time_t timestamp;
 };
 
 static redis_sentinel_t *redis;
@@ -21,7 +37,8 @@ static dict_t *dict_market;
 
 static double   last_flush;
 static int64_t  last_offset;
-static nw_timer timer;
+static nw_timer market_timer;
+static nw_timer deals_timer;
 
 static uint32_t dict_sds_key_hash_func(const void *key)
 {
@@ -60,22 +77,46 @@ static void dict_time_key_free(void *key)
     free(key);
 }
 
+static uint32_t dict_update_key_hash_func(const void *key)
+{
+    return dict_generic_hash_function(key, sizeof(struct update_key));
+}
+
+static int dict_update_key_compare(const void *key1, const void *key2)
+{
+    return memcmp(key1, key2, sizeof(struct update_key));
+}
+
+static void *dict_update_key_dup(const void *key)
+{
+    struct update_key *obj = malloc(sizeof(struct update_key));
+    memcpy(obj, key, sizeof(struct update_key));
+    return obj;
+}
+
+static void dict_update_key_free(void *key)
+{
+    free(key);
+}
+
 static void list_deals_free(void *val)
 {
     free(val);
 }
 
-static int load_market_sec(redisContext *context, struct market_info *market)
+static int load_market_kline(redisContext *context, sds key, dict_t *dict, time_t start)
 {
-    redisReply *reply = redisCmd(context, "HGETALL k:%s:1s", market->name);
+    redisReply *reply = redisCmd(context, "HGETALL %s", key);
     if (reply == NULL) {
         return -__LINE__;
     }
     for (size_t i = 0; i < reply->elements; i += 2) {
         time_t timestamp = strtol(reply->element[i]->str, NULL, 0);
+        if (start && timestamp < start)
+            continue;
         struct kline_info *info = kline_from_str(reply->element[i + 1]->str);
-        if (timestamp && info) {
-            dict_add(market->sec, &timestamp, info);
+        if (info) {
+            dict_add(dict, &timestamp, info);
         }
     }
     freeReplyObject(reply);
@@ -83,38 +124,15 @@ static int load_market_sec(redisContext *context, struct market_info *market)
     return 0;
 }
 
-static int init_market_min(struct market_info *market)
+static int load_market_last(redisContext *context, struct market_info *info)
 {
-    dict_iterator *iter = dict_get_iterator(market->sec);
-    dict_entry *entry;
-    while ((entry = dict_next(iter)) != NULL) {
-        time_t timestamp = *(time_t *)entry->key;
-        time_t base = timestamp / 60 * 60;
-        struct kline_info *sec_info = entry->val;
-        struct kline_info *min_info = NULL;
-        dict_entry *result = dict_find(market->min, &base);
-        if (result) {
-            min_info = result->val;
-        } else {
-            min_info = kline_info_new(sec_info->open);
-            dict_add(market->min, &base, min_info);
-        }
-        kline_info_merge(min_info, sec_info);
-    }
-    dict_release_iterator(iter);
-
-    return 0;
-}
-
-static int load_market_last(redisContext *context, struct market_info *market)
-{
-    redisReply *reply = redisCmd(context, "GET k:%s:last", market->name);
+    redisReply *reply = redisCmd(context, "GET k:%s:last", info->name);
     if (reply == NULL) {
         return -__LINE__;
     }
     if (reply->type == REDIS_REPLY_STRING) {
-        market->last = decimal(reply->str, 0);
-        if (market->last == NULL) {
+        info->last = decimal(reply->str, 0);
+        if (info->last == NULL) {
             freeReplyObject(reply);
             return -__LINE__;
         }
@@ -124,43 +142,50 @@ static int load_market_last(redisContext *context, struct market_info *market)
     return 0;
 }
 
-static int load_market_kline(redisContext *context, struct market_info *market)
+static int load_market(redisContext *context, struct market_info *info)
 {
+    time_t now = time(NULL);
     int ret;
-    ret = load_market_sec(context, market);
+
+    sds key = sdsempty();
+    key = sdscatprintf(key, "k:%s:1s", info->name);
+    ret = load_market_kline(context, key, info->sec, now - settings.sec_max);
     if (ret < 0) {
+        sdsfree(key);
         return ret;
     }
-    ret = load_market_last(context, market);
+
+    sdsclear(key);
+    key = sdscatprintf(key, "k:%s:1m", info->name);
+    ret = load_market_kline(context, key, info->min, now / 60 * 60 - settings.min_max * 60);
     if (ret < 0) {
+        sdsfree(key);
         return ret;
     }
-    ret = init_market_min(market);
+
+    sdsclear(key);
+    key = sdscatprintf(key, "k:%s:1h", info->name);
+    ret = load_market_kline(context, key, info->hour, now / 3600 * 3600 - settings.hour_max * 3600);
+    if (ret < 0) {
+        sdsfree(key);
+        return ret;
+    }
+
+    sdsclear(key);
+    key = sdscatprintf(key, "k:%s:1d", info->name);
+    ret = load_market_kline(context, key, info->day, 0);
+    if (ret < 0) {
+        sdsfree(key);
+        return ret;
+    }
+    sdsfree(key);
+
+    ret = load_market_last(context, info);
     if (ret < 0) {
         return ret;
     }
 
     return 0;
-}
-
-static int64_t get_message_offset(void)
-{
-    redisContext *context = redis_sentinel_connect_master(redis);
-    if (context == NULL)
-        return -__LINE__;
-    redisReply *reply = redisCmd(context, "GET k:offset");
-    if (reply == NULL) {
-        redisFree(context);
-        return -__LINE__;
-    }
-    int64_t offset = 0;
-    if (reply->type == REDIS_REPLY_STRING) {
-        offset = strtoll(reply->str, NULL, 0);
-    }
-    freeReplyObject(reply);
-    redisFree(context);
-
-    return offset;
 }
 
 static int add_markets_list(const char *market)
@@ -181,25 +206,39 @@ static int add_markets_list(const char *market)
 
 static struct market_info *create_market(const char *market)
 {
+    struct market_info *info = malloc(sizeof(struct market_info));
+    memset(info, 0, sizeof(struct market_info));
+    info->name = strdup(market);
+    info->last = mpd_qncopy(mpd_zero);
     dict_types dt;
+
     memset(&dt, 0, sizeof(dt));
     dt.hash_function = dict_time_key_hash_func;
     dt.key_compare = dict_time_key_compare;
     dt.key_dup = dict_time_key_dup;
     dt.key_destructor = dict_time_key_free;
 
+    info->sec = dict_create(&dt, 1024);
+    info->min = dict_create(&dt, 1024);
+    info->hour = dict_create(&dt, 1024);
+    info->day = dict_create(&dt, 1024);
+    if (info->sec == NULL || info->min == NULL || info->hour == NULL || info->day == NULL)
+        return NULL;
+
+    memset(&dt, 0, sizeof(dt));
+    dt.hash_function = dict_update_key_hash_func;
+    dt.key_compare = dict_update_key_compare;
+    dt.key_dup = dict_update_key_dup;
+    dt.key_destructor = dict_update_key_free;
+    info->update = dict_create(&dt, 1024);
+    if (info->update == NULL)
+        return NULL;
+
     list_type lt;
     memset(&lt, 0, sizeof(lt));
     lt.free = list_deals_free;
-
-    struct market_info *info = malloc(sizeof(struct market_info));
-    memset(info, 0, sizeof(struct market_info));
-    info->name = strdup(market);
-    info->last = mpd_qncopy(mpd_zero);
-    info->sec = dict_create(&dt, 1024);
-    info->min = dict_create(&dt, 1024);
     info->deals = list_create(&lt);
-    if (info->sec == NULL || info->min == NULL || info->deals == NULL)
+    if (info->deals == NULL)
         return NULL;
 
     sds key = sdsnew(market);
@@ -227,7 +266,6 @@ static int init_market(void)
         redisFree(context);
         return -__LINE__;
     }
-
     for (size_t i = 0; i < reply->elements; ++i) {
         struct market_info *info = create_market(reply->element[i]->str);
         if (info == NULL) {
@@ -235,7 +273,7 @@ static int init_market(void)
             redisFree(context);
             return -__LINE__;
         }
-        int ret = load_market_kline(context, info);
+        int ret = load_market(context, info);
         if (ret < 0) {
             freeReplyObject(reply);
             redisFree(context);
@@ -244,8 +282,6 @@ static int init_market(void)
     }
     freeReplyObject(reply);
     redisFree(context);
-
-    last_flush = current_timestamp();
 
     return 0;
 }
@@ -262,63 +298,20 @@ static struct market_info *market_query(const char *market)
     return NULL;
 }
 
-static int flush_kline_sec(redisContext *context, const char *market, time_t timestamp, struct kline_info *info)
+static struct kline_info *kline_query(dict_t *dict, time_t timestamp)
 {
-    char *str = kline_to_str(info);
-    if (str == NULL)
-        return -__LINE__;
-    redisReply *reply = redisCmd(context, "HSET k:%s:1s %ld %s", market, timestamp, str);
-    if (reply == NULL) {
-        free(str);
-        return -__LINE__;
-    }
-    free(str);
-    freeReplyObject(reply);
-
-    return 0;
+    dict_entry *entry = dict_find(dict, &timestamp);
+    if (entry == NULL)
+        return NULL;
+    return entry->val;
 }
 
-static int flush_kline_min(redisContext *context, const char *market, time_t timestamp, struct kline_info *info)
+static void add_update(struct market_info *info, int type, time_t timestamp)
 {
-    char *str = kline_to_str(info);
-    if (str == NULL)
-        return -__LINE__;
-    redisReply *reply = redisCmd(context, "HSET k:%s:1m %ld %s", market, timestamp, str);
-    if (reply == NULL) {
-        free(str);
-        return -__LINE__;
-    }
-    free(str);
-    freeReplyObject(reply);
-
-    return 0;
-}
-
-static int flush_offset(redisContext *context, int64_t offset)
-{
-    redisReply *reply = redisCmd(context, "SET k:offset %"PRIi64, offset);
-    if (reply == NULL) {
-        return -__LINE__;
-    }
-    freeReplyObject(reply);
-
-    return 0;
-}
-
-static int flush_last(redisContext *context, const char *market, mpd_t *last)
-{
-    char *last_str = mpd_to_sci(last, 0);
-    if (last_str == NULL)
-        return -__LINE__;
-    redisReply *reply = redisCmd(context, "SET k:%s:last %s", market, last_str);
-    if (reply == NULL) {
-        free(last_str);
-        return -__LINE__;
-    }
-    free(last_str);
-    freeReplyObject(reply);
-
-    return 0;
+    struct update_key key;
+    key.kline_type = type;
+    key.timestamp = timestamp;
+    dict_add(info->update, &key, NULL);
 }
 
 static int market_update(const char *market, double timestamp, mpd_t *price, mpd_t *amount, int side, uint64_t id)
@@ -350,19 +343,49 @@ static int market_update(const char *market, double timestamp, mpd_t *price, mpd
         dict_add(info->sec, &time_sec, kinfo);
     }
     kline_info_update(kinfo, price, amount);
+    add_update(info, KLINE_SEC, time_sec);
 
     // update min
-    time_t base = time_sec / 60 * 60;
-    entry = dict_find(info->min, &base);
+    time_t time_min = time_sec / 60 * 60;
+    entry = dict_find(info->min, &time_min);
     if (entry) {
         kinfo = entry->val;
     } else {
         kinfo = kline_info_new(price);
         if (kinfo == NULL)
             return -__LINE__;
-        dict_add(info->min, &base, kinfo);
+        dict_add(info->min, &time_min, kinfo);
     }
     kline_info_update(kinfo, price, amount);
+    add_update(info, KLINE_MIN, time_min);
+
+    // update hour
+    time_t time_hour = time_sec / 3600 * 3600;
+    entry = dict_find(info->hour, &time_hour);
+    if (entry) {
+        kinfo = entry->val;
+    } else {
+        kinfo = kline_info_new(price);
+        if (kinfo == NULL)
+            return -__LINE__;
+        dict_add(info->hour, &time_hour, kinfo);
+    }
+    kline_info_update(kinfo, price, amount);
+    add_update(info, KLINE_HOUR, time_hour);
+
+    // update day
+    time_t time_day = time_sec / 86400 * 86400 + settings.timezone;
+    entry = dict_find(info->day, &time_day);
+    if (entry) {
+        kinfo = entry->val;
+    } else {
+        kinfo = kline_info_new(price);
+        if (kinfo == NULL)
+            return -__LINE__;
+        dict_add(info->day, &time_day, kinfo);
+    }
+    kline_info_update(kinfo, price, amount);
+    add_update(info, KLINE_DAY, time_day);
 
     // update last
     mpd_copy(info->last, price, &mpd_ctx);
@@ -381,6 +404,9 @@ static int market_update(const char *market, double timestamp, mpd_t *price, mpd
 
     list_add_node_tail(info->deals, json_dumps(deal, 0));
     json_decref(deal);
+
+    // update time
+    info->update_time = current_timestamp();
 
     return 0;
 }
@@ -446,59 +472,8 @@ cleanup:
     json_decref(obj);
 }
 
-static int flush_sec_dict(redisContext *context, const char *market, dict_t *dict, time_t expire)
+static int flush_deals_list(redisContext *context, const char *market, list_t *list)
 {
-    dict_iterator *iter = dict_get_iterator(dict);
-    dict_entry *entry;
-    while ((entry = dict_next(iter)) != NULL) {
-        time_t timestamp = *(time_t *)entry->key;
-        struct kline_info *info = entry->val;
-        if (info->update > last_flush) {
-            int ret = flush_kline_sec(context, market, timestamp, info);
-            if (ret < 0) {
-                log_error("flush_kline_sec %ld fail: %d", timestamp, ret);
-                dict_release_iterator(iter);
-                return -__LINE__;
-            }
-        }
-        if (timestamp < expire) {
-            dict_delete(dict, entry->key);
-        }
-    }
-    dict_release_iterator(iter);
-
-    return 0;
-}
-
-static int flush_min_dict(redisContext *context, const char *market, dict_t *dict, time_t expire)
-{
-    dict_iterator *iter = dict_get_iterator(dict);
-    dict_entry *entry;
-    while ((entry = dict_next(iter)) != NULL) {
-        time_t timestamp = *(time_t *)entry->key;
-        struct kline_info *info = entry->val;
-        if (info->update > last_flush) {
-            int ret = flush_kline_min(context, market, timestamp, info);
-            if (ret < 0) {
-                log_error("flush_kline_min %ld fail: %d", timestamp, ret);
-                dict_release_iterator(iter);
-                return -__LINE__;
-            }
-        }
-        if (timestamp < expire) {
-            dict_delete(dict, entry->key);
-        }
-    }
-    dict_release_iterator(iter);
-
-    return 0;
-}
-
-static int flush_deals(redisContext *context, const char *market, list_t *list)
-{
-    if (list->len == 0)
-        return 0;
-
     int argc = 2 + list->len;
     const char **argv = malloc(sizeof(char *) * argc);
     size_t *argvlen = malloc(sizeof(size_t) * argc);
@@ -521,7 +496,6 @@ static int flush_deals(redisContext *context, const char *market, list_t *list)
     }
     list_release_iterator(iter);
 
-    log_debug("LPUSH");
     redisReply *reply = redisCommandArgv(context, argc, argv, argvlen);
     if (reply == NULL) {
         sdsfree(key);
@@ -543,6 +517,117 @@ static int flush_deals(redisContext *context, const char *market, list_t *list)
     return 0;
 }
 
+static int flush_deals(void)
+{
+    redisContext *context = redis_sentinel_connect_master(redis);
+    if (context == NULL)
+        return -__LINE__;
+
+    int ret;
+    dict_iterator *iter = dict_get_iterator(dict_market);
+    dict_entry *entry;
+    while ((entry = dict_next(iter)) != NULL) {
+        struct market_info *info = entry->val;
+        if (info->deals->len == 0)
+            continue;
+        ret = flush_deals_list(context, info->name, info->deals);
+        if (ret < 0) {
+            redisFree(context);
+            dict_release_iterator(iter);
+            return ret;
+        }
+    }
+    dict_release_iterator(iter);
+
+    redisFree(context);
+    return 0;
+}
+
+static int flush_kline(redisContext *context, struct market_info *info, struct update_key *ukey)
+{
+    sds key = sdsempty();
+    struct kline_info *kinfo = NULL;
+    if (ukey->kline_type == KLINE_SEC) {
+        key = sdscatprintf(key, "k:%s:1s", info->name);
+        kinfo = kline_query(info->sec, ukey->timestamp);
+    } else if (ukey->kline_type == KLINE_MIN) {
+        key = sdscatprintf(key, "k:%s:1m", info->name);
+        kinfo = kline_query(info->min, ukey->timestamp);
+    } else if (ukey->kline_type == KLINE_HOUR) {
+        key = sdscatprintf(key, "k:%s:1h", info->name);
+        kinfo = kline_query(info->hour, ukey->timestamp);
+    } else {
+        key = sdscatprintf(key, "k:%s:1d", info->name);
+        kinfo = kline_query(info->day, ukey->timestamp);
+    }
+    if (kinfo == NULL) {
+        sdsfree(key);
+        return -__LINE__;
+    }
+
+    char *str = kline_to_str(kinfo);
+    if (str == NULL) {
+        sdsfree(key);
+        return -__LINE__;
+    }
+
+    redisReply *reply = redisCmd(context, "HSET %s %ld %s", key, ukey->timestamp, str);
+    if (reply == NULL) {
+        free(str);
+        sdsfree(key);
+        return -__LINE__;
+    }
+    free(str);
+    sdsfree(key);
+    freeReplyObject(reply);
+
+    return 0;
+}
+
+static int flush_offset(redisContext *context, int64_t offset)
+{
+    redisReply *reply = redisCmd(context, "SET k:offset %"PRIi64, offset);
+    if (reply == NULL) {
+        return -__LINE__;
+    }
+    freeReplyObject(reply);
+
+    return 0;
+}
+
+static int flush_last(redisContext *context, const char *market, mpd_t *last)
+{
+    char *last_str = mpd_to_sci(last, 0);
+    if (last_str == NULL)
+        return -__LINE__;
+    redisReply *reply = redisCmd(context, "SET k:%s:last %s", market, last_str);
+    if (reply == NULL) {
+        free(last_str);
+        return -__LINE__;
+    }
+    free(last_str);
+    freeReplyObject(reply);
+
+    return 0;
+}
+static int flush_update(redisContext *context, struct market_info *info)
+{
+    dict_iterator *iter = dict_get_iterator(info->update);
+    dict_entry *entry;
+    while ((entry = dict_next(iter)) != NULL) {
+        struct update_key *key = entry->key;
+        log_trace("flush_kline type: %d, timestamp: %ld", key->kline_type, key->timestamp);
+        int ret = flush_kline(context, info, key);
+        if (ret < 0) {
+            log_error("flush_kline fail: %d, type: %d, timestamp: %ld", ret, key->kline_type, key->timestamp);
+        }
+        dict_delete(info->update, entry->key);
+    }
+    dict_release_iterator(iter);
+
+    return 0;
+}
+
 static int flush_market(void)
 {
     redisContext *context = redis_sentinel_connect_master(redis);
@@ -550,34 +635,23 @@ static int flush_market(void)
         return -__LINE__;
 
     int ret;
-    time_t expire = time(NULL) / 60 * 60 - 86400;
     dict_iterator *iter = dict_get_iterator(dict_market);
     dict_entry *entry;
     while ((entry = dict_next(iter)) != NULL) {
         struct market_info *info = entry->val;
-        ret = flush_sec_dict(context, info->name, info->sec, expire);
+        if (info->update_time < last_flush)
+            continue;
+        ret = flush_update(context, info);
         if (ret < 0) {
             redisFree(context);
             dict_release_iterator(iter);
-            return -__LINE__;
-        }
-        ret = flush_min_dict(context, info->name, info->min, expire);
-        if (ret < 0) {
-            redisFree(context);
-            dict_release_iterator(iter);
-            return -__LINE__;
+            return ret;
         }
         ret = flush_last(context, info->name, info->last);
         if (ret < 0) {
             redisFree(context);
             dict_release_iterator(iter);
-            return -__LINE__;
-        }
-        ret = flush_deals(context, info->name, info->deals);
-        if (ret < 0) {
-            redisFree(context);
-            dict_release_iterator(iter);
-            return -__LINE__;
+            return ret;
         }
     }
     dict_release_iterator(iter);
@@ -588,16 +662,46 @@ static int flush_market(void)
         return -__LINE__;
     }
 
+    last_flush = current_timestamp();
     redisFree(context);
+
     return 0;
 }
 
-static void on_timer(nw_timer *timer, void *privdata)
+static void on_market_timer(nw_timer *timer, void *privdata)
 {
     int ret = flush_market();
     if (ret < 0) {
         log_error("flush_market fail: %d", ret);
     }
+}
+
+static void on_deals_timer(nw_timer *timer, void *privdata)
+{
+    int ret = flush_deals();
+    if (ret < 0) {
+        log_error("flush_market fail: %d", ret);
+    }
+}
+
+static int64_t get_message_offset(void)
+{
+    redisContext *context = redis_sentinel_connect_master(redis);
+    if (context == NULL)
+        return -__LINE__;
+    redisReply *reply = redisCmd(context, "GET k:offset");
+    if (reply == NULL) {
+        redisFree(context);
+        return -__LINE__;
+    }
+    int64_t offset = 0;
+    if (reply->type == REDIS_REPLY_STRING) {
+        offset = strtoll(reply->str, NULL, 0);
+    }
+    freeReplyObject(reply);
+    redisFree(context);
+
+    return offset;
 }
 
 int init_message(void)
@@ -620,8 +724,11 @@ int init_message(void)
         return -__LINE__;
     }
 
-    nw_timer_set(&timer, 1, true, on_timer, NULL);
-    nw_timer_start(&timer);
+    nw_timer_set(&market_timer, 10, true, on_market_timer, NULL);
+    nw_timer_start(&market_timer);
+
+    nw_timer_set(&deals_timer, 0.1, true, on_deals_timer, NULL);
+    nw_timer_start(&deals_timer);
 
     return 0;
 }

@@ -15,7 +15,6 @@ struct kline_info {
     mpd_t *high;
     mpd_t *low;
     mpd_t *volume;
-    double update;
 };
 
 struct kline_info *kline_info_new(mpd_t *open);

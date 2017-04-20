@@ -17,7 +17,6 @@ struct kline_info *kline_info_new(mpd_t *open)
     info->high  = mpd_qncopy(open);
     info->low   = mpd_qncopy(open);
     info->volume = mpd_qncopy(mpd_zero);
-    info->update = 0;
 
     return info;
 }
@@ -30,7 +29,6 @@ void kline_info_update(struct kline_info *info, mpd_t *price, mpd_t *amount)
         mpd_copy(info->high, price, &mpd_ctx);
     if (mpd_cmp(price, info->low, &mpd_ctx) < 0)
         mpd_copy(info->low, price, &mpd_ctx);
-    info->update = current_timestamp();
 }
 
 void kline_info_merge(struct kline_info *info, struct kline_info *update)
@@ -41,7 +39,6 @@ void kline_info_merge(struct kline_info *info, struct kline_info *update)
         mpd_copy(info->high, update->high, &mpd_ctx);
     if (mpd_cmp(update->low, info->low, &mpd_ctx) < 0)
         mpd_copy(info->low, update->low, &mpd_ctx);
-    info->update = current_timestamp();
 }
 
 void kline_info_free(struct kline_info *info)

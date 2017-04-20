@@ -44,6 +44,9 @@ struct settings {
     kafka_consumer_cfg  deals;
     redis_sentinel_cfg  redis;
     int                 timezone;
+    int                 sec_max;
+    int                 min_max;
+    int                 hour_max;
 };
 
 extern struct settings settings;

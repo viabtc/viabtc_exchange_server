@@ -13,6 +13,7 @@
 # include "mp_config.h"
 
 int init_message(void);
+bool market_exist(const char *market);
 
 json_t *get_market_status(const char *market, int period);
 json_t *get_market_deals(const char *market, int limit);

@@ -53,6 +53,11 @@ static int reply_error_invalid_argument(nw_ses *ses, rpc_pkg *pkg)
     return reply_error(ses, pkg, 1, "invalid argument");
 }
 
+static int reply_error_internal_error(nw_ses *ses, rpc_pkg *pkg)
+{
+    return reply_error(ses, pkg, 2, "internal error");
+}
+
 static int reply_result(nw_ses *ses, rpc_pkg *pkg, json_t *result)
 {
     json_t *reply = json_object();
@@ -73,6 +78,8 @@ static int on_cmd_market_status(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     const char *market = json_string_value(json_array_get(params, 0));
     if (!market)
         return reply_error_invalid_argument(ses, pkg);
+    if (!market_exist(market))
+        return reply_error_invalid_argument(ses, pkg);
 
     int period = json_integer_value(json_array_get(params, 1));
     if (period <= 0 || period > 86400)
@@ -80,7 +87,7 @@ static int on_cmd_market_status(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 
     json_t *result = get_market_status(market, period);
     if (result == NULL)
-        return reply_error_invalid_argument(ses, pkg);
+        return reply_error_internal_error(ses, pkg);
 
     return reply_result(ses, pkg, result);
 }
@@ -105,7 +112,7 @@ static int on_cmd_market_deals(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 
     json_t *result = get_market_deals(market, limit);
     if (result == NULL)
-        return reply_error_invalid_argument(ses, pkg);
+        return reply_error_internal_error(ses, pkg);
 
     return reply_result(ses, pkg, result);
 }

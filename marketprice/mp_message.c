@@ -626,6 +626,14 @@ int init_message(void)
     return 0;
 }
 
+bool market_exist(const char *market)
+{
+    struct market_info *info = market_query(market);
+    if (info)
+        return true;
+    return false;
+}
+
 json_t *get_market_status(const char *market, int period)
 {
     struct market_info *info = market_query(market);
@@ -665,6 +673,33 @@ json_t *get_market_status(const char *market, int period)
 
 json_t *get_market_deals(const char *market, int limit)
 {
-    return NULL;
+    struct market_info *info = market_query(market);
+    if (info == NULL)
+        return NULL;
+
+    redisContext *context = redis_sentinel_connect_master(redis);
+    if (context == NULL)
+        return NULL;
+    redisReply *reply = redisCmd(context, "LRANGE k:%s:deals 0 %d", market, limit - 1);
+    if (reply == NULL) {
+        redisFree(context);
+        return NULL;
+    }
+    redisFree(context);
+
+    json_t *result = json_array();
+    for (size_t i = 0; i < reply->elements; ++i) {
+        json_t *deal = json_loadb(reply->element[i]->str, reply->element[i]->len, 0, NULL);
+        if (deal == NULL) {
+            log_error("invalid deal info: %s", reply->element[i]->str);
+            freeReplyObject(reply);
+            json_decref(result);
+            return NULL;
+        }
+        json_array_append_new(result, deal);
+    }
+    freeReplyObject(reply);
+
+    return result;
 }
 

@@ -9,6 +9,7 @@
 # include "me_config.h"
 
 extern uint64_t order_id_start;
+extern uint64_t deals_id_start;
 
 # define MARKET_ORDER_TYPE_LIMIT    1
 # define MARKET_ORDER_TYPE_MARKET   2

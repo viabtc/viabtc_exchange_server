@@ -25,10 +25,10 @@ static time_t get_today_start(void)
     return mktime(&t);
 }
 
-static int get_last_slice(MYSQL *conn, time_t *timestamp, uint64_t *last_oper_id, uint64_t *last_order_id)
+static int get_last_slice(MYSQL *conn, time_t *timestamp, uint64_t *last_oper_id, uint64_t *last_order_id, uint64_t *last_deals_id)
 {
     sds sql = sdsempty();
-    sql = sdscatprintf(sql, "SELECT `time`, `end_oper_id`, `end_order_id` from `slice_history` ORDER BY `id` DESC LIMIT 1");
+    sql = sdscatprintf(sql, "SELECT `time`, `end_oper_id`, `end_order_id`, `end_deals_id` from `slice_history` ORDER BY `id` DESC LIMIT 1");
     log_stderr("get last slice time");
     log_trace("exec sql: %s", sql);
     int ret = mysql_real_query(conn, sql, sdslen(sql));
@@ -49,8 +49,9 @@ static int get_last_slice(MYSQL *conn, time_t *timestamp, uint64_t *last_oper_id
 
     MYSQL_ROW row = mysql_fetch_row(result);
     *timestamp = strtol(row[0], NULL, 0);
-    *last_oper_id = strtoull(row[1], NULL, 0);
+    *last_oper_id  = strtoull(row[1], NULL, 0);
     *last_order_id = strtoull(row[2], NULL, 0);
+    *last_deals_id = strtoull(row[3], NULL, 0);
     mysql_free_result(result);
 
     return 0;
@@ -120,15 +121,18 @@ int init_from_db(void)
     }
 
     time_t now = time(NULL);
-    uint64_t last_oper_id = 0;
+    uint64_t last_oper_id  = 0;
     uint64_t last_order_id = 0;
-    int ret = get_last_slice(conn, &last_slice_time, &last_oper_id, &last_order_id);
+    uint64_t last_deals_id = 0;
+    int ret = get_last_slice(conn, &last_slice_time, &last_oper_id, &last_order_id, &last_deals_id);
     if (ret < 0) {
         return ret;
     }
 
-    log_info("last_slice_time: %ld, last_oper_id: %"PRIu64", last_order_id: %"PRIu64, last_slice_time, last_oper_id, last_order_id);
-    log_stderr("last_slice_time: %ld, last_oper_id: %"PRIu64", last_order_id: %"PRIu64, last_slice_time, last_oper_id, last_order_id);
+    log_info("last_slice_time: %ld, last_oper_id: %"PRIu64", last_order_id: %"PRIu64", last_deals_id: %"PRIu64,
+            last_slice_time, last_oper_id, last_order_id, last_deals_id);
+    log_stderr("last_slice_time: %ld, last_oper_id: %"PRIu64", last_order_id: %"PRIu64", last_deals_id: %"PRIu64,
+            last_slice_time, last_oper_id, last_order_id, last_deals_id);
 
     if (last_slice_time == 0) {
         ret = load_operlog_from_db(conn, now, &last_oper_id);
@@ -153,6 +157,7 @@ int init_from_db(void)
 
     operlog_id_start = last_oper_id;
     order_id_start = last_order_id;
+    deals_id_start = last_deals_id;
 
     mysql_close(conn);
     log_stderr("load success");
@@ -199,7 +204,8 @@ static int dump_balance_to_db(MYSQL *conn, time_t end)
 int update_slice_history(MYSQL *conn, time_t end)
 {
     sds sql = sdsempty();
-    sql = sdscatprintf(sql, "INSERT INTO `slice_history` (`id`, `time`, `end_oper_id`, `end_order_id`) VALUES (NULL, %ld, %"PRIu64", %"PRIu64")", end, operlog_id_start, order_id_start);
+    sql = sdscatprintf(sql, "INSERT INTO `slice_history` (`id`, `time`, `end_oper_id`, `end_order_id`, `end_deals_id`) VALUES (NULL, %ld, %"PRIu64", %"PRIu64", %"PRIu64")",
+            end, operlog_id_start, order_id_start, deals_id_start);
     log_info("update slice history to: %ld", end);
     log_trace("exec sql: %s", sql);
     int ret = mysql_real_query(conn, sql, sdslen(sql));

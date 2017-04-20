@@ -197,7 +197,7 @@ int push_order_message(uint32_t event, order_t *order)
     return 0;
 }
 
-int push_deal_message(double t, const char *market, order_t *ask, order_t *bid, mpd_t *price, mpd_t *amount, mpd_t *ask_fee, mpd_t *bid_fee, int side)
+int push_deal_message(double t, const char *market, order_t *ask, order_t *bid, mpd_t *price, mpd_t *amount, mpd_t *ask_fee, mpd_t *bid_fee, int side, uint64_t id)
 {
     json_t *message = json_array();
     json_array_append_new(message, json_real(t));
@@ -211,6 +211,7 @@ int push_deal_message(double t, const char *market, order_t *ask, order_t *bid, 
     json_array_append_mpd(message, ask_fee);
     json_array_append_mpd(message, bid_fee);
     json_array_append_new(message, json_integer(side));
+    json_array_append_new(message, json_integer(id));
 
     push_message(json_dumps(message, 0), rkt_deals, list_deals);
     json_decref(message);

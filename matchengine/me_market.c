@@ -889,7 +889,7 @@ int market_put_market_order(bool real, market_t *m, uint32_t user_id, uint32_t s
     mpd_copy(order->amount, amount, &mpd_ctx);
     mpd_copy(order->taker_fee, taker_fee, &mpd_ctx);
     mpd_copy(order->maker_fee, mpd_zero, &mpd_ctx);
-    mpd_copy(order->left, order->amount, &mpd_ctx);
+    mpd_copy(order->left, amount, &mpd_ctx);
     mpd_copy(order->deal_stock, mpd_zero, &mpd_ctx);
     mpd_copy(order->deal_money, mpd_zero, &mpd_ctx);
     mpd_copy(order->deal_fee, mpd_zero, &mpd_ctx);

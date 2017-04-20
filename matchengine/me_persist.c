@@ -134,6 +134,9 @@ int init_from_db(void)
     log_stderr("last_slice_time: %ld, last_oper_id: %"PRIu64", last_order_id: %"PRIu64", last_deals_id: %"PRIu64,
             last_slice_time, last_oper_id, last_order_id, last_deals_id);
 
+    order_id_start = last_order_id;
+    deals_id_start = last_deals_id;
+
     if (last_slice_time == 0) {
         ret = load_operlog_from_db(conn, now, &last_oper_id);
         if (ret < 0)
@@ -156,8 +159,6 @@ int init_from_db(void)
     }
 
     operlog_id_start = last_oper_id;
-    order_id_start = last_order_id;
-    deals_id_start = last_deals_id;
 
     mysql_close(conn);
     log_stderr("load success");

@@ -626,3 +626,45 @@ int init_message(void)
     return 0;
 }
 
+json_t *get_market_status(const char *market, int period)
+{
+    struct market_info *info = market_query(market);
+    if (info == NULL)
+        return NULL;
+
+    struct kline_info *kinfo = NULL;
+    time_t start = time(NULL) - period;
+    for (int i = 0; i < period; ++i) {
+        time_t timestamp = start + i;
+        dict_entry *entry = dict_find(info->sec, &timestamp);
+        if (!entry)
+            continue;
+        struct kline_info *sinfo = entry->val;
+        if (kinfo == NULL) {
+            kinfo = kline_info_new(sinfo->open);
+        }
+        kline_info_merge(kinfo, sinfo);
+    }
+
+    if (kinfo == NULL)
+        kinfo = kline_info_new(mpd_zero);
+
+    json_t *result = json_object();
+    json_object_set_new(result, "period", json_integer(period));
+    json_object_set_new_mpd(result, "last", info->last);
+    json_object_set_new_mpd(result, "open", kinfo->open);
+    json_object_set_new_mpd(result, "close", kinfo->close);
+    json_object_set_new_mpd(result, "high", kinfo->high);
+    json_object_set_new_mpd(result, "low", kinfo->low);
+    json_object_set_new_mpd(result, "volume", kinfo->volume);
+
+    kline_info_free(kinfo);
+
+    return result;
+}
+
+json_t *get_market_deals(const char *market, int limit)
+{
+    return NULL;
+}
+

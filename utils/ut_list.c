@@ -139,6 +139,24 @@ void list_del(list_t *list, list_node *node)
     list->len -= 1;
 }
 
+void list_clear(list_t *list)
+{
+    unsigned long len = list->len;
+    list_node *curr, *next;
+    curr = list->head;
+    while (len--) {
+        next = curr->next;
+        if (list->type.free) {
+            list->type.free(curr->value);
+        }
+        free(curr);
+        curr = next;
+    }
+    list->len = 0;
+    list->head = NULL;
+    list->tail = NULL;
+}
+
 void list_release(list_t *list)
 {
     unsigned long len = list->len;
@@ -152,6 +170,7 @@ void list_release(list_t *list)
         free(curr);
         curr = next;
     }
+    free(list);
 }
 
 list_iter *list_get_iterator(list_t *list, int direction)

@@ -42,6 +42,7 @@ list_t *list_add_node_head(list_t *list, void *value);
 list_t *list_add_node_tail(list_t *list, void *value);
 list_t *list_insert_node(list_t *list, list_node *pos, void *value, int before);
 void list_del(list_t *list, list_node *node);
+void list_clear(list_t *list);
 void list_rotate(list_t *list);
 void list_release(list_t *list);
 

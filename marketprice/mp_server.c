@@ -82,7 +82,7 @@ static int on_cmd_market_status(nw_ses *ses, rpc_pkg *pkg, json_t *params)
         return reply_error_invalid_argument(ses, pkg);
 
     int period = json_integer_value(json_array_get(params, 1));
-    if (period <= 0 || period > 86400)
+    if (period <= 0 || period > settings.sec_max)
         return reply_error_invalid_argument(ses, pkg);
 
     json_t *result = get_market_status(market, period);
@@ -94,7 +94,53 @@ static int on_cmd_market_status(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 
 static int on_cmd_market_kline(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 {
-    return 0;
+    if (json_array_size(params) != 4)
+        return reply_error_invalid_argument(ses, pkg);
+
+    const char *market = json_string_value(json_array_get(params, 0));
+    if (!market)
+        return reply_error_invalid_argument(ses, pkg);
+    if (!market_exist(market))
+        return reply_error_invalid_argument(ses, pkg);
+
+    time_t start = json_integer_value(json_array_get(params, 1));
+    if (start <= 0)
+        return reply_error_invalid_argument(ses, pkg);
+
+    time_t end = json_integer_value(json_array_get(params, 2));
+    if (start <= 0)
+        return reply_error_invalid_argument(ses, pkg);
+
+    int interval = json_integer_value(json_array_get(params, 3));
+    if (interval <= 0)
+        return reply_error_invalid_argument(ses, pkg);
+
+    json_t *result = NULL;
+    if (interval < 60) {
+        if (60 % interval != 0)
+            return reply_error_invalid_argument(ses, pkg);
+        result = get_market_kline_sec(market, start, end, interval);
+    } else if (interval < 3600) {
+        if (interval % 60 != 0 || 3600 % interval != 0)
+            return reply_error_invalid_argument(ses, pkg);
+        result = get_market_kline_min(market, start, end, interval);
+    } else if (interval < 86400) {
+        if (interval % 3600 != 0 || 86400 % interval != 0)
+            return reply_error_invalid_argument(ses, pkg);
+        result = get_market_kline_hour(market, start, end, interval);
+    } else if (interval < 86400 * 7) {
+        if (interval % 86400 != 0)
+            return reply_error_invalid_argument(ses, pkg);
+        result = get_market_kline_day(market, start, end, interval);
+    } else if (interval == 86400 * 7) {
+        result = get_market_kline_week(market, start, end, interval);
+    } else {
+        return reply_error_invalid_argument(ses, pkg);
+    }
+
+    if (result == NULL)
+        return reply_error_internal_error(ses, pkg);
+    return reply_result(ses, pkg, result);
 }
 
 static int on_cmd_market_deals(nw_ses *ses, rpc_pkg *pkg, json_t *params)

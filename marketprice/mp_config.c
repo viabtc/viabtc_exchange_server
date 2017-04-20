@@ -47,7 +47,7 @@ static int read_config_from_json(json_t *root)
     }
 
     read_cfg_int(root, "timezone", &settings.timezone, false, -28800);
-    read_cfg_int(root, "sec_max", &settings.sec_max, false, 86400);
+    read_cfg_int(root, "sec_max", &settings.sec_max, false, 86400 * 7);
     read_cfg_int(root, "min_max", &settings.min_max, false, 60 * 24 * 365);
     read_cfg_int(root, "hour_max", &settings.hour_max, false, 24 * 365 * 10);
 

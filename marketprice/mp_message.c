@@ -778,6 +778,31 @@ json_t *get_market_status(const char *market, int period)
     return result;
 }
 
+json_t *get_market_kline_sec(const char *market, time_t start, time_t end, int interval)
+{
+    return NULL;
+}
+
+json_t *get_market_kline_min(const char *market, time_t start, time_t end, int interval)
+{
+    return NULL;
+}
+
+json_t *get_market_kline_hour(const char *market, time_t start, time_t end, int interval)
+{
+    return NULL;
+}
+
+json_t *get_market_kline_day(const char *market, time_t start, time_t end, int interval)
+{
+    return NULL;
+}
+
+json_t *get_market_kline_week(const char *market, time_t start, time_t end, int interval)
+{
+    return NULL;
+}
+
 json_t *get_market_deals(const char *market, int limit)
 {
     struct market_info *info = market_query(market);

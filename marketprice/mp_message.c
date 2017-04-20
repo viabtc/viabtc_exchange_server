@@ -39,6 +39,7 @@ static double   last_flush;
 static int64_t  last_offset;
 static nw_timer market_timer;
 static nw_timer deals_timer;
+static nw_timer clear_timer;
 
 static uint32_t dict_sds_key_hash_func(const void *key)
 {
@@ -668,6 +669,33 @@ static int flush_market(void)
     return 0;
 }
 
+static void clear_dict(dict_t *dict, time_t start)
+{
+    dict_iterator *iter = dict_get_iterator(dict);
+    dict_entry *entry;
+    while ((entry = dict_next(iter)) != NULL) {
+        time_t timestamp = *(time_t *)entry->key;
+        if (timestamp < start) {
+            dict_delete(dict, entry->key);
+        }
+    }
+    dict_release_iterator(iter);
+}
+
+static void clear_kline(void)
+{
+    time_t now = time(NULL);
+    dict_iterator *iter = dict_get_iterator(dict_market);
+    dict_entry *entry;
+    while ((entry = dict_next(iter)) != NULL) {
+        struct market_info *info = entry->val;
+        clear_dict(info->sec, now - settings.sec_max);
+        clear_dict(info->sec, now / 60 * 60 - settings.min_max * 60);
+        clear_dict(info->hour, now / 3600 * 3600 - settings.hour_max * 3600);
+    }
+    dict_release_iterator(iter);
+}
+
 static void on_market_timer(nw_timer *timer, void *privdata)
 {
     int ret = flush_market();
@@ -682,6 +710,11 @@ static void on_deals_timer(nw_timer *timer, void *privdata)
     if (ret < 0) {
         log_error("flush_market fail: %d", ret);
     }
+}
+
+static void on_clear_timer(nw_timer *timer, void *privdata)
+{
+    clear_kline();
 }
 
 static int64_t get_message_offset(void)
@@ -729,6 +762,9 @@ int init_message(void)
 
     nw_timer_set(&deals_timer, 0.1, true, on_deals_timer, NULL);
     nw_timer_start(&deals_timer);
+
+    nw_timer_set(&clear_timer, 3600, true, on_clear_timer, NULL);
+    nw_timer_start(&clear_timer);
 
     return 0;
 }
@@ -780,6 +816,9 @@ json_t *get_market_status(const char *market, int period)
 
 json_t *get_market_kline_sec(const char *market, time_t start, time_t end, int interval)
 {
+    time_t now = time(NULL);
+    if (start < now - settings.sec_max)
+        start = now - settings.sec_max;
     return NULL;
 }
 

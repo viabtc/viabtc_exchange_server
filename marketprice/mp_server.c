@@ -108,7 +108,7 @@ static int on_cmd_market_kline(nw_ses *ses, rpc_pkg *pkg, json_t *params)
         return reply_error_invalid_argument(ses, pkg);
 
     time_t end = json_integer_value(json_array_get(params, 2));
-    if (start <= 0)
+    if (end <= 0 || start < end)
         return reply_error_invalid_argument(ses, pkg);
 
     int interval = json_integer_value(json_array_get(params, 3));

@@ -23,6 +23,7 @@
 // market
 # define CMD_MARKET_STATUS          301
 # define CMD_MARKET_KLINE           302
+# define CMD_MARKET_DEALS           303
 
 # endif
 

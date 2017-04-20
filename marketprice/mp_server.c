@@ -87,6 +87,11 @@ static int on_cmd_market_kline(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     return 0;
 }
 
+static int on_cmd_market_deals(nw_ses *ses, rpc_pkg *pkg, json_t *params)
+{
+    return 0;
+}
+
 static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
 {
     json_t *params = json_loadb(pkg->body, pkg->body_size, 0, NULL);
@@ -109,6 +114,13 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         ret = on_cmd_market_kline(ses, pkg, params);
         if (ret < 0) {
             log_error("on_cmd_market_kline %s fail: %d", params_str, ret);
+        }
+        break;
+    case CMD_MARKET_DEALS:
+        log_debug("from: %s cmd market deals, params: %s", nw_sock_human_addr(&ses->peer_addr), params_str);
+        ret = on_cmd_market_deals(ses, pkg, params);
+        if (ret < 0) {
+            log_error("on_cmd_market_deals %s fail: %d", params_str, ret);
         }
         break;
     default:

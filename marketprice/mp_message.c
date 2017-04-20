@@ -534,7 +534,7 @@ static int flush_deals(redisContext *context, const char *market, list_t *list)
     free(argvlen);
     freeReplyObject(reply);
 
-    reply = redisCmd(context, "LTRIM m:%s:deals 0 9999", market);
+    reply = redisCmd(context, "LTRIM m:%s:deals 0 %d", market, MARKET_DEALS_MAX - 1);
     if (reply) {
         freeReplyObject(reply);
     }

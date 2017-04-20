@@ -14,7 +14,7 @@
             "udp@0.0.0.0:7416"
         ],
         "buf_limit": 100,
-        "max_pkg_size": 10240,
+        "max_pkg_size": 1000000,
         "heartbeat_check": false
     },
     "cli": "tcp@127.0.0.1:7417",

@@ -43,6 +43,7 @@ struct settings {
     cli_svr_cfg         cli;
     kafka_consumer_cfg  deals;
     redis_sentinel_cfg  redis;
+    int                 timezone;
 };
 
 extern struct settings settings;

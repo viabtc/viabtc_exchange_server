@@ -45,6 +45,11 @@ static int read_config_from_json(json_t *root)
         printf("load kafka deals config fail: %d\n", ret);
         return -__LINE__;
     }
+    ret = read_cfg_int(root, "timezone", &settings.timezone, false, -28800);
+    if (ret < 0) {
+        printf("load timezone config fail: %d\n", ret);
+        return -__LINE__;
+    }
 
     return 0;
 }

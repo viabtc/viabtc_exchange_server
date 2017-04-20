@@ -9,9 +9,10 @@
 
 struct market_info {
     char   *name;
+    mpd_t  *last;
     dict_t *sec;
     dict_t *min;
-    mpd_t  *last;
+    list_t *deals;
 };
 
 static redis_sentinel_t *redis;
@@ -57,6 +58,11 @@ static void *dict_time_key_dup(const void *key)
 static void dict_time_key_free(void *key)
 {
     free(key);
+}
+
+static void list_deals_free(void *val)
+{
+    free(val);
 }
 
 static int load_market_sec(redisContext *context, struct market_info *market)
@@ -175,21 +181,26 @@ static int add_markets_list(const char *market)
 
 static struct market_info *create_market(const char *market)
 {
-    dict_types type;
-    memset(&type, 0, sizeof(type));
-    type.hash_function = dict_time_key_hash_func;
-    type.key_compare = dict_time_key_compare;
-    type.key_dup = dict_time_key_dup;
-    type.key_destructor = dict_time_key_free;
+    dict_types dt;
+    memset(&dt, 0, sizeof(dt));
+    dt.hash_function = dict_time_key_hash_func;
+    dt.key_compare = dict_time_key_compare;
+    dt.key_dup = dict_time_key_dup;
+    dt.key_destructor = dict_time_key_free;
+
+    list_type lt;
+    memset(&lt, 0, sizeof(lt));
+    lt.free = list_deals_free;
 
     struct market_info *info = malloc(sizeof(struct market_info));
     memset(info, 0, sizeof(struct market_info));
     info->name = strdup(market);
-    info->sec = dict_create(&type, 1024);
-    info->min = dict_create(&type, 1024);
-    if (info->sec == NULL || info->min == NULL)
-        return NULL;
     info->last = mpd_qncopy(mpd_zero);
+    info->sec = dict_create(&dt, 1024);
+    info->min = dict_create(&dt, 1024);
+    info->deals = list_create(&lt);
+    if (info->sec == NULL || info->min == NULL || info->deals == NULL)
+        return NULL;
 
     sds key = sdsnew(market);
     dict_add(dict_market, key, info);
@@ -310,7 +321,7 @@ static int flush_last(redisContext *context, const char *market, mpd_t *last)
     return 0;
 }
 
-static int market_update(const char *market, time_t timestamp, mpd_t *price, mpd_t *amount)
+static int market_update(const char *market, double timestamp, mpd_t *price, mpd_t *amount, int side, uint64_t id)
 {
     struct market_info *info = market_query(market);
     if (info == NULL) {
@@ -326,21 +337,22 @@ static int market_update(const char *market, time_t timestamp, mpd_t *price, mpd
     }
 
     // update sec
+    time_t time_sec = (time_t)timestamp;
     dict_entry *entry;
     struct kline_info *kinfo;
-    entry = dict_find(info->sec, &timestamp);
+    entry = dict_find(info->sec, &time_sec);
     if (entry) {
         kinfo = entry->val;
     } else {
         kinfo = kline_info_new(price);
         if (kinfo == NULL)
             return -__LINE__;
-        dict_add(info->sec, &timestamp, kinfo);
+        dict_add(info->sec, &time_sec, kinfo);
     }
     kline_info_update(kinfo, price, amount);
 
     // update min
-    time_t base = timestamp / 60 * 60;
+    time_t base = time_sec / 60 * 60;
     entry = dict_find(info->min, &base);
     if (entry) {
         kinfo = entry->val;
@@ -352,8 +364,23 @@ static int market_update(const char *market, time_t timestamp, mpd_t *price, mpd
     }
     kline_info_update(kinfo, price, amount);
 
-    // update min
+    // update last
     mpd_copy(info->last, price, &mpd_ctx);
+
+    // append deals
+    json_t *deal = json_object();
+    json_object_set_new(deal, "id", json_integer(id));
+    json_object_set_new(deal, "time", json_real(timestamp));
+    json_object_set_new_mpd(deal, "price", price);
+    json_object_set_new_mpd(deal, "amount", amount);
+    if (side == MARKET_SIDE_SELL) {
+        json_object_set_new(deal, "type", json_string("sell"));
+    } else {
+        json_object_set_new(deal, "type", json_string("buy"));
+    }
+
+    list_add_node_tail(info->deals, json_dumps(deal, 0));
+    json_decref(deal);
 
     return 0;
 }
@@ -370,7 +397,7 @@ static void on_deals_message(sds message, int64_t offset)
     mpd_t *price = NULL;
     mpd_t *amount = NULL;
 
-    if (!json_is_array(obj) || json_array_size(obj) < 11) {
+    if (!json_is_array(obj) || json_array_size(obj) < 12) {
         goto cleanup;
     }
     double timestamp = json_real_value(json_array_get(obj, 0));
@@ -389,8 +416,18 @@ static void on_deals_message(sds message, int64_t offset)
     if (!amount_str || (amount = decimal(amount_str, 0)) == NULL) {
         goto cleanup;
     }
-    int ret = market_update(market, (time_t)timestamp, price, amount);
+    int side = json_integer_value(json_array_get(obj, 10));
+    if (side != MARKET_SIDE_SELL && side != MARKET_SIDE_BUY) {
+        goto cleanup;
+    }
+    uint64_t id = json_integer_value(json_array_get(obj, 11));
+    if (id == 0) {
+        goto cleanup;
+    }
+
+    int ret = market_update(market, timestamp, price, amount, side, id);
     if (ret < 0) {
+        log_error("market_update fail %d, message: %s", ret, message);
         goto cleanup;
     }
     last_offset = offset;
@@ -409,12 +446,22 @@ cleanup:
     json_decref(obj);
 }
 
-static int clear_kline_dict(dict_t *dict, time_t start)
+static int flush_sec_dict(redisContext *context, const char *market, dict_t *dict, time_t expire)
 {
     dict_iterator *iter = dict_get_iterator(dict);
     dict_entry *entry;
     while ((entry = dict_next(iter)) != NULL) {
-        if (*(time_t *)entry->key < start) {
+        time_t timestamp = *(time_t *)entry->key;
+        struct kline_info *info = entry->val;
+        if (info->update > last_flush) {
+            int ret = flush_kline_sec(context, market, timestamp, info);
+            if (ret < 0) {
+                log_error("flush_kline_sec %ld fail: %d", timestamp, ret);
+                dict_release_iterator(iter);
+                return -__LINE__;
+            }
+        }
+        if (timestamp < expire) {
             dict_delete(dict, entry->key);
         }
     }
@@ -423,35 +470,23 @@ static int clear_kline_dict(dict_t *dict, time_t start)
     return 0;
 }
 
-static int clear_kline(void)
-{
-    time_t start = time(NULL) / 60 * 60 - 86400;
-    dict_iterator *iter = dict_get_iterator(dict_market);
-    dict_entry *entry;
-    while ((entry = dict_next(iter)) != NULL) {
-        struct market_info *info = entry->val;
-        clear_kline_dict(info->sec, start);
-        clear_kline_dict(info->min, start);
-    }
-    dict_release_iterator(iter);
-
-    return 0;
-}
-
-static int flush_sec_dict(redisContext *context, const char *market, dict_t *dict)
+static int flush_min_dict(redisContext *context, const char *market, dict_t *dict, time_t expire)
 {
     dict_iterator *iter = dict_get_iterator(dict);
     dict_entry *entry;
     while ((entry = dict_next(iter)) != NULL) {
         time_t timestamp = *(time_t *)entry->key;
         struct kline_info *info = entry->val;
-        if (info->update < last_flush)
-            continue;
-        int ret = flush_kline_sec(context, market, timestamp, info);
-        if (ret < 0) {
-            log_error("flush_kline_sec %ld fail: %d", timestamp, ret);
-            dict_release_iterator(iter);
-            return -__LINE__;
+        if (info->update > last_flush) {
+            int ret = flush_kline_min(context, market, timestamp, info);
+            if (ret < 0) {
+                log_error("flush_kline_min %ld fail: %d", timestamp, ret);
+                dict_release_iterator(iter);
+                return -__LINE__;
+            }
+        }
+        if (timestamp < expire) {
+            dict_delete(dict, entry->key);
         }
     }
     dict_release_iterator(iter);
@@ -459,51 +494,86 @@ static int flush_sec_dict(redisContext *context, const char *market, dict_t *dic
     return 0;
 }
 
-static int flush_min_dict(redisContext *context, const char *market, dict_t *dict)
+static int flush_deals(redisContext *context, const char *market, list_t *list)
 {
-    dict_iterator *iter = dict_get_iterator(dict);
-    dict_entry *entry;
-    while ((entry = dict_next(iter)) != NULL) {
-        time_t timestamp = *(time_t *)entry->key;
-        struct kline_info *info = entry->val;
-        if (info->update < last_flush)
-            continue;
-        int ret = flush_kline_min(context, market, timestamp, info);
-        if (ret < 0) {
-            log_error("flush_kline_min %ld fail: %d", timestamp, ret);
-            dict_release_iterator(iter);
-            return -__LINE__;
-        }
-    }
-    dict_release_iterator(iter);
+    if (list->len == 0)
+        return 0;
 
+    int argc = 2 + list->len;
+    const char **argv = malloc(sizeof(char *) * argc);
+    size_t *argvlen = malloc(sizeof(size_t) * argc);
+
+    argv[0] = "LPUSH";
+    argvlen[0] = strlen(argv[0]);
+
+    sds key = sdsempty();
+    key = sdscatprintf(key, "k:%s:deals", market);
+    argv[1] = key;
+    argvlen[1] = sdslen(key);
+
+    list_iter *iter = list_get_iterator(list, LIST_START_HEAD);
+    list_node *node;
+    size_t index = 0;
+    while ((node = list_next(iter)) != NULL) {
+        argv[2 + index] = node->value;
+        argvlen[2 + index] = strlen((char *)node->value);
+        index += 1;
+    }
+    list_release_iterator(iter);
+
+    log_debug("LPUSH");
+    redisReply *reply = redisCommandArgv(context, argc, argv, argvlen);
+    if (reply == NULL) {
+        sdsfree(key);
+        free(argv);
+        free(argvlen);
+        return -__LINE__;
+    }
+    sdsfree(key);
+    free(argv);
+    free(argvlen);
+    freeReplyObject(reply);
+
+    reply = redisCmd(context, "LTRIM m:%s:deals 0 9999", market);
+    if (reply) {
+        freeReplyObject(reply);
+    }
+
+    list_clear(list);
     return 0;
 }
 
-static int flush_kline(void)
+static int flush_market(void)
 {
     redisContext *context = redis_sentinel_connect_master(redis);
     if (context == NULL)
         return -__LINE__;
 
     int ret;
+    time_t expire = time(NULL) / 60 * 60 - 86400;
     dict_iterator *iter = dict_get_iterator(dict_market);
     dict_entry *entry;
     while ((entry = dict_next(iter)) != NULL) {
         struct market_info *info = entry->val;
-        ret = flush_sec_dict(context, info->name, info->sec);
+        ret = flush_sec_dict(context, info->name, info->sec, expire);
         if (ret < 0) {
             redisFree(context);
             dict_release_iterator(iter);
             return -__LINE__;
         }
-        ret = flush_min_dict(context, info->name, info->min);
+        ret = flush_min_dict(context, info->name, info->min, expire);
         if (ret < 0) {
             redisFree(context);
             dict_release_iterator(iter);
             return -__LINE__;
         }
         ret = flush_last(context, info->name, info->last);
+        if (ret < 0) {
+            redisFree(context);
+            dict_release_iterator(iter);
+            return -__LINE__;
+        }
+        ret = flush_deals(context, info->name, info->deals);
         if (ret < 0) {
             redisFree(context);
             dict_release_iterator(iter);
@@ -524,14 +594,9 @@ static int flush_kline(void)
 
 static void on_timer(nw_timer *timer, void *privdata)
 {
-    int ret;
-    ret = flush_kline();
+    int ret = flush_market();
     if (ret < 0) {
-        log_error("flush_kline fail: %d", ret);
-    }
-    ret = clear_kline();
-    if (ret < 0) {
-        log_error("clear_kline fail: %d", ret);
+        log_error("flush_market fail: %d", ret);
     }
 }
 

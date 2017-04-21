@@ -1,0 +1,18 @@
+{
+    "debug": true,
+    "process": {
+        "file_limit": 1000000,
+        "core_limit": 1000000000
+    },
+    "log": {
+        "path": "/var/log/trade/accesshttp",
+        "flag": "fatal,error,warn,info,debug,trace"
+    },
+    "svr": {
+        "bind": [
+            "tcp@0.0.0.0:7421",
+            "udp@0.0.0.0:7421"
+        ],
+        "max_pkg_size": 10240
+    }
+}

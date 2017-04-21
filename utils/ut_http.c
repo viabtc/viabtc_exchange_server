@@ -83,7 +83,7 @@ http_response_t *http_response_new(void)
         return NULL;
     memset(response, 0, sizeof(http_response_t));
     response->headers = create_header_dict();
-    if (response->headers) {
+    if (response->headers == NULL) {
         free(response);
         return NULL;
     }

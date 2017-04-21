@@ -134,7 +134,7 @@ static void on_recv_pkg(nw_ses *ses, void *data, size_t size)
     struct clt_info *info = ses->privdata;
     info->last_activity = current_timestamp();
     http_svr *svr = http_svr_from_ses(ses);
-    size_t nparsed = http_parser_execute(&info->parser, svr->settings, data, size);
+    size_t nparsed = http_parser_execute(&info->parser, &svr->settings, data, size);
     if (nparsed != size) {
         log_error("peer: %s http parse error: %s (%s)", nw_sock_human_addr(&ses->peer_addr),
                 http_errno_description(HTTP_PARSER_ERRNO(&info->parser)),
@@ -182,16 +182,14 @@ http_svr *http_svr_create(http_svr_cfg *cfg, http_request_callback on_request)
         return NULL;
     }
 
-    http_parser_settings *settings = malloc(sizeof(http_parser_settings));
-    memset(settings, 0, sizeof(http_parser_settings));
-    settings->on_message_begin = on_message_begin;
-    settings->on_url = on_url;
-    settings->on_header_field = on_header_field;
-    settings->on_header_value = on_header_value;
-    settings->on_body = on_body;
-    settings->on_message_complete = on_message_complete;
+    memset(&svr->settings, 0, sizeof(http_parser_settings));
+    svr->settings.on_message_begin = on_message_begin;
+    svr->settings.on_url = on_url;
+    svr->settings.on_header_field = on_header_field;
+    svr->settings.on_header_value = on_header_value;
+    svr->settings.on_body = on_body;
+    svr->settings.on_message_complete = on_message_complete;
 
-    svr->settings = settings;
     svr->privdata_cache = nw_cache_create(sizeof(struct clt_info));
     svr->on_request = on_request;
     nw_timer_set(&svr->timer, 60, true, on_timer, svr);
@@ -254,7 +252,6 @@ void http_svr_release(http_svr *svr)
     nw_svr_release(svr->raw_svr);
     nw_timer_stop(&svr->timer);
     nw_cache_release(svr->privdata_cache);
-    free(svr->settings);
     free(svr);
 }
 

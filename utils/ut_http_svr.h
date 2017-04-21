@@ -17,7 +17,7 @@ typedef struct http_svr {
     nw_svr *raw_svr;
     nw_timer timer;
     nw_cache *privdata_cache;
-    http_parser_settings *settings;
+    http_parser_settings settings;
     http_request_callback on_request;
 } http_svr;
 

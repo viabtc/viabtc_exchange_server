@@ -123,39 +123,32 @@ static int load_update_balance(json_t *params)
         return -__LINE__;
     uint32_t user_id = json_integer_value(json_array_get(params, 0));
 
-    // type
-    if (!json_is_integer(json_array_get(params, 1)))
-        return -__LINE__;
-    uint32_t type = json_integer_value(json_array_get(params, 1));
-    if (type != BALANCE_TYPE_AVAILABLE && type != BALANCE_TYPE_FREEZE)
-        return -__LINE__;
-
     // asset
-    if (!json_is_string(json_array_get(params, 2)))
+    if (!json_is_string(json_array_get(params, 1)))
         return -__LINE__;
-    const char *asset = json_string_value(json_array_get(params, 2));
+    const char *asset = json_string_value(json_array_get(params, 1));
     int prec = asset_prec(asset);
     if (prec < 0)
         return 0;
 
     // business
-    if (!json_is_string(json_array_get(params, 3)))
+    if (!json_is_string(json_array_get(params, 2)))
         return -__LINE__;
-    const char *business = json_string_value(json_array_get(params, 3));
+    const char *business = json_string_value(json_array_get(params, 2));
 
     // business_id
-    if (!json_is_integer(json_array_get(params, 4)))
+    if (!json_is_integer(json_array_get(params, 3)))
         return -__LINE__;
-    uint64_t business_id = json_integer_value(json_array_get(params, 4));
+    uint64_t business_id = json_integer_value(json_array_get(params, 3));
 
     // change
-    if (!json_is_string(json_array_get(params, 5)))
+    if (!json_is_string(json_array_get(params, 4)))
         return -__LINE__;
-    mpd_t *change = decimal(json_string_value(json_array_get(params, 5)), prec);
+    mpd_t *change = decimal(json_string_value(json_array_get(params, 4)), prec);
     if (change == NULL)
         return -__LINE__;
 
-    int ret = update_user_balance(false, user_id, type, asset, business, business_id, change);
+    int ret = update_user_balance(false, user_id, asset, business, business_id, change);
     mpd_del(change);
 
     if (ret < 0) {

@@ -14,7 +14,6 @@ static nw_timer timer;
 
 struct update_key {
     uint32_t    user_id;
-    uint32_t    type;
     char        asset[ASSET_NAME_MAX_LEN + 1];
     char        business[BUSINESS_NAME_MAX_LEN + 1];
     uint64_t    business_id;
@@ -93,12 +92,10 @@ int init_update(void)
     return 0;
 }
 
-int update_user_balance(bool real, uint32_t user_id, uint32_t type,
-        const char *asset, const char *business, uint64_t business_id, mpd_t *change)
+int update_user_balance(bool real, uint32_t user_id, const char *asset, const char *business, uint64_t business_id, mpd_t *change)
 {
     struct update_key key;
     key.user_id = user_id;
-    key.type = type;
     strncpy(key.asset, asset, sizeof(key.asset));
     strncpy(key.business, business, sizeof(key.business));
     key.business_id = business_id;
@@ -112,9 +109,9 @@ int update_user_balance(bool real, uint32_t user_id, uint32_t type,
     mpd_t *abs_change = mpd_new(&mpd_ctx);
     mpd_abs(abs_change, change, &mpd_ctx);
     if (mpd_cmp(change, mpd_zero, &mpd_ctx) >= 0) {
-        result = balance_add(user_id, type, asset, abs_change);
+        result = balance_add(user_id, BALANCE_TYPE_AVAILABLE, asset, abs_change);
     } else {
-        result = balance_sub(user_id, type, asset, abs_change);
+        result = balance_sub(user_id, BALANCE_TYPE_AVAILABLE, asset, abs_change);
     }
     mpd_del(abs_change);
     if (result == NULL)

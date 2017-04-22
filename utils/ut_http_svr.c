@@ -34,6 +34,10 @@ int on_message_begin(http_parser* parser)
 int on_message_complete(http_parser* parser)
 {
     struct clt_info *info = parser->data;
+    info->request->version_major = parser->http_major;
+    info->request->version_minor = parser->http_minor;
+    info->request->method = parser->method;
+
     http_svr *svr = http_svr_from_ses(info->ses);
     int ret = svr->on_request(info->ses, info->request);
     http_request_release(info->request);

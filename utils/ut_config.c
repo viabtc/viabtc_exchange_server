@@ -221,6 +221,45 @@ int load_cfg_rpc_svr(json_t *root, const char *key, rpc_svr_cfg *cfg)
     return 0;
 }
 
+int load_cfg_http_svr(json_t *root, const char *key, http_svr_cfg *cfg)
+{
+    json_t *node = json_object_get(root, key);
+    if (!node || !json_is_object(node))
+        return -__LINE__;
+
+    json_t *bind = json_object_get(node, "bind");
+    if (!bind)
+        return -__LINE__;
+    if (json_is_string(bind)) {
+        cfg->bind_count = 1;
+        cfg->bind_arr = malloc(sizeof(nw_svr_bind));
+        if (nw_sock_cfg_parse(json_string_value(bind), &cfg->bind_arr[0].addr, &cfg->bind_arr[0].sock_type) < 0)
+            return -__LINE__;
+    } else if (json_is_array(bind)) {
+        cfg->bind_count = json_array_size(bind);
+        if (cfg->bind_count == 0)
+            return -__LINE__;
+        cfg->bind_arr = malloc(sizeof(nw_svr_bind) * cfg->bind_count);
+        for (uint32_t i = 0; i < cfg->bind_count; ++i) {
+            json_t *row = json_array_get(bind, i);
+            if (!json_is_string(row))
+                return -__LINE__;
+            if (nw_sock_cfg_parse(json_string_value(row), &cfg->bind_arr[i].addr, &cfg->bind_arr[i].sock_type) < 0)
+                return -__LINE__;
+        }
+    } else {
+        return -__LINE__;
+    }
+
+    ERR_RET(read_cfg_uint32(node, "max_pkg_size", &cfg->max_pkg_size, true, 0));
+    ERR_RET(read_cfg_uint32(node, "buf_limit", &cfg->buf_limit, false, 0));
+    ERR_RET(read_cfg_uint32(node, "read_mem", &cfg->read_mem, false, 0));
+    ERR_RET(read_cfg_uint32(node, "write_mem", &cfg->write_mem, false, 0));
+    ERR_RET(read_cfg_int(node, "keep_alive", &cfg->keep_alive, false, 3600));
+
+    return 0;
+}
+
 int load_cfg_cli_svr(json_t *root, const char *key, cli_svr_cfg *cfg)
 {
     json_t *node = json_object_get(root, key);

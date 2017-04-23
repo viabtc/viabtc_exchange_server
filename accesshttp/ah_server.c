@@ -35,11 +35,14 @@ static void reply_error(nw_ses *ses, int64_t id, int code, const char *message, 
     json_object_set_new(reply, "id", json_integer(id));
 
     char *reply_str = json_dumps(reply, 0);
-    sds response = sdsnew(reply_str);
-    send_http_response_simple(ses, status, response);
+    send_http_response_simple(ses, status, reply_str, strlen(reply_str));
     free(reply_str);
-    sdsfree(response);
     json_decref(reply);
+}
+
+static void reply_bad_request(nw_ses *ses)
+{
+    send_http_response_simple(ses, 400, NULL, 0);
 }
 
 static void reply_not_found(nw_ses *ses, int64_t id)
@@ -54,8 +57,10 @@ static void reply_time_out(nw_ses *ses, int64_t id)
 
 static int on_http_request(nw_ses *ses, http_request_t *request)
 {
+    log_trace("new http request, url: %s, method: %u", request->url, request->method);
     if (request->method != HTTP_POST || !request->body) {
-        return -__LINE__;
+        reply_bad_request(ses);
+        return 0;
     }
 
     json_t *body = json_loadb(request->body, sdslen(request->body), 0, NULL);
@@ -106,12 +111,13 @@ static int on_http_request(nw_ses *ses, http_request_t *request)
     return 0;
 
 decode_error:
+    reply_bad_request(ses);
     if (body)
         json_decref(body);
     sds hex = hexdump(request->body, sdslen(request->body));
     log_error("peer: %s, decode request fail, request body: \n%s", nw_sock_human_addr(&ses->peer_addr), hex);
     sdsfree(hex);
-    return -1;
+    return -__LINE__;
 }
 
 static uint32_t dict_hash_func(const void *key)
@@ -172,10 +178,8 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
     if (entry) {
         struct state_info *info = entry->data;
         if (info->ses->id == info->ses_id) {
-            sds response = sdsnewlen(pkg->body, pkg->body_size);
-            log_trace("send response to: %s %s", nw_sock_human_addr(&info->ses->peer_addr), response);
-            send_http_response_simple(info->ses, 200, response);
-            sdsfree(response);
+            log_trace("send response to: %s", nw_sock_human_addr(&info->ses->peer_addr));
+            send_http_response_simple(info->ses, 200, pkg->body, pkg->body_size);
         }
     }
 }

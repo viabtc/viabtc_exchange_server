@@ -226,9 +226,6 @@ const char *get_status_description(uint32_t status)
 
 sds http_response_encode(http_response_t *response)
 {
-    if (!response->content)
-        return NULL;
-
     sds msg = sdsempty();
     msg = sdscatprintf(msg, "HTTP/1.1 %u %s\r\n", response->status, get_status_description(response->status));
 
@@ -237,7 +234,7 @@ sds http_response_encode(http_response_t *response)
     char date[100];
     strftime(date, sizeof(date), "%a, %d %B %Y %T GMT", tm);
     msg = sdscatprintf(msg, "Date: %s\r\n", date);
-    msg = sdscatprintf(msg, "Content-Length: %zu\r\n", sdslen(response->content));
+    msg = sdscatprintf(msg, "Content-Length: %zu\r\n", response->content_size);
 
     dict_iterator *iter = dict_get_iterator(response->headers);
     dict_entry *entry;
@@ -247,7 +244,9 @@ sds http_response_encode(http_response_t *response)
     dict_release_iterator(iter);
 
     msg = sdscatprintf(msg, "\r\n");
-    msg = sdscatlen(msg, response->content, sdslen(response->content));
+    if (response->content) {
+        msg = sdscatlen(msg, response->content, response->content_size);
+    }
 
     return msg;
 }
@@ -256,8 +255,6 @@ void http_response_release(http_response_t *response)
 {
     if (response->headers)
         dict_release(response->headers);
-    if (response->content)
-        sdsfree(response->content);
     free(response);
 }
 

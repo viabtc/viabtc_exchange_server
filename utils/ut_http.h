@@ -22,7 +22,8 @@ typedef struct http_request_t {
 typedef struct http_response_t {
     uint32_t    status;
     dict_t      *headers;
-    sds         content;
+    void        *content;
+    size_t      content_size;
 } http_response_t;
 
 http_request_t *http_request_new(void);

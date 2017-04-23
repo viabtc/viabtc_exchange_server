@@ -9,8 +9,6 @@
 # include "ut_misc.h"
 # include "ut_http_svr.h"
 
-# define CLIENT_MAX_IDLE_TIME   3600
-
 struct clt_info {
     nw_ses *ses;
     double last_activity;
@@ -157,7 +155,7 @@ static void on_timer(nw_timer *timer, void *privdata)
    while (curr) {
        next = curr->next;
        struct clt_info *info = curr->privdata;
-       if (now - info->last_activity > CLIENT_MAX_IDLE_TIME) {
+       if (now - info->last_activity > svr->keep_alive) {
            log_error("peer: %s: last_activity: %f, idle too long", nw_sock_human_addr(&curr->peer_addr), info->last_activity);
            nw_svr_close_clt(svr->raw_svr, curr);
        }
@@ -170,6 +168,15 @@ http_svr *http_svr_create(http_svr_cfg *cfg, http_request_callback on_request)
     http_svr *svr = malloc(sizeof(http_svr));
     memset(svr, 0, sizeof(http_svr));
 
+    nw_svr_cfg raw_cfg;
+    memset(&raw_cfg, 0, sizeof(raw_cfg));
+    raw_cfg.bind_count = cfg->bind_count;
+    raw_cfg.bind_arr = cfg->bind_arr;
+    raw_cfg.max_pkg_size = cfg->max_pkg_size;
+    raw_cfg.buf_limit = cfg->buf_limit;
+    raw_cfg.read_mem = cfg->read_mem;
+    raw_cfg.write_mem = cfg->write_mem;
+
     nw_svr_type type;
     memset(&type, 0, sizeof(type));
     type.on_error_msg = on_error_msg;
@@ -180,7 +187,7 @@ http_svr *http_svr_create(http_svr_cfg *cfg, http_request_callback on_request)
     type.on_privdata_alloc = on_privdata_alloc;
     type.on_privdata_free = on_privdata_free;
 
-    svr->raw_svr = nw_svr_create(cfg, &type, svr);
+    svr->raw_svr = nw_svr_create(&raw_cfg, &type, svr);
     if (svr->raw_svr == NULL) {
         free(svr);
         return NULL;
@@ -194,9 +201,14 @@ http_svr *http_svr_create(http_svr_cfg *cfg, http_request_callback on_request)
     svr->settings.on_body = on_body;
     svr->settings.on_message_complete = on_message_complete;
 
+    svr->keep_alive = cfg->keep_alive;
     svr->privdata_cache = nw_cache_create(sizeof(struct clt_info));
     svr->on_request = on_request;
-    nw_timer_set(&svr->timer, 60, true, on_timer, svr);
+
+    if (cfg->keep_alive > 0) {
+        nw_timer_set(&svr->timer, 60, true, on_timer, svr);
+        nw_timer_start(&svr->timer);
+    }
 
     return svr;
 }
@@ -206,7 +218,6 @@ int http_svr_start(http_svr *svr)
     int ret = nw_svr_start(svr->raw_svr);
     if (ret < 0)
         return ret;
-    nw_timer_start(&svr->timer);
 
     return 0;
 }
@@ -216,7 +227,6 @@ int http_svr_stop(http_svr *svr)
     int ret = nw_svr_stop(svr->raw_svr);
     if (ret < 0)
         return ret;
-    nw_timer_stop(&svr->timer);
 
     return 0;
 }
@@ -232,15 +242,15 @@ int send_http_response(nw_ses *ses, http_response_t *response)
     return ret;
 }
 
-int send_http_response_simple(nw_ses *ses, uint32_t status, sds content)
+int send_http_response_simple(nw_ses *ses, uint32_t status, void *content, size_t size)
 {
     http_response_t *response = http_response_new();
     if (response == NULL)
         return -__LINE__;
     response->status = status;
     response->content = content;
+    response->content_size = size;
     int ret = send_http_response(ses, response);
-    response->content = NULL;
     http_response_release(response);
 
     return ret;

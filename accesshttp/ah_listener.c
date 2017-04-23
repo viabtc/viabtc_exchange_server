@@ -55,7 +55,8 @@ static int init_listener_svr(void)
     type.on_recv_pkg = listener_on_recv_pkg;
     type.on_error_msg = listener_on_error_msg;
 
-    listener_svr = nw_svr_create(&settings.svr, &type, NULL);
+    nw_svr_cfg *cfg = (nw_svr_cfg *)&settings.svr;
+    listener_svr = nw_svr_create(cfg, &type, NULL);
     if (listener_svr == NULL)
         return -__LINE__;
     if (nw_svr_start(listener_svr) < 0)

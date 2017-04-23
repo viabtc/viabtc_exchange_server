@@ -10,11 +10,6 @@ struct settings settings;
 static int read_config_from_json(json_t *root)
 {
     int ret;
-    ret = read_cfg_bool(root, "debug", &settings.debug, false, false);
-    if (ret < 0) {
-        printf("read debug config fail: %d\n", ret);
-        return -__LINE__;
-    }
     ret = load_cfg_process(root, "process", &settings.process);
     if (ret < 0) {
         printf("load process config fail: %d\n", ret);
@@ -30,6 +25,18 @@ static int read_config_from_json(json_t *root)
         printf("load svr config fail: %d\n", ret);
         return -__LINE__;
     }
+    ret = load_cfg_rpc_clt(root, "matchengine", &settings.matchengine);
+    if (ret < 0) {
+        printf("load matchengine clt config fail: %d\n", ret);
+        return -__LINE__;
+    }
+    ret = load_cfg_rpc_clt(root, "marketprice", &settings.marketprice);
+    if (ret < 0) {
+        printf("load marketprice clt config fail: %d\n", ret);
+        return -__LINE__;
+    }
+
+    ERR_RET(read_cfg_real(root, "timeout", &settings.timeout, false, 1.0));
 
     return 0;
 }

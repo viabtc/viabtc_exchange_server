@@ -21,6 +21,7 @@
 # include "nw_clt.h"
 # include "nw_job.h"
 # include "nw_timer.h"
+# include "nw_state.h"
 
 # include "ut_log.h"
 # include "ut_sds.h"
@@ -37,10 +38,12 @@
 # include "ut_http_svr.h"
 
 struct settings {
-    bool                debug;
     process_cfg         process;
     log_cfg             log;
     http_svr_cfg        svr;
+    rpc_clt_cfg         matchengine;
+    rpc_clt_cfg         marketprice;
+    double              timeout;
 };
 
 extern struct settings settings;

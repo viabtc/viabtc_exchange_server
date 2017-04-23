@@ -18,7 +18,7 @@ static void on_recv_pkg(nw_ses *ses, void *data, size_t size)
     pkg.ext = data + RPC_PKG_HEAD_SIZE;
     pkg.body = pkg.ext + pkg.ext_size;
 
-    rpc_clt *clt= ses->privdata;
+    rpc_clt *clt = ses->privdata;
     if (pkg.command == RPC_CMD_HEARTBEAT) {
         clt->last_heartbeat = current_timestamp();
         return;
@@ -33,7 +33,7 @@ static void on_error_msg(nw_ses *ses, const char *msg)
 
 static void on_connect(nw_ses *ses, bool result)
 {
-    rpc_clt *clt= ses->privdata;
+    rpc_clt *clt = ses->privdata;
     if (result) {
         clt->last_heartbeat = current_timestamp();
     }
@@ -44,7 +44,7 @@ static void on_connect(nw_ses *ses, bool result)
 
 static int on_close(nw_ses *ses)
 {
-    rpc_clt *clt= ses->privdata;
+    rpc_clt *clt = ses->privdata;
     log_error("connection %s -> %s close", clt->name, nw_sock_human_addr(&ses->peer_addr));
     if (clt->addr_count == 1)
         return 0;

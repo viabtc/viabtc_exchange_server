@@ -49,5 +49,7 @@ int rpc_clt_send(rpc_clt *clt, rpc_pkg *pkg);
 void rpc_clt_release(rpc_clt *clt);
 bool rpc_clt_connected(rpc_clt *clt);
 
+# define rpc_clt_peer_addr(clt) (&(clt)->raw_clt->ses.peer_addr)
+
 # endif
 

@@ -14,5 +14,20 @@
             "udp@0.0.0.0:8080"
         ],
         "max_pkg_size": 10240
+    },
+    "timeout": 1.0,
+    "matchengine": {
+        "name": "matchengine",
+        "addr": [
+            "tcp@127.0.0.1:7316"
+        ],
+        "max_pkg_size": 2000000
+    },
+    "marketprice": {
+        "name": "marketprice",
+        "addr": [
+            "tcp@127.0.0.1:7416"
+        ],
+        "max_pkg_size": 2000000
     }
 }

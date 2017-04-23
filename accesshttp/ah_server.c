@@ -250,10 +250,11 @@ static int init_methods_handler(void)
     ERR_RET_LN(add_handler("trade.put_market", matchengine, CMD_ORDER_PUT_MARKET));
     ERR_RET_LN(add_handler("trade.cancel_order", matchengine, CMD_ORDER_CANCEL));
     ERR_RET_LN(add_handler("trade.pending_order", matchengine, CMD_ORDER_QUERY));
-    ERR_RET_LN(add_handler("trade.order_detail", matchengine, CMD_ORDER_DETAIL));
     ERR_RET_LN(add_handler("trade.order_book", matchengine, CMD_ORDER_BOOK));
+    ERR_RET_LN(add_handler("trade.order_detail", matchengine, CMD_ORDER_DETAIL));
+
     ERR_RET_LN(add_handler("market.depth", matchengine, CMD_ORDER_BOOK_DEPTH));
-    ERR_RET_LN(add_handler("market.merge_depth", matchengine, CMD_ORDER_BOOK_MERGE));
+    ERR_RET_LN(add_handler("market.depth_merge", matchengine, CMD_ORDER_BOOK_MERGE));
 
     ERR_RET_LN(add_handler("market.status", marketprice, CMD_MARKET_STATUS));
     ERR_RET_LN(add_handler("market.kline", marketprice, CMD_MARKET_KLINE));

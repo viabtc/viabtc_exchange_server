@@ -10,11 +10,15 @@
     },
     "svr": {
         "bind": [
-            "tcp@0.0.0.0:8080",
-            "udp@0.0.0.0:8080"
+            "tcp@0.0.0.0:8080"
         ],
-        "max_pkg_size": 10240
+        "max_pkg_size": 102400
     },
+    "monitor": {
+        "bind": "tcp@0.0.0.0:8081",
+        "max_pkg_size": 1024
+    },
+    "worker_num": 4,
     "timeout": 1.0,
     "matchengine": {
         "name": "matchengine",

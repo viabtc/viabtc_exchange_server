@@ -37,13 +37,17 @@
 # include "ut_rpc_cmd.h"
 # include "ut_http_svr.h"
 
+# define AH_LISTENER_BIND   "seqpacket@/tmp/accesshttp_listener.sock"
+
 struct settings {
     process_cfg         process;
     log_cfg             log;
     http_svr_cfg        svr;
+    nw_svr_cfg          monitor;
     rpc_clt_cfg         matchengine;
     rpc_clt_cfg         marketprice;
     double              timeout;
+    int                 worker_num;
 };
 
 extern struct settings settings;

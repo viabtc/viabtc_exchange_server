@@ -177,6 +177,7 @@ int nw_svr_add_clt_fd(nw_svr *svr, int fd)
     for (uint32_t i = 0; i < svr->svr_count; ++i) {
         if (peer_addr.family == svr->svr_list[i].host_addr->family) {
             ses = &svr->svr_list[i];
+            break;
         }
     }
     if (ses == NULL)

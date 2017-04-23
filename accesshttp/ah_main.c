@@ -3,8 +3,10 @@
  *     History: yang@haipo.me, 2017/04/21, create
  */
 
+# include "ut_title.h"
 # include "ah_config.h"
 # include "ah_server.h"
+# include "ah_listener.h"
 
 const char *__process__ = "accesshttp";
 const char *__version__ = "0.1.0";
@@ -58,6 +60,7 @@ int main(int argc, char *argv[])
         printf("process: %s exist\n", __process__);
         exit(EXIT_FAILURE);
     }
+    process_title_init(argc, argv);
 
     int ret;
     ret = init_config(argv[1]);
@@ -73,14 +76,38 @@ int main(int argc, char *argv[])
         error(EXIT_FAILURE, errno, "init log fail: %d", ret);
     }
 
+    for (int i = 0; i < settings.worker_num; ++i) {
+        int pid = fork();
+        if (pid < 0) {
+            error(EXIT_FAILURE, errno, "fork error");
+        } else if (pid == 0) {
+            process_title_set("accesshttp_worker_%d", i);
+            daemon(1, 1);
+            process_keepalive();
+            if (i != 0) {
+                dlog_set_no_shift(default_dlog);
+            }
+
+            ret = init_server();
+            if (ret < 0) {
+                error(EXIT_FAILURE, errno, "init server fail: %d", ret);
+            }
+
+            goto run;
+        }
+    }
+
+    process_title_set("accesshttp_listener");
     daemon(1, 1);
     process_keepalive();
 
-    ret = init_server();
+    ret = init_listener();
     if (ret < 0) {
-        error(EXIT_FAILURE, errno, "init server fail: %d", ret);
+        error(EXIT_FAILURE, errno, "init listener fail: %d", ret);
     }
+    dlog_set_no_shift(default_dlog);
 
+run:
     nw_timer_set(&cron_timer, 0.5, true, on_cron_check, NULL);
     nw_timer_start(&cron_timer);
 

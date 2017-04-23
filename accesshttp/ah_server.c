@@ -11,6 +11,7 @@ static nw_state *state;
 static rpc_clt *matchengine;
 static rpc_clt *marketprice;
 static http_svr *svr;
+static rpc_clt *listener;
 
 struct state_info {
     nw_ses  *ses;
@@ -153,7 +154,7 @@ static void on_state_timeout(nw_state_entry *entry)
     }
 }
 
-static void on_connect(nw_ses *ses, bool result)
+static void on_backend_connect(nw_ses *ses, bool result)
 {
     rpc_clt *clt = ses->privdata;
     if (result) {
@@ -163,7 +164,7 @@ static void on_connect(nw_ses *ses, bool result)
     }
 }
 
-static void on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
+static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
 {
     log_trace("recv pkg from: %s, cmd: %u, sequence: %u",
             nw_sock_human_addr(&ses->peer_addr), pkg->command, pkg->sequence);
@@ -177,6 +178,55 @@ static void on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
             sdsfree(response);
         }
     }
+}
+
+static void on_listener_connect(nw_ses *ses, bool result)
+{
+    if (result) {
+        log_info("connect listener success");
+    } else {
+        log_info("connect listener fail");
+    }
+}
+
+static void on_listener_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
+{
+    return;
+}
+
+static void on_listener_recv_fd(nw_ses *ses, int fd)
+{
+    if (nw_svr_add_clt_fd(svr->raw_svr, fd) < 0) {
+        log_error("nw_svr_add_clt_fd: %d fail: %s", fd, strerror(errno));
+        close(fd);
+    }
+}
+
+static int init_listener_clt(void)
+{
+    rpc_clt_cfg cfg;
+    nw_addr_t addr;
+    memset(&cfg, 0, sizeof(cfg));
+    cfg.name = strdup("listener");
+    cfg.addr_count = 1;
+    cfg.addr_arr = &addr;
+    if (nw_sock_cfg_parse(AH_LISTENER_BIND, &addr, &cfg.sock_type) < 0)
+        return -__LINE__;
+    cfg.max_pkg_size = 1024;
+
+    rpc_clt_type type;
+    memset(&type, 0, sizeof(type));
+    type.on_connect  = on_listener_connect;
+    type.on_recv_pkg = on_listener_recv_pkg;
+    type.on_recv_fd  = on_listener_recv_fd;
+
+    listener = rpc_clt_create(&cfg, &type);
+    if (listener == NULL)
+        return -__LINE__;
+    if (rpc_clt_start(listener) < 0)
+        return -__LINE__;
+
+    return 0;
 }
 
 static int add_handler(char *method, rpc_clt *clt, uint32_t cmd)
@@ -231,8 +281,8 @@ int init_server(void)
 
     rpc_clt_type ct;
     memset(&ct, 0, sizeof(ct));
-    ct.on_connect = on_connect;
-    ct.on_recv_pkg = on_recv_pkg;
+    ct.on_connect = on_backend_connect;
+    ct.on_recv_pkg = on_backend_recv_pkg;
     matchengine = rpc_clt_create(&settings.matchengine, &ct);
     if (matchengine == NULL)
         return -__LINE__;
@@ -245,13 +295,12 @@ int init_server(void)
     if (rpc_clt_start(marketprice) < 0)
         return -__LINE__;
 
-    ERR_RET(init_methods_handler());
-
     svr = http_svr_create(&settings.svr, on_http_request);
     if (svr == NULL)
         return -__LINE__;
-    if (http_svr_start(svr) < 0)
-        return -__LINE__;
+
+    ERR_RET(init_methods_handler());
+    ERR_RET(init_listener_clt());
 
     return 0;
 }

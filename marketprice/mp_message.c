@@ -40,6 +40,7 @@ static int64_t  last_offset;
 static nw_timer market_timer;
 static nw_timer deals_timer;
 static nw_timer clear_timer;
+static nw_timer redis_timer;
 
 static uint32_t dict_sds_key_hash_func(const void *key)
 {
@@ -717,6 +718,61 @@ static void on_clear_timer(nw_timer *timer, void *privdata)
     clear_kline();
 }
 
+static int clear_key(redisContext *context, const char *key, time_t end)
+{
+    redisReply *reply = redisCmd(context, "HGETALL %s", key);
+    if (reply == NULL)
+        return -__LINE__;
+    for (size_t i = 0; i < reply->elements; i += 2) {
+        time_t timestamp = strtol(reply->element[i]->str, NULL, 0);
+        if (timestamp >= end)
+            continue;
+        redisReply *r = redisCmd(context, "HDEL %s %ld", key, timestamp);
+        if (r == NULL)
+            return -__LINE__;
+        freeReplyObject(r);
+    }
+    freeReplyObject(reply);
+
+    return 0;
+}
+
+static int clear_redis(void)
+{
+    redisContext *context = redis_sentinel_connect_master(redis);
+    if (context == NULL)
+        return 1;
+    time_t now = time(NULL);
+    dict_iterator *iter = dict_get_iterator(dict_market);
+    dict_entry *entry;
+    while ((entry = dict_next(iter)) != NULL) {
+        struct market_info *info = entry->val;
+        sds key = sdsempty();
+        key = sdscatprintf(key, "k:%s:1s", info->name);
+        clear_key(context, key, now - settings.sec_max);
+        sdsclear(key);
+
+        key = sdscatprintf(key, "k:%s:1m", info->name);
+        clear_key(context, key, now / 60 * 60 - settings.min_max * 60);
+        sdsclear(key);
+
+        key = sdscatprintf(key, "k:%s:1h", info->name);
+        clear_key(context, key, now / 3600 * 3600 - settings.hour_max * 3600);
+        sdsfree(key);
+    }
+    redisFree(context);
+
+    return 0;
+}
+
+static void on_redis_timer(nw_timer *timer, void *privdata)
+{
+    int pid = fork();
+    if (pid == 0) {
+        _exit(clear_redis());
+    }
+}
+
 static int64_t get_message_offset(void)
 {
     redisContext *context = redis_sentinel_connect_master(redis);
@@ -765,6 +821,9 @@ int init_message(void)
 
     nw_timer_set(&clear_timer, 3600, true, on_clear_timer, NULL);
     nw_timer_start(&clear_timer);
+
+    nw_timer_set(&redis_timer, 86400, true, on_redis_timer, NULL);
+    nw_timer_start(&redis_timer);
 
     return 0;
 }

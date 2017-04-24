@@ -102,7 +102,7 @@ static int on_http_request(nw_ses *ses, http_request_t *request)
         pkg.body_size = strlen(pkg.body);
 
         rpc_clt_send(req->clt, &pkg);
-        log_trace("send request to %s, cmd: %u, sequence: %u",
+        log_debug("send request to %s, cmd: %u, sequence: %u",
                 nw_sock_human_addr(rpc_clt_peer_addr(req->clt)), pkg.command, pkg.sequence);
         free(pkg.body);
     }
@@ -172,7 +172,7 @@ static void on_backend_connect(nw_ses *ses, bool result)
 
 static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
 {
-    log_trace("recv pkg from: %s, cmd: %u, sequence: %u",
+    log_debug("recv pkg from: %s, cmd: %u, sequence: %u",
             nw_sock_human_addr(&ses->peer_addr), pkg->command, pkg->sequence);
     nw_state_entry *entry = nw_state_get(state, pkg->sequence);
     if (entry) {

@@ -96,7 +96,7 @@ static void *on_job_init(void)
 
 static int on_cmd_balance_history(MYSQL *conn, json_t *params, struct job_reply *rsp)
 {
-    if (json_array_size(params) != 6)
+    if (json_array_size(params) != 7)
         goto invalid_argument;
 
     uint32_t user_id = json_integer_value(json_array_get(params, 0));
@@ -223,6 +223,7 @@ static void on_job(nw_job_entry *entry, void *privdata)
         return;
     }
     memset(rsp, 0, sizeof(struct job_reply));
+    log_trace("cmd: %u", req->command);
 
     int ret;
     switch (req->command) {
@@ -328,7 +329,6 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
     req->command = pkg->command;
     req->params = params;
     nw_job_add(job, 0, req);
-    json_decref(params);
 
     return;
 }

@@ -5,7 +5,7 @@
         "core_limit": 1000000000
     },
     "log": {
-        "path": "/var/log/trade/marketprice",
+        "path": "/var/log/trade/readhistory",
         "flag": "fatal,error,warn,info,debug,trace"
     },
     "svr": {

@@ -10,6 +10,7 @@ static dict_t *methods;
 static nw_state *state;
 static rpc_clt *matchengine;
 static rpc_clt *marketprice;
+static rpc_clt *readhistory;
 static http_svr *svr;
 static rpc_clt *listener;
 
@@ -164,9 +165,9 @@ static void on_backend_connect(nw_ses *ses, bool result)
 {
     rpc_clt *clt = ses->privdata;
     if (result) {
-        log_info("connecte %s:%s success", clt->name, nw_sock_human_addr(&ses->peer_addr));
+        log_info("connect %s:%s success", clt->name, nw_sock_human_addr(&ses->peer_addr));
     } else {
-        log_info("connecte %s:%s fail", clt->name, nw_sock_human_addr(&ses->peer_addr));
+        log_info("connect %s:%s fail", clt->name, nw_sock_human_addr(&ses->peer_addr));
     }
 }
 
@@ -245,13 +246,18 @@ static int init_methods_handler(void)
 {
     ERR_RET_LN(add_handler("balance.query", matchengine, CMD_BALANCE_QUERY));
     ERR_RET_LN(add_handler("balance.update", matchengine, CMD_BALANCE_UPDATE));
+    ERR_RET_LN(add_handler("balance.history", readhistory, CMD_BALANCE_HISTORY));
 
     ERR_RET_LN(add_handler("trade.put_limit", matchengine, CMD_ORDER_PUT_LIMIT));
     ERR_RET_LN(add_handler("trade.put_market", matchengine, CMD_ORDER_PUT_MARKET));
     ERR_RET_LN(add_handler("trade.cancel_order", matchengine, CMD_ORDER_CANCEL));
     ERR_RET_LN(add_handler("trade.pending_order", matchengine, CMD_ORDER_QUERY));
     ERR_RET_LN(add_handler("trade.order_book", matchengine, CMD_ORDER_BOOK));
-    ERR_RET_LN(add_handler("trade.order_detail", matchengine, CMD_ORDER_DETAIL));
+    ERR_RET_LN(add_handler("trade.pending_order_detail", matchengine, CMD_ORDER_DETAIL));
+
+    ERR_RET_LN(add_handler("trade.order_deals", readhistory, CMD_ORDER_DEALS));
+    ERR_RET_LN(add_handler("trade.finished_order", readhistory, CMD_ORDER_HISTORY));
+    ERR_RET_LN(add_handler("trade.finished_order_detail", readhistory, CMD_ORDER_DETAIL_FINISHED));
 
     ERR_RET_LN(add_handler("market.depth", matchengine, CMD_ORDER_BOOK_DEPTH));
     ERR_RET_LN(add_handler("market.depth_merge", matchengine, CMD_ORDER_BOOK_MERGE));
@@ -298,6 +304,12 @@ int init_server(void)
     if (marketprice == NULL)
         return -__LINE__;
     if (rpc_clt_start(marketprice) < 0)
+        return -__LINE__;
+
+    readhistory = rpc_clt_create(&settings.readhistory, &ct);
+    if (readhistory == NULL)
+        return -__LINE__;
+    if (rpc_clt_start(readhistory) < 0)
         return -__LINE__;
 
     svr = http_svr_create(&settings.svr, on_http_request);

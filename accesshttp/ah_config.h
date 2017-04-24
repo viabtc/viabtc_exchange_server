@@ -46,6 +46,7 @@ struct settings {
     nw_svr_cfg          monitor;
     rpc_clt_cfg         matchengine;
     rpc_clt_cfg         marketprice;
+    rpc_clt_cfg         readhistory;
     double              timeout;
     int                 worker_num;
 };

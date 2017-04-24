@@ -155,7 +155,7 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 
 static int on_cmd_balance_update(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 {
-    if (json_array_size(params) != 6)
+    if (json_array_size(params) != 5)
         return reply_error_invalid_argument(ses, pkg);
 
     // user_id

@@ -9,6 +9,7 @@
 // balance
 # define CMD_BALANCE_QUERY          101
 # define CMD_BALANCE_UPDATE         102
+# define CMD_BALANCE_HISTORY        103
 
 // trade
 # define CMD_ORDER_PUT_LIMIT        201
@@ -19,6 +20,9 @@
 # define CMD_ORDER_BOOK_DEPTH       206
 # define CMD_ORDER_BOOK_MERGE       207
 # define CMD_ORDER_DETAIL           208
+# define CMD_ORDER_HISTORY          209
+# define CMD_ORDER_DEALS            210
+# define CMD_ORDER_DETAIL_FINISHED  211
 
 // market
 # define CMD_MARKET_STATUS          301

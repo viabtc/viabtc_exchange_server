@@ -38,8 +38,10 @@ int on_message_complete(http_parser* parser)
 
     http_svr *svr = http_svr_from_ses(info->ses);
     int ret = svr->on_request(info->ses, info->request);
-    http_request_release(info->request);
-    info->request = NULL;
+    if (ret == 0) {
+        http_request_release(info->request);
+        info->request = NULL;
+    }
 
     return ret;
 }
@@ -259,6 +261,11 @@ int send_http_response_simple(nw_ses *ses, uint32_t status, void *content, size_
 http_svr *http_svr_from_ses(nw_ses *ses)
 {
     return ((nw_svr *)ses->svr)->privdata;
+}
+
+void http_svr_close_clt(http_svr *svr, nw_ses *ses)
+{
+    nw_svr_close_clt(svr->raw_svr, ses);
 }
 
 void http_svr_release(http_svr *svr)

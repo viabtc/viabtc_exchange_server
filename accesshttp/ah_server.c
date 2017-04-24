@@ -111,13 +111,13 @@ static int on_http_request(nw_ses *ses, http_request_t *request)
     return 0;
 
 decode_error:
-    reply_bad_request(ses);
     if (body)
         json_decref(body);
     sds hex = hexdump(request->body, sdslen(request->body));
     log_error("peer: %s, decode request fail, request body: \n%s", nw_sock_human_addr(&ses->peer_addr), hex);
     sdsfree(hex);
-    return -__LINE__;
+    reply_bad_request(ses);
+    return 0;
 }
 
 static uint32_t dict_hash_func(const void *key)

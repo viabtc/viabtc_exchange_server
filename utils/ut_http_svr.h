@@ -37,6 +37,7 @@ int http_svr_stop(http_svr *svr);
 int send_http_response(nw_ses *ses, http_response_t *response);
 int send_http_response_simple(nw_ses *ses, uint32_t status, void *content, size_t size);
 http_svr *http_svr_from_ses(nw_ses *ses);
+void http_svr_close_clt(http_svr *svr, nw_ses *ses);
 void http_svr_release(http_svr *svr);
 
 # endif

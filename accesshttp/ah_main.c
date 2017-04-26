@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
         if (pid < 0) {
             error(EXIT_FAILURE, errno, "fork error");
         } else if (pid == 0) {
-            process_title_set("accesshttp_worker_%d", i);
+            process_title_set("%s_worker_%d", __process__, i);
             daemon(1, 1);
             process_keepalive();
             if (i != 0) {
@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    process_title_set("accesshttp_listener");
+    process_title_set("%s_listener", __process__);
     daemon(1, 1);
     process_keepalive();
 

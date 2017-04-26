@@ -61,7 +61,7 @@ static int on_http_request(nw_ses *ses, http_request_t *request)
     log_trace("new http request, url: %s, method: %u", request->url, request->method);
     if (request->method != HTTP_POST || !request->body) {
         reply_bad_request(ses);
-        return 0;
+        return -__LINE__;
     }
 
     json_t *body = json_loadb(request->body, sdslen(request->body), 0, NULL);
@@ -118,7 +118,7 @@ decode_error:
     log_error("peer: %s, decode request fail, request body: \n%s", nw_sock_human_addr(&ses->peer_addr), hex);
     sdsfree(hex);
     reply_bad_request(ses);
-    return 0;
+    return -__LINE__;
 }
 
 static uint32_t dict_hash_func(const void *key)

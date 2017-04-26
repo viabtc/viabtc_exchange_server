@@ -93,61 +93,62 @@ static int reply_success(nw_ses *ses, rpc_pkg *pkg)
 static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 {
     size_t request_size = json_array_size(params);
-    if (request_size == 0 || request_size > 2)
+    if (request_size == 0)
         return reply_error_invalid_argument(ses, pkg);
 
     if (!json_is_integer(json_array_get(params, 0)))
         return reply_error_invalid_argument(ses, pkg);
     uint32_t user_id = json_integer_value(json_array_get(params, 0));
-
-    if (request_size == 2) {
-        if (!json_is_string(json_array_get(params, 1)))
-            return reply_error_invalid_argument(ses, pkg);
-        const char *asset = json_string_value(json_array_get(params, 1));
-        if (asset_exist(asset) < 0)
-            return reply_error_invalid_argument(ses, pkg);
-
-        json_t *result = json_object();
-        json_t *unit = json_object();
-
-        mpd_t *available = balance_get(user_id, BALANCE_TYPE_AVAILABLE, asset);
-        if (available) {
-            json_object_set_new_mpd(unit, "available", available);
-        } else {
-            json_object_set_new(unit, "available", json_string("0"));
-        }
-
-        mpd_t *freeze = balance_get(user_id, BALANCE_TYPE_FREEZE, asset);
-        if (freeze) {
-            json_object_set_new_mpd(unit, "freeze", freeze);
-        } else {
-            json_object_set_new(unit, "freeze", json_string("0"));
-        }
-
-        json_object_set_new(result, asset, unit);
-        return reply_result(ses, pkg, result);
-    }
+    if (user_id == 0)
+        return reply_error_invalid_argument(ses, pkg);
 
     json_t *result = json_object();
-    for (size_t i = 0; i < settings.asset_num; ++i) {
-        const char *asset = settings.assets[i].name;
-        json_t *unit = json_object();
+    if (request_size == 1) {
+        for (size_t i = 0; i < settings.asset_num; ++i) {
+            const char *asset = settings.assets[i].name;
+            json_t *unit = json_object();
 
-        mpd_t *available = balance_get(user_id, BALANCE_TYPE_AVAILABLE, asset);
-        if (available) {
-            json_object_set_new_mpd(unit, "available", available);
-        } else {
-            json_object_set_new(unit, "available", json_string("0"));
+            mpd_t *available = balance_get(user_id, BALANCE_TYPE_AVAILABLE, asset);
+            if (available) {
+                json_object_set_new_mpd(unit, "available", available);
+            } else {
+                json_object_set_new(unit, "available", json_string("0"));
+            }
+
+            mpd_t *freeze = balance_get(user_id, BALANCE_TYPE_FREEZE, asset);
+            if (freeze) {
+                json_object_set_new_mpd(unit, "freeze", freeze);
+            } else {
+                json_object_set_new(unit, "freeze", json_string("0"));
+            }
+
+            json_object_set_new(result, asset, unit);
         }
+    } else {
+        for (size_t i = 1; i < request_size; ++i) {
+            const char *asset = json_string_value(json_array_get(params, i));
+            if (!asset || !asset_exist(asset)) {
+                json_decref(result);
+                return reply_error_invalid_argument(ses, pkg);
+            }
+            json_t *unit = json_object();
 
-        mpd_t *freeze = balance_get(user_id, BALANCE_TYPE_FREEZE, asset);
-        if (freeze) {
-            json_object_set_new_mpd(unit, "freeze", freeze);
-        } else {
-            json_object_set_new(unit, "freeze", json_string("0"));
+            mpd_t *available = balance_get(user_id, BALANCE_TYPE_AVAILABLE, asset);
+            if (available) {
+                json_object_set_new_mpd(unit, "available", available);
+            } else {
+                json_object_set_new(unit, "available", json_string("0"));
+            }
+
+            mpd_t *freeze = balance_get(user_id, BALANCE_TYPE_FREEZE, asset);
+            if (freeze) {
+                json_object_set_new_mpd(unit, "freeze", freeze);
+            } else {
+                json_object_set_new(unit, "freeze", json_string("0"));
+            }
+
+            json_object_set_new(result, asset, unit);
         }
-
-        json_object_set_new(result, asset, unit);
     }
 
     return reply_result(ses, pkg, result);

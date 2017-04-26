@@ -350,8 +350,6 @@ static void on_recv_pkg(nw_ses *ses, void *data, size_t size)
     }
 
     switch (info->frame.opcode) {
-    case 0x0:
-        break;
     case 0x8:
         nw_svr_close_clt(svr->raw_svr, ses);
         return;

@@ -21,6 +21,7 @@
 # include "ut_rpc_clt.h"
 # include "ut_rpc_svr.h"
 # include "ut_http_svr.h"
+# include "ut_ws_svr.h"
 
 typedef struct process_cfg {
     uint32_t file_limit;
@@ -60,6 +61,7 @@ int load_cfg_rpc_clt(json_t *root, const char *key, rpc_clt_cfg *cfg);
 int load_cfg_rpc_svr(json_t *root, const char *key, rpc_svr_cfg *cfg);
 int load_cfg_cli_svr(json_t *root, const char *key, cli_svr_cfg *cfg);
 int load_cfg_http_svr(json_t *root, const char *key, http_svr_cfg *cfg);
+int load_cfg_ws_svr(json_t *root, const char *key, ws_svr_cfg *cfg);
 int load_cfg_inetv4_list(json_t *root, const char *key, inetv4_list *cfg);
 int load_cfg_mysql(json_t *root, const char *key, mysql_cfg *cfg);
 int load_cfg_kafka_consumer(json_t *root, const char *key, kafka_consumer_cfg *cfg);

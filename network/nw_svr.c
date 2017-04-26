@@ -316,9 +316,9 @@ void nw_svr_release(nw_svr *svr)
 
 void nw_svr_close_clt(nw_svr *svr, nw_ses *ses)
 {
-    if (ses->ses_type != NW_SES_TYPE_COMMON)
-        return; 
     if (ses->id == 0)
+        return;
+    if (ses->ses_type != NW_SES_TYPE_COMMON)
         return;
 
     if (svr->type.on_connection_close) {

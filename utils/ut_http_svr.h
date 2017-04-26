@@ -7,6 +7,7 @@
 # define _UT_HTTP_SVR_H_
 
 # include "ut_http.h"
+# include "nw_buf.h"
 # include "nw_svr.h"
 # include "nw_timer.h"
 

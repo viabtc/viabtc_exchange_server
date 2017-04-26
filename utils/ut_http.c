@@ -60,9 +60,28 @@ http_request_t *http_request_new(void)
 
 int http_request_set_header(http_request_t *request, char *field, char *value)
 {
+    dict_entry *entry = dict_find(request->headers, field);
+    if (entry) {
+        char *new = realloc(entry->val, strlen(entry->val) + 2 + strlen(value) + 1);
+        strcpy(new, entry->val);
+        strcat(new, ", ");
+        strcat(new, value);
+        free(entry->val);
+        entry->val= new;
+        return 0;
+    }
+
     if (dict_add(request->headers, field, value) == NULL)
         return -1;
     return 0;
+}
+
+const char *http_request_get_header(http_request_t *request, const char *field)
+{
+    dict_entry *entry = dict_find(request->headers, field);
+    if (entry)
+        return entry->val;
+    return NULL;
 }
 
 void http_request_release(http_request_t *request)
@@ -93,9 +112,28 @@ http_response_t *http_response_new(void)
 
 int http_response_set_header(http_response_t *response, char *field, char *value)
 {
+    dict_entry *entry = dict_find(response->headers, field);
+    if (entry) {
+        char *new = realloc(entry->val, strlen(entry->val) + 2 + strlen(value) + 1);
+        strcpy(new, entry->val);
+        strcat(new, ", ");
+        strcat(new, value);
+        free(entry->val);
+        entry->val = new;
+        return 0;
+    }
+
     if (dict_add(response->headers, field, value) == NULL)
         return -1;
     return 0;
+}
+
+const char *http_response_get_header(http_response_t *response, const char *field)
+{
+    dict_entry *entry = dict_find(response->headers, field);
+    if (entry)
+        return entry->val;
+    return NULL;
 }
 
 const char *get_status_description(uint32_t status)

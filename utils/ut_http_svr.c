@@ -3,8 +3,6 @@
  *     History: yang@haipo.me, 2017/04/21, create
  */
 
-# include <stdbool.h>
-
 # include "ut_log.h"
 # include "ut_misc.h"
 # include "ut_http_svr.h"
@@ -18,7 +16,7 @@ struct clt_info {
     http_request_t *request;
 };
 
-int on_message_begin(http_parser* parser)
+static int on_message_begin(http_parser* parser)
 {
     struct clt_info *info = parser->data;
     info->request = http_request_new();
@@ -29,7 +27,7 @@ int on_message_begin(http_parser* parser)
     return 0;
 }
 
-int on_message_complete(http_parser* parser)
+static int on_message_complete(http_parser* parser)
 {
     struct clt_info *info = parser->data;
     info->request->version_major = parser->http_major;
@@ -38,7 +36,9 @@ int on_message_complete(http_parser* parser)
 
     http_svr *svr = http_svr_from_ses(info->ses);
     int ret = svr->on_request(info->ses, info->request);
-    if (ret == 0) {
+    if (ret < 0) {
+        nw_svr_close_clt(svr->raw_svr, info->ses);
+    } else {
         http_request_release(info->request);
         info->request = NULL;
     }
@@ -46,7 +46,7 @@ int on_message_complete(http_parser* parser)
     return ret;
 }
 
-int on_url(http_parser* parser, const char* at, size_t length)
+static int on_url(http_parser* parser, const char* at, size_t length)
 {
     struct clt_info *info = parser->data;
     info->request->url = sdsnewlen(at, length);
@@ -54,7 +54,7 @@ int on_url(http_parser* parser, const char* at, size_t length)
     return 0;
 }
 
-int on_header_field(http_parser* parser, const char* at, size_t length)
+static int on_header_field(http_parser* parser, const char* at, size_t length)
 {
     struct clt_info *info = parser->data;
     info->field = sdsnewlen(at, length);
@@ -62,7 +62,7 @@ int on_header_field(http_parser* parser, const char* at, size_t length)
     return 0;
 }
 
-int on_header_value(http_parser* parser, const char* at, size_t length)
+static int on_header_value(http_parser* parser, const char* at, size_t length)
 {
     struct clt_info *info = parser->data;
     info->value = sdsnewlen(at, length);
@@ -77,7 +77,7 @@ int on_header_value(http_parser* parser, const char* at, size_t length)
     return 0;
 }
 
-int on_body(http_parser* parser, const char* at, size_t length)
+static int on_body(http_parser* parser, const char* at, size_t length)
 {
     struct clt_info *info = parser->data;
     info->request->body = sdsnewlen(at, length);

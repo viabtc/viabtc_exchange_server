@@ -11,12 +11,21 @@
 
 static uint32_t dict_header_hash_func(const void *key)
 {
-    return dict_generic_hash_function(key, strlen(key));
+    char *tmp = strdup(key);
+    size_t len = strlen(tmp);
+    for (size_t i = 0; i < len; ++i) {
+        if (tmp[i] >= 'A' && tmp[i] <= 'Z')
+            tmp[i] += 'a' - 'A';
+    }
+    uint32_t hash = dict_generic_hash_function(tmp, len);
+    free(tmp);
+
+    return hash;
 }
 
 static int dict_header_key_compare(const void *key1, const void *key2)
 {
-    return strcmp(key1, key2);
+    return strcasecmp(key1, key2);
 }
 
 static void *dict_header_dup(const void *obj)

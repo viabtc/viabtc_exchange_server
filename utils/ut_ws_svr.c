@@ -222,7 +222,7 @@ static int decode_pkg(nw_ses *ses, void *data, size_t max)
     if (mask == 0)
         return -1;
 
-    uint8_t len = p[1] & 0x7f >> 1;
+    uint8_t len = p[1] & 0x7f;
     if (len < 126) {
         pkg_size = 2;
         info->frame.payload_len = len;

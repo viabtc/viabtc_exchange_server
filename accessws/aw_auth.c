@@ -49,7 +49,6 @@ static void on_job(nw_job_entry *entry, void *privdata)
         goto cleanup;
     }
 
-    log_trace("reply: %s", reply);
     json_t *result = json_loads(reply, 0, NULL);
     if (result == NULL)
         goto cleanup;
@@ -63,40 +62,66 @@ cleanup:
     curl_slist_free_all(chunk);
 }
 
-static void on_finish(nw_job_entry *entry)
+static void on_result(struct state_data *state, sds token, json_t *result)
 {
-    nw_state_entry *r = nw_state_get(state_context, entry->id);
-    if (r == NULL)
-        return;
-    struct state_data *state = r->data;
-    sds token = entry->request;
-    json_t *result = entry->reply;
     if (result == NULL)
-        goto fail;
-    int code = json_integer_value(json_object_get(result, "code"));
-    if (code != 0) {
+        goto error;
+
+    json_t *code = json_object_get(result, "code");
+    if (code == NULL)
+        goto error;
+    int error_code = json_integer_value(code);
+    if (error_code != 0) {
         const char *message = json_string_value(json_object_get(result, "message"));
-        log_error("auth fail, token: %s, code: %d, message: %s", token, code, message ? message : "");
-        goto fail;
+        if (message == NULL)
+            goto error;
+        log_error("auth fail, token: %s, code: %d, message: %s", token, error_code, message);
+        if (state->ses->id == state->ses_id)
+            send_error(state->ses, state->request_id, 11, message);
+        return;
     }
+
     json_t *data = json_object_get(result, "data");
     if (data == NULL)
-        goto fail;
+        goto error;
     struct clt_info *info = state->info;
     info->user_id = json_integer_value(json_object_get(data, "user_id"));
     info->taker_fee = decimal(json_string_value(json_object_get(data, "taker_fee_rate")), 0);
     info->maker_fee = decimal(json_string_value(json_object_get(data, "maker_fee_rate")), 0);
-    if (info->user_id == 0 || info->taker_fee == NULL || info->maker_fee == NULL)
-        goto fail;
+    if (info->user_id == 0 || info->taker_fee == NULL || info->maker_fee == NULL) {
+        info->user_id = 0;
+        if (info->taker_fee) {
+            mpd_del(info->taker_fee);
+            info->taker_fee = NULL;
+        }
+        if (info->maker_fee) {
+            mpd_del(info->maker_fee);
+            info->maker_fee = NULL;
+        }
+        goto error;
+    }
 
+    info->auth = true;
     if (state->ses->id == state->ses_id)
         send_success(state->ses, state->request_id);
-    nw_state_del(state_context, entry->id);
     return;
 
-fail:
+error:
+    if (result) {
+        char *reply = json_dumps(result, 0);
+        log_error("invalid reply: %s", reply);
+        free(reply);
+    }
     if (state->ses->id == state->ses_id)
-        send_error(state->ses, state->request_id, 10, "auth fail");
+        send_error_internal_error(state->ses, state->request_id);
+}
+
+static void on_finish(nw_job_entry *entry)
+{
+    nw_state_entry *state = nw_state_get(state_context, entry->id);
+    if (state == NULL)
+        return;
+    on_result(state->data, entry->request, entry->reply);
     nw_state_del(state_context, entry->id);
 }
 
@@ -115,6 +140,8 @@ static void on_timeout(nw_state_entry *entry)
 
 int on_method_server_auth(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
+    if (info->auth)
+        return send_error(ses, id, 10, "authenticated");
     if (json_array_size(params) != 1)
         return send_error_invalid_argument(ses, id);
     const char *token = json_string_value(json_array_get(params, 0));

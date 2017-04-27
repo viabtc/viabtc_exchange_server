@@ -15,7 +15,7 @@ struct clt_info {
     mpd_t       *maker_fee;
 };
 
-int init_server(void);
+int init_server(int worker_id);
 
 # endif
 

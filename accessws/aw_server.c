@@ -8,7 +8,6 @@
 
 static ws_svr *svr;
 static nw_cache *privdata_cache;
-static rpc_clt *listener;
 
 static int reply_json(nw_ses *ses, const json_t *json)
 {
@@ -72,13 +71,14 @@ static int reply_success(nw_ses *ses, uint64_t id)
     return reply_result(ses, id, result);
 }
 
-static int on_server_time(nw_ses *ses, uint64_t id, json_t *params)
+static int on_server_time(nw_ses *ses, struct clt_info *info, uint64_t id, json_t *params)
 {
     return reply_result(ses, id, json_integer(time(NULL)));
 }
 
 static int on_message(nw_ses *ses, const char *remote, const char *url, void *message, size_t size)
 {
+    struct clt_info *info = ws_ses_privdata(ses);
     log_trace("new websocket message from: %"PRIu64":%s, url: %s", ses->id, remote, url);
     json_t *msg = json_loadb(message, size, 0, NULL);
     if (msg == NULL) {
@@ -105,7 +105,7 @@ static int on_message(nw_ses *ses, const char *remote, const char *url, void *me
     uint64_t _id = json_integer_value(id);
     const char *_method = json_string_value(method);
     if (strcmp(_method, "server.time") == 0) {
-        ret = on_server_time(ses, _id, params);
+        ret = on_server_time(ses, info, _id, params);
     } else {
         log_error("remote: %"PRIu64":%s, unknown method, request: %s", ses->id, remote, _msg);
     }
@@ -156,7 +156,7 @@ static void on_privdata_free(void *svr, void *privdata)
     nw_cache_free(privdata_cache, privdata);
 }
 
-static int init_ws_server(void)
+int init_server(int worker_id)
 {
     ws_svr_type type;
     memset(&type, 0, sizeof(type));
@@ -166,70 +166,24 @@ static int init_ws_server(void)
     type.on_privdata_alloc = on_privdata_alloc;
     type.on_privdata_free = on_privdata_free;
 
+    for (uint32_t i = 0; i < settings.svr.bind_count; ++i) {
+        nw_addr_t *addr = &(settings.svr.bind_arr[i].addr);
+        if (addr->family == AF_INET) {
+            addr->in.sin_port = htons(ntohs(addr->in.sin_port) + worker_id);
+        } else if (addr->family == AF_INET6) {
+            addr->in6.sin6_port = htons(ntohs(addr->in6.sin6_port) + worker_id);
+        }
+    }
+
     svr = ws_svr_create(&settings.svr, &type);
     if (svr == NULL)
+        return -__LINE__;
+    if (ws_svr_start(svr) < 0)
         return -__LINE__;
 
     privdata_cache = nw_cache_create(sizeof(struct clt_info));
     if (privdata_cache == NULL)
         return -__LINE__;
-
-    return 0;
-}
-
-static void on_listener_connect(nw_ses *ses, bool result)
-{
-    if (result) {
-        log_info("connect listener success");
-    } else {
-        log_info("connect listener fail");
-    }
-}
-
-static void on_listener_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
-{
-    return;
-}
-
-static void on_listener_recv_fd(nw_ses *ses, int fd)
-{
-    if (nw_svr_add_clt_fd(svr->raw_svr, fd) < 0) {
-        log_error("nw_svr_add_clt_fd: %d fail: %s", fd, strerror(errno));
-        close(fd);
-    }
-}
-
-static int init_listener_clt(void)
-{
-    rpc_clt_cfg cfg;
-    nw_addr_t addr;
-    memset(&cfg, 0, sizeof(cfg));
-    cfg.name = strdup("listener");
-    cfg.addr_count = 1;
-    cfg.addr_arr = &addr;
-    if (nw_sock_cfg_parse(AW_LISTENER_BIND, &addr, &cfg.sock_type) < 0)
-        return -__LINE__;
-    cfg.max_pkg_size = 1024;
-
-    rpc_clt_type type;
-    memset(&type, 0, sizeof(type));
-    type.on_connect  = on_listener_connect;
-    type.on_recv_pkg = on_listener_recv_pkg;
-    type.on_recv_fd  = on_listener_recv_fd;
-
-    listener = rpc_clt_create(&cfg, &type);
-    if (listener == NULL)
-        return -__LINE__;
-    if (rpc_clt_start(listener) < 0)
-        return -__LINE__;
-
-    return 0;
-}
-
-int init_server(void)
-{
-    ERR_RET(init_ws_server());
-    ERR_RET(init_listener_clt());
 
     return 0;
 }

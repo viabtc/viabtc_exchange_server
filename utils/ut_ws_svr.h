@@ -1,5 +1,6 @@
 /*
- * Description: 
+ * Description: Websocket server
+ *              https://tools.ietf.org/html/rfc6455
  *     History: yang@haipo.me, 2017/04/26, create
  */
 

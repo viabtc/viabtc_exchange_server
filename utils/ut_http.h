@@ -8,6 +8,7 @@
 
 # include "ut_dict.h"
 # include "ut_sds.h"
+# include "nw_ses.h"
 # include "http_parser.h"
 
 typedef struct http_request_t {
@@ -36,6 +37,8 @@ int http_response_set_header(http_response_t *response, char *field, char *value
 const char *http_response_get_header(http_response_t *response, const char *field);
 sds http_response_encode(http_response_t *response);
 void http_response_release(http_response_t *response);
+
+const char *http_get_remote_ip(nw_ses *ses, http_request_t *request);
 
 # endif
 

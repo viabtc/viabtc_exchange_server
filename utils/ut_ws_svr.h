@@ -23,9 +23,9 @@ typedef struct ws_svr_cfg {
 } ws_svr_cfg;
 
 typedef struct ws_svr_type {
-    void (*on_upgrade)(nw_ses *ses);
-    void (*on_close)(nw_ses *ses);
-    int (*on_message)(nw_ses *ses, const char *url, void *message, size_t size);
+    void (*on_upgrade)(nw_ses *ses, const char *remote);
+    void (*on_close)(nw_ses *ses, const char *remote);
+    int (*on_message)(nw_ses *ses, const char *remote, const char *url, void *message, size_t size);
 } ws_svr_type;
 
 typedef struct ws_svr {

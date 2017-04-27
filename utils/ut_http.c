@@ -296,3 +296,17 @@ void http_response_release(http_response_t *response)
     free(response);
 }
 
+const char *http_get_remote_ip(nw_ses *ses, http_request_t *request)
+{
+    const char *cf_connecting_ip = http_request_get_header(request, "CF-Connecting-IP");
+    if (cf_connecting_ip)
+        return cf_connecting_ip;
+    const char *x_real_ip = http_request_get_header(request, "X-Real-IP");
+    if (x_real_ip)
+        return x_real_ip;
+
+    static char ip[NW_SOCK_IP_SIZE];
+    nw_sock_ip_s(&ses->peer_addr, ip);
+    return ip;
+}
+

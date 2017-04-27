@@ -9,20 +9,20 @@
 static ws_svr *svr;
 static rpc_clt *listener;
 
-static void on_upgrade(nw_ses *ses)
+static void on_upgrade(nw_ses *ses, const char *remote)
 {
-    log_debug("connection: %s upgrade to websocket", nw_sock_human_addr(&ses->peer_addr));
+    log_debug("remote: %s(%"PRIu64") upgrade to websocket", remote, ses->id);
 }
 
-static void on_close(nw_ses *ses)
+static void on_close(nw_ses *ses, const char *remote)
 {
-    log_debug("websocket connection: %s close", nw_sock_human_addr(&ses->peer_addr));
+    log_debug("remote: %s(%"PRIu64") close websocket connection", remote, ses->id);
 }
 
-static int on_message(nw_ses *ses, const char *url, void *message, size_t size)
+static int on_message(nw_ses *ses, const char *remote, const char *url, void *message, size_t size)
 {
     sds msg = sdsnewlen(message, size);
-    log_debug("websocket message from: %s, url: %s, message: %s", nw_sock_human_addr(&ses->peer_addr), url, msg);
+    log_debug("websocket message from: %s(%"PRIu64"), url: %s, message: %s", remote, ses->id, url, msg);
     ws_send_text(ses, msg);
     sdsfree(msg);
     return 0;

@@ -25,6 +25,7 @@ struct clt_info {
     sds         field;
     sds         value;
     bool        upgrade;
+    sds         remote;
     sds         url;
     sds         message;
     http_request_t *request;
@@ -57,7 +58,9 @@ static int send_hand_shake_reply(nw_ses *ses, char *protocol, const char *key)
     http_response_set_header(response, "Upgrade", "websocket");
     http_response_set_header(response, "Connection", "Upgrade");
     http_response_set_header(response, "Sec-WebSocket-Accept", b4message);
-    http_response_set_header(response, "Sec-WebSocket-Protocol", protocol);
+    if (protocol) {
+        http_response_set_header(response, "Sec-WebSocket-Protocol", protocol);
+    }
     response->status = 101;
 
     sds message = http_response_encode(response);
@@ -123,11 +126,16 @@ static int on_http_message_complete(http_parser* parser)
         goto error;
 
     info->upgrade = true;
+    info->remote = sdsnew(http_get_remote_ip(info->ses, info->request));
     info->url = sdsnew(info->request->url);
     if (svr->type.on_upgrade) {
-        svr->type.on_upgrade(info->ses);
+        svr->type.on_upgrade(info->ses, info->remote);
     }
-    send_hand_shake_reply(info->ses, svr->protocol, ws_key);
+    if (protocol_list) {
+        send_hand_shake_reply(info->ses, svr->protocol, ws_key);
+    } else {
+        send_hand_shake_reply(info->ses, NULL, ws_key);
+    }
     http_request_release(info->request);
     info->request = NULL;
 
@@ -262,7 +270,7 @@ static void on_connection_close(nw_ses *ses)
     struct clt_info *info = ses->privdata;
     struct ws_svr *svr = ws_svr_from_ses(ses);
     if (info->upgrade && svr->type.on_close) {
-        svr->type.on_close(ses);
+        svr->type.on_close(ses, info->remote);
     }
 }
 
@@ -280,6 +288,9 @@ static void on_privdata_free(void *svr, void *privdata)
     }
     if (info->value) {
         sdsfree(info->value);
+    }
+    if (info->remote) {
+        sdsfree(info->remote);
     }
     if (info->url) {
         sdsfree(info->url);
@@ -371,7 +382,7 @@ static void on_recv_pkg(nw_ses *ses, void *data, size_t size)
         info->message = sdsempty();
     info->message = sdscatlen(info->message, info->frame.payload, info->frame.payload_len);
     if (info->frame.fin) {
-        int ret = svr->type.on_message(ses, info->url, info->message, sdslen(info->message));
+        int ret = svr->type.on_message(ses, info->remote, info->url, info->message, sdslen(info->message));
         if (ret < 0) {
             nw_svr_close_clt(svr->raw_svr, ses);
         } else {

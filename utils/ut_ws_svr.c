@@ -99,7 +99,7 @@ static int on_http_message_complete(http_parser* parser)
     dict_entry *entry;
     dict_iterator *iter = dict_get_iterator(info->request->headers);
     while ((entry = dict_next(iter)) != NULL) {
-        log_trace("Heder: %s: %s", (char *)entry->key, (char *)entry->val);
+        log_trace("Header: %s: %s", (char *)entry->key, (char *)entry->val);
     }
     dict_release_iterator(iter);
 
@@ -313,7 +313,7 @@ static void on_privdata_free(void *svr, void *privdata)
         http_request_release(info->request);
     }
     ws_svr *w_svr = ((nw_svr *)svr)->privdata;
-    return nw_cache_free(w_svr->privdata_cache, privdata);
+    nw_cache_free(w_svr->privdata_cache, privdata);
 }
 
 static int send_reply(nw_ses *ses, uint8_t opcode, void *payload, size_t payload_len)

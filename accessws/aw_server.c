@@ -7,6 +7,7 @@
 # include "aw_server.h"
 
 static ws_svr *svr;
+static nw_cache *privdata_cache;
 static rpc_clt *listener;
 
 static int reply_json(nw_ses *ses, const json_t *json)
@@ -131,11 +132,28 @@ decode_error:
 static void on_upgrade(nw_ses *ses, const char *remote)
 {
     log_trace("remote: %"PRIu64":%s upgrade to websocket", ses->id, remote);
+    struct clt_info *info = ws_ses_privdata(ses);
+    memset(info, 0, sizeof(struct clt_info));
 }
 
 static void on_close(nw_ses *ses, const char *remote)
 {
     log_trace("remote: %"PRIu64":%s websocket connection close", ses->id, remote);
+}
+
+static void *on_privdata_alloc(void *svr)
+{
+    return nw_cache_alloc(privdata_cache);
+}
+
+static void on_privdata_free(void *svr, void *privdata)
+{
+    struct clt_info *info = privdata;
+    if (info->taker_fee)
+        mpd_del(info->taker_fee);
+    if (info->maker_fee)
+        mpd_del(info->maker_fee);
+    nw_cache_free(privdata_cache, privdata);
 }
 
 static int init_ws_server(void)
@@ -145,9 +163,15 @@ static int init_ws_server(void)
     type.on_upgrade = on_upgrade;
     type.on_close = on_close;
     type.on_message = on_message;
+    type.on_privdata_alloc = on_privdata_alloc;
+    type.on_privdata_free = on_privdata_free;
 
     svr = ws_svr_create(&settings.svr, &type);
     if (svr == NULL)
+        return -__LINE__;
+
+    privdata_cache = nw_cache_create(sizeof(struct clt_info));
+    if (privdata_cache == NULL)
         return -__LINE__;
 
     return 0;

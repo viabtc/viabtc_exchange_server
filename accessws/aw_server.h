@@ -16,6 +16,7 @@ struct clt_info {
 };
 
 int init_server(int worker_id);
+int send_notify(nw_ses *ses, const char *method, json_t *params);
 
 # endif
 

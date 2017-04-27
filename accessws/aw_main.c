@@ -6,6 +6,11 @@
 # include "ut_title.h"
 # include "aw_config.h"
 # include "aw_server.h"
+# include "aw_auth.h"
+# include "aw_kline.h"
+# include "aw_depth.h"
+# include "aw_order.h"
+# include "aw_asset.h"
 
 const char *__process__ = "accessws";
 const char *__version__ = "0.1.0";
@@ -91,6 +96,26 @@ int main(int argc, char *argv[])
     daemon(1, 1);
     process_keepalive();
 
+    ret = init_auth();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init auth fail: %d", ret);
+    }
+    ret = init_kline();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init kline fail: %d", ret);
+    }
+    ret = init_depth();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init depth fail: %d", ret);
+    }
+    ret = init_order();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init order fail: %d", ret);
+    }
+    ret = init_asset();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init asset fail: %d", ret);
+    }
     ret = init_server(worker_id);
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init server fail: %d", ret);

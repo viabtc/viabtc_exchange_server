@@ -71,6 +71,19 @@ static int reply_success(nw_ses *ses, uint64_t id)
     return reply_result(ses, id, result);
 }
 
+int send_notify(nw_ses *ses, const char *method, json_t *params)
+{
+    json_t *notify = json_object();
+    json_object_set_new(notify, "method", json_string("method"));
+    json_object_set_new(notify, "params", params);
+    json_object_set_new(notify, "id", json_null());
+
+    int ret = reply_json(ses, notify);
+    json_decref(notify);
+
+    return ret;
+}
+
 static int on_server_time(nw_ses *ses, struct clt_info *info, uint64_t id, json_t *params)
 {
     return reply_result(ses, id, json_integer(time(NULL)));

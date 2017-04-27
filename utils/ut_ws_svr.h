@@ -26,6 +26,8 @@ typedef struct ws_svr_type {
     void (*on_upgrade)(nw_ses *ses, const char *remote);
     void (*on_close)(nw_ses *ses, const char *remote);
     int (*on_message)(nw_ses *ses, const char *remote, const char *url, void *message, size_t size);
+    void *(*on_privdata_alloc)(void *svr);
+    void (*on_privdata_free)(void *svr, void *privdata);
 } ws_svr_type;
 
 typedef struct ws_svr {
@@ -42,6 +44,7 @@ ws_svr *ws_svr_create(ws_svr_cfg *cfg, ws_svr_type *type);
 int ws_svr_start(ws_svr *svr);
 int ws_svr_stop(ws_svr *svr);
 ws_svr *ws_svr_from_ses(nw_ses *ses);
+void *ws_ses_privdata(nw_ses *ses);
 int ws_send_text(nw_ses *ses, char *message);
 int ws_send_binary(nw_ses *ses, void *data, size_t size);
 int ws_svr_broadcast_text(ws_svr *svr, char *message);

@@ -20,6 +20,7 @@ struct ws_frame {
 
 struct clt_info {
     nw_ses      *ses;
+    void        *privdata;
     double      last_activity;
     struct      http_parser parser;
     sds         field;
@@ -125,6 +126,11 @@ static int on_http_message_complete(http_parser* parser)
     if (protocol_list && !is_good_protocol(protocol_list, svr->protocol))
         goto error;
 
+    if (svr->type.on_privdata_alloc) {
+        info->privdata = svr->type.on_privdata_alloc(svr);
+        if (info->privdata == NULL)
+            goto error;
+    }
     info->upgrade = true;
     info->remote = sdsnew(http_get_remote_ip(info->ses, info->request));
     info->url = sdsnew(info->request->url);
@@ -269,8 +275,13 @@ static void on_connection_close(nw_ses *ses)
     log_trace("connection %s close", nw_sock_human_addr(&ses->peer_addr));
     struct clt_info *info = ses->privdata;
     struct ws_svr *svr = ws_svr_from_ses(ses);
-    if (info->upgrade && svr->type.on_close) {
-        svr->type.on_close(ses, info->remote);
+    if (info->upgrade) {
+        if (svr->type.on_close) {
+            svr->type.on_close(ses, info->remote);
+        }
+        if (svr->type.on_privdata_free) {
+            svr->type.on_privdata_free(svr, info->privdata);
+        }
     }
 }
 
@@ -485,6 +496,12 @@ int ws_svr_stop(ws_svr *svr)
 ws_svr *ws_svr_from_ses(nw_ses *ses)
 {
     return ((nw_svr *)ses->svr)->privdata;
+}
+
+void *ws_ses_privdata(nw_ses *ses)
+{
+    struct clt_info *info = ses->privdata;
+    return info->privdata;
 }
 
 int ws_send_text(nw_ses *ses, char *message)

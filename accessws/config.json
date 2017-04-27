@@ -40,5 +40,7 @@
             "tcp@127.0.0.1:7424"
         ],
         "max_pkg_size": 2000000
-    }
+    },
+    "timeout": 1.0,
+    "auth_url": "http://192.168.1.6:9001/internal/exchange/user/auth"
 }

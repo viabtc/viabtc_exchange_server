@@ -5,21 +5,23 @@
 
 # include "aw_config.h"
 # include "aw_server.h"
+# include "aw_auth.h"
 
 static ws_svr *svr;
 static nw_cache *privdata_cache;
 
-static int reply_json(nw_ses *ses, const json_t *json)
+static int send_json(nw_ses *ses, const json_t *json)
 {
     char *message_data = json_dumps(json, 0);
     if (message_data == NULL)
         return -__LINE__;
+    log_trace("send to: %s message: %s", nw_sock_human_addr(&ses->peer_addr), message_data);
     int ret = ws_send_text(ses, message_data);
     free(message_data);
     return ret;
 }
 
-static int reply_error(nw_ses *ses, uint64_t id, int code, const char *message)
+int send_error(nw_ses *ses, uint64_t id, int code, const char *message)
 {
     json_t *error = json_object();
     json_object_set_new(error, "code", json_integer(code));
@@ -30,45 +32,55 @@ static int reply_error(nw_ses *ses, uint64_t id, int code, const char *message)
     json_object_set_new(reply, "result", json_null());
     json_object_set_new(reply, "id", json_integer(id));
 
-    int ret = reply_json(ses, reply);
+    int ret = send_json(ses, reply);
     json_decref(reply);
 
     return ret;
 }
 
-static int reply_error_invalid_argument(nw_ses *ses, uint64_t id)
+int send_error_invalid_argument(nw_ses *ses, uint64_t id)
 {
-    return reply_error(ses, id, 1, "invalid argument");
+    return send_error(ses, id, 1, "invalid argument");
 }
 
-static int reply_error_internal_error(nw_ses *ses, uint64_t id)
+int send_error_internal_error(nw_ses *ses, uint64_t id)
 {
-    return reply_error(ses, id, 2, "internal error");
+    return send_error(ses, id, 2, "internal error");
 }
 
-static int reply_error_service_unavailable(nw_ses *ses, uint64_t id)
+int send_error_service_unavailable(nw_ses *ses, uint64_t id)
 {
-    return reply_error(ses, id, 3, "service unavailable");
+    return send_error(ses, id, 3, "service unavailable");
 }
 
-static int reply_result(nw_ses *ses, uint64_t id, json_t *result)
+int send_error_method_notfound(nw_ses *ses, uint64_t id)
+{
+    return send_error(ses, id, 4, "method not found");
+}
+
+int send_error_service_timeout(nw_ses *ses, uint64_t id)
+{
+    return send_error(ses, id, 5, "service timeout");
+}
+
+int send_result(nw_ses *ses, uint64_t id, json_t *result)
 {
     json_t *reply = json_object();
     json_object_set_new(reply, "error", json_null());
     json_object_set_new(reply, "result", result);
     json_object_set_new(reply, "id", json_integer(id));
 
-    int ret = reply_json(ses, reply);
+    int ret = send_json(ses, reply);
     json_decref(reply);
 
     return ret;
 }
 
-static int reply_success(nw_ses *ses, uint64_t id)
+int send_success(nw_ses *ses, uint64_t id)
 {
     json_t *result = json_object();
     json_object_set_new(result, "status", json_string("success"));
-    return reply_result(ses, id, result);
+    return send_result(ses, id, result);
 }
 
 int send_notify(nw_ses *ses, const char *method, json_t *params)
@@ -78,21 +90,21 @@ int send_notify(nw_ses *ses, const char *method, json_t *params)
     json_object_set_new(notify, "params", params);
     json_object_set_new(notify, "id", json_null());
 
-    int ret = reply_json(ses, notify);
+    int ret = send_json(ses, notify);
     json_decref(notify);
 
     return ret;
 }
 
-static int on_server_time(nw_ses *ses, struct clt_info *info, uint64_t id, json_t *params)
+static int on_server_time(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
-    return reply_result(ses, id, json_integer(time(NULL)));
+    return send_result(ses, id, json_integer(time(NULL)));
 }
 
 static int on_message(nw_ses *ses, const char *remote, const char *url, void *message, size_t size)
 {
     struct clt_info *info = ws_ses_privdata(ses);
-    log_trace("new websocket message from: %"PRIu64":%s, url: %s", ses->id, remote, url);
+    log_trace("new websocket message from: %"PRIu64":%s, url: %s, size: %zu", ses->id, remote, url, size);
     json_t *msg = json_loadb(message, size, 0, NULL);
     if (msg == NULL) {
         goto decode_error;
@@ -118,7 +130,9 @@ static int on_message(nw_ses *ses, const char *remote, const char *url, void *me
     uint64_t _id = json_integer_value(id);
     const char *_method = json_string_value(method);
     if (strcmp(_method, "server.time") == 0) {
-        ret = on_server_time(ses, info, _id, params);
+        ret = on_server_time(ses, _id, info, params);
+    } else if (strcmp(_method, "server.auth") == 0) {
+        ret = on_server_auth(ses, _id, info, params);
     } else {
         log_error("remote: %"PRIu64":%s, unknown method, request: %s", ses->id, remote, _msg);
     }

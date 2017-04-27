@@ -49,6 +49,7 @@ struct settings {
     rpc_clt_cfg         readhistory;
     double              timeout;
     int                 worker_num;
+    char                *auth_url;
 };
 
 extern struct settings settings;

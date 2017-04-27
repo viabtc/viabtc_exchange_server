@@ -7,6 +7,7 @@
 # define _AW_AUTH_H_
 
 int init_auth(void);
+int on_server_auth(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params);
 
 # endif
 

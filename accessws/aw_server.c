@@ -96,7 +96,7 @@ int send_notify(nw_ses *ses, const char *method, json_t *params)
     return ret;
 }
 
-static int on_server_time(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+static int on_method_server_time(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
     return send_result(ses, id, json_integer(time(NULL)));
 }
@@ -130,9 +130,9 @@ static int on_message(nw_ses *ses, const char *remote, const char *url, void *me
     uint64_t _id = json_integer_value(id);
     const char *_method = json_string_value(method);
     if (strcmp(_method, "server.time") == 0) {
-        ret = on_server_time(ses, _id, info, params);
+        ret = on_method_server_time(ses, _id, info, params);
     } else if (strcmp(_method, "server.auth") == 0) {
-        ret = on_server_auth(ses, _id, info, params);
+        ret = on_method_server_auth(ses, _id, info, params);
     } else {
         log_error("remote: %"PRIu64":%s, unknown method, request: %s", ses->id, remote, _msg);
     }

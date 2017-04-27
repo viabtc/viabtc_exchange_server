@@ -113,7 +113,7 @@ static void on_timeout(nw_state_entry *entry)
     send_error_service_timeout(state->ses, state->request_id);
 }
 
-int on_server_auth(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+int on_method_server_auth(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
     if (json_array_size(params) != 1)
         return send_error_invalid_argument(ses, id);

@@ -25,7 +25,7 @@ static int on_message(nw_ses *ses, const char *url, void *message, size_t size)
     log_debug("websocket message from: %s, url: %s, message: %s", nw_sock_human_addr(&ses->peer_addr), url, msg);
     ws_send_text(ses, msg);
     sdsfree(msg);
-    return -__LINE__;
+    return 0;
 }
 
 static int init_ws_server(void)

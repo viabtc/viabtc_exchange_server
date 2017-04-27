@@ -92,6 +92,13 @@ static int on_http_message_complete(http_parser* parser)
     info->request->version_minor = parser->http_minor;
     info->request->method = parser->method;
 
+    dict_entry *entry;
+    dict_iterator *iter = dict_get_iterator(info->request->headers);
+    while ((entry = dict_next(iter)) != NULL) {
+        log_trace("Heder: %s: %s", (char *)entry->key, (char *)entry->val);
+    }
+    dict_release_iterator(iter);
+
     if (info->request->method != HTTP_GET)
         goto error;
     if (http_request_get_header(info->request, "Host") == NULL)
@@ -100,10 +107,10 @@ static int on_http_message_complete(http_parser* parser)
     if (version < 1.1)
         goto error;
     const char *upgrade = http_request_get_header(info->request, "Upgrade");
-    if (upgrade == NULL || strcmp(upgrade, "websocket") != 0)
+    if (upgrade == NULL || strcasecmp(upgrade, "websocket") != 0)
         goto error;
     const char *connection = http_request_get_header(info->request, "Connection");
-    if (connection == NULL || strcmp(connection, "Upgrade") != 0)
+    if (connection == NULL || strcasecmp(connection, "Upgrade") != 0)
         goto error;
     const char *ws_version = http_request_get_header(info->request, "Sec-WebSocket-Version");
     if (ws_version == NULL || strcmp(ws_version, "13") != 0)

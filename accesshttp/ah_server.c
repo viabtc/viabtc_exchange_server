@@ -182,6 +182,7 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
             log_trace("send response to: %s", nw_sock_human_addr(&info->ses->peer_addr));
             send_http_response_simple(info->ses, 200, pkg->body, pkg->body_size);
         }
+        nw_state_del(state, pkg->sequence);
     }
 }
 

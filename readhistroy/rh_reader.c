@@ -6,17 +6,66 @@
 # include "rh_config.h"
 # include "rh_reader.h"
 
+size_t get_user_balance_history_count(MYSQL *conn, uint32_t user_id,
+        const char *asset, const char *business, uint64_t start_time, uint64_t end_time, size_t offset, size_t limit)
+{
+    sds sql = sdsempty();
+    sql = sdscatprintf(sql, "SELECT COUNT(*) FROM `balance_history_%u` WHERE `user_id` = %u", user_id % HISTORY_HASH_NUM, user_id);
+
+    size_t asset_len = strlen(asset);
+    if (asset_len > 0) {
+        char _asset[2 * asset_len + 1];
+        mysql_real_escape_string(conn, _asset, asset, strlen(asset));
+        sql = sdscatprintf(sql, " AND `asset` = '%s'", _asset);
+    }
+    size_t business_len = strlen(business);
+    if (business_len > 0) {
+        char _business[2 * business_len + 1];
+        mysql_real_escape_string(conn, _business, business, business_len);
+        sql = sdscatprintf(sql ," AND `business` = '%s'", _business);
+    }
+
+    if (start_time) {
+        sql = sdscatprintf(sql, " AND `time` >= %"PRIu64, start_time);
+    }
+    if (end_time) {
+        sql = sdscatprintf(sql, " AND `time` < %"PRIu64, end_time);
+    }
+
+    log_trace("exec sql: %s", sql);
+    int ret = mysql_real_query(conn, sql, sdslen(sql));
+    if (ret != 0) {
+        log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+        sdsfree(sql);
+        return 0;
+    }
+    sdsfree(sql);
+
+    size_t count = 0;
+    MYSQL_RES *result = mysql_store_result(conn);
+    size_t num_rows = mysql_num_rows(result);
+    if (num_rows == 1) {
+        MYSQL_ROW row = mysql_fetch_row(result);
+        count = strtoull(row[0], NULL, 0);
+    }
+    mysql_free_result(result);
+
+    return count;
+}
+
 json_t *get_user_balance_history(MYSQL *conn, uint32_t user_id,
         const char *asset, const char *business, uint64_t start_time, uint64_t end_time, size_t offset, size_t limit)
 {
-    size_t asset_len = strlen(asset);
-    char _asset[2 * asset_len + 1];
-    mysql_real_escape_string(conn, _asset, asset, strlen(asset));
-
     sds sql = sdsempty();
-    sql = sdscatprintf(sql, "SELECT `time`, `business`, `change`, `balance`, `detail` FROM `balance_history_%u` WHERE `user_id` = %u AND asset = '%s'",
-            user_id % HISTORY_HASH_NUM, user_id, _asset);
+    sql = sdscatprintf(sql, "SELECT `time`, `business`, `change`, `balance`, `detail` FROM `balance_history_%u` WHERE `user_id` = %u",
+            user_id % HISTORY_HASH_NUM, user_id);
 
+    size_t asset_len = strlen(asset);
+    if (asset_len > 0) {
+        char _asset[2 * asset_len + 1];
+        mysql_real_escape_string(conn, _asset, asset, strlen(asset));
+        sql = sdscatprintf(sql, " AND `asset` = '%s'", _asset);
+    }
     size_t business_len = strlen(business);
     if (business_len > 0) {
         char _business[2 * business_len + 1];
@@ -65,6 +114,43 @@ json_t *get_user_balance_history(MYSQL *conn, uint32_t user_id,
     mysql_free_result(result);
 
     return records;
+}
+
+size_t get_user_order_finished_count(MYSQL *conn, uint32_t user_id,
+        const char *market, uint64_t start_time, uint64_t end_time, size_t offset, size_t limit)
+{
+    size_t market_len = strlen(market);
+    char _market[2 * market_len + 1];
+    mysql_real_escape_string(conn, _market, market, market_len);
+
+    sds sql = sdsempty();
+    sql = sdscatprintf(sql, "SELECT COUNT(*) FROM `order_history_%u` WHERE `user_id` = %u AND `market` = '%s'", user_id % HISTORY_HASH_NUM, user_id, _market);
+    if (start_time) {
+        sql = sdscatprintf(sql, "AND `create_time` >= %"PRIu64, start_time);
+    }
+    if (end_time) {
+        sql = sdscatprintf(sql, "AND `create_time` < %"PRIu64, end_time);
+    }
+
+    log_trace("exec sql: %s", sql);
+    int ret = mysql_real_query(conn, sql, sdslen(sql));
+    if (ret != 0) {
+        log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+        sdsfree(sql);
+        return 0;
+    }
+    sdsfree(sql);
+
+    size_t count = 0;
+    MYSQL_RES *result = mysql_store_result(conn);
+    size_t num_rows = mysql_num_rows(result);
+    if (num_rows == 1) {
+        MYSQL_ROW row = mysql_fetch_row(result);
+        count = strtoull(row[0], NULL, 0);
+    }
+    mysql_free_result(result);
+
+    return count;
 }
 
 json_t *get_user_order_finished(MYSQL *conn, uint32_t user_id,
@@ -135,7 +221,7 @@ json_t *get_user_order_finished(MYSQL *conn, uint32_t user_id,
     return records;
 }
 
-json_t *get_order_deal_details(MYSQL *conn, uint64_t order_id)
+json_t *get_order_deal_details(MYSQL *conn, uint64_t order_id, size_t offset, size_t limit)
 {
     sds sql = sdsempty();
     sql = sdscatprintf(sql, "SELECT `time`, `deal_order_id`, `role`, `amount`, `price`, `deal`, `fee` "

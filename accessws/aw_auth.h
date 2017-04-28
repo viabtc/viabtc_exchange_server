@@ -8,7 +8,7 @@
 
 int init_auth(void);
 
-int on_method_server_auth(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params);
+int send_auth_request(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params);
 
 # endif
 

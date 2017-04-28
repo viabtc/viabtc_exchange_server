@@ -7,9 +7,16 @@
 # include "aw_server.h"
 # include "aw_auth.h"
 
-static ws_svr *svr;
 static rpc_clt *listener;
+static ws_svr *svr;
+static nw_state *state_context;
 static nw_cache *privdata_cache;
+
+struct state_data {
+    nw_ses      *ses;
+    uint64_t    ses_id;
+    uint64_t    request_id;
+};
 
 static int send_json(nw_ses *ses, const json_t *json)
 {
@@ -102,6 +109,61 @@ static int on_method_server_time(nw_ses *ses, uint64_t id, struct clt_info *info
     return send_result(ses, id, json_integer(time(NULL)));
 }
 
+static int on_method_server_auth(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    return send_auth_request(ses, id, info, params);
+}
+
+static int on_method_kline_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    return 0;
+}
+
+static int on_method_kline_subscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    return 0;
+}
+
+static int on_method_depth_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    return 0;
+}
+
+static int on_method_depth_subscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    return 0;
+}
+
+static int on_method_order_put_limit(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    return 0;
+}
+
+static int on_method_order_put_market(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    return 0;
+}
+
+static int on_method_order_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    return 0;
+}
+
+static int on_method_order_subscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    return 0;
+}
+
+static int on_method_asset_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    return 0;
+}
+
+static int on_method_asset_subscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    return 0;
+}
+
 static int on_message(nw_ses *ses, const char *remote, const char *url, void *message, size_t size)
 {
     struct clt_info *info = ws_ses_privdata(ses);
@@ -130,10 +192,30 @@ static int on_message(nw_ses *ses, const char *remote, const char *url, void *me
     int ret;
     uint64_t _id = json_integer_value(id);
     const char *_method = json_string_value(method);
-    if (strcmp(_method, "server.time") == 0) {
+    if        (strcmp(_method, "server.time") == 0) {
         ret = on_method_server_time(ses, _id, info, params);
     } else if (strcmp(_method, "server.auth") == 0) {
         ret = on_method_server_auth(ses, _id, info, params);
+    } else if (strcmp(_method, "kline.query") == 0) {
+        ret = on_method_kline_query(ses, _id, info, params);
+    } else if (strcmp(_method, "kline.subscribe") == 0) {
+        ret = on_method_kline_subscribe(ses, _id, info, params);
+    } else if (strcmp(_method, "depth.query") == 0) {
+        ret = on_method_depth_query(ses, _id, info, params);
+    } else if (strcmp(_method, "depth.subscribe") == 0) {
+        ret = on_method_depth_subscribe(ses, _id, info, params);
+    } else if (strcmp(_method, "order.put_limit") == 0) {
+        ret = on_method_order_put_limit(ses, _id, info, params);
+    } else if (strcmp(_method, "order.put_market") == 0) {
+        ret = on_method_order_put_market(ses, _id, info, params);
+    } else if (strcmp(_method, "order.query") == 0) {
+        ret = on_method_order_query(ses, _id, info, params);
+    } else if (strcmp(_method, "order.subscribe") == 0) {
+        ret = on_method_order_subscribe(ses, _id, info, params);
+    } else if (strcmp(_method, "asset.query") == 0) {
+        ret = on_method_asset_query(ses, _id, info, params);
+    } else if (strcmp(_method, "asset.subscribe") == 0) {
+        ret = on_method_asset_subscribe(ses, _id, info, params);
     } else {
         log_error("remote: %"PRIu64":%s, unknown method, request: %s", ses->id, remote, _msg);
     }
@@ -205,6 +287,26 @@ static int init_websocket_svr(void)
     return 0;
 }
 
+static void on_timeout(nw_state_entry *entry)
+{
+    struct state_data *state = entry->data;
+    if (state->ses->id == state->ses_id)
+        send_error_service_timeout(state->ses, state->request_id);
+}
+
+static int init_state(void)
+{
+    nw_state_type st;
+    memset(&st, 0, sizeof(st));
+    st.on_timeout = on_timeout;
+
+    state_context = nw_state_create(&st, sizeof(struct state_data));
+    if (state_context == NULL)
+        return -__LINE__;
+
+    return 0;
+}
+
 static void on_listener_connect(nw_ses *ses, bool result)
 {
     if (result) {
@@ -257,6 +359,7 @@ static int init_listener_clt(void)
 int init_server(void)
 {
     ERR_RET(init_websocket_svr());
+    ERR_RET(init_state());
     ERR_RET(init_listener_clt());
 
     return 0;

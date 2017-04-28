@@ -135,10 +135,11 @@ static void on_cleanup(nw_job_entry *entry)
 static void on_timeout(nw_state_entry *entry)
 {
     struct state_data *state = entry->data;
-    send_error_service_timeout(state->ses, state->request_id);
+    if (state->ses->id == state->ses_id)
+        send_error_service_timeout(state->ses, state->request_id);
 }
 
-int on_method_server_auth(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+int send_auth_request(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
     if (info->auth)
         return send_error(ses, id, 10, "authenticated");

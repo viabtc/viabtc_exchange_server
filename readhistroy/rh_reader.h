@@ -10,14 +10,13 @@
 
 # define HISTORY_HASH_NUM   1000
 
-size_t get_user_balance_history_count(MYSQL *conn, uint32_t user_id,
-        const char *asset, const char *business, uint64_t start_time, uint64_t end_time, size_t offset, size_t limit);
+size_t get_user_balance_history_count(MYSQL *conn, uint32_t user_id, const char *asset, const char *business, uint64_t start_time, uint64_t end_time);
 json_t *get_user_balance_history(MYSQL *conn, uint32_t user_id,
         const char *asset, const char *business, uint64_t start_time, uint64_t end_time, size_t offset, size_t limit);
-size_t get_user_order_finished_count(MYSQL *conn, uint32_t user_id,
-        const char *market, uint64_t start_time, uint64_t end_time, size_t offset, size_t limit);
+size_t get_user_order_finished_count(MYSQL *conn, uint32_t user_id, const char *market, uint64_t start_time, uint64_t end_time);
 json_t *get_user_order_finished(MYSQL *conn, uint32_t user_id,
         const char *market, uint64_t start_time, uint64_t end_time, size_t offset, size_t limit);
+size_t get_order_deal_details_count(MYSQL *conn, uint64_t order_id);
 json_t *get_order_deal_details(MYSQL *conn, uint64_t order_id, size_t offset, size_t limit);
 json_t *get_finished_order_detail(MYSQL *conn, uint64_t order_id);
 

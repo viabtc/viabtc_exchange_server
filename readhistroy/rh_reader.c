@@ -6,8 +6,7 @@
 # include "rh_config.h"
 # include "rh_reader.h"
 
-size_t get_user_balance_history_count(MYSQL *conn, uint32_t user_id,
-        const char *asset, const char *business, uint64_t start_time, uint64_t end_time, size_t offset, size_t limit)
+size_t get_user_balance_history_count(MYSQL *conn, uint32_t user_id, const char *asset, const char *business, uint64_t start_time, uint64_t end_time)
 {
     sds sql = sdsempty();
     sql = sdscatprintf(sql, "SELECT COUNT(*) FROM `balance_history_%u` WHERE `user_id` = %u", user_id % HISTORY_HASH_NUM, user_id);
@@ -116,8 +115,7 @@ json_t *get_user_balance_history(MYSQL *conn, uint32_t user_id,
     return records;
 }
 
-size_t get_user_order_finished_count(MYSQL *conn, uint32_t user_id,
-        const char *market, uint64_t start_time, uint64_t end_time, size_t offset, size_t limit)
+size_t get_user_order_finished_count(MYSQL *conn, uint32_t user_id, const char *market, uint64_t start_time, uint64_t end_time)
 {
     size_t market_len = strlen(market);
     char _market[2 * market_len + 1];
@@ -219,6 +217,32 @@ json_t *get_user_order_finished(MYSQL *conn, uint32_t user_id,
     mysql_free_result(result);
 
     return records;
+}
+
+size_t get_order_deal_details_count(MYSQL *conn, uint64_t order_id)
+{
+    sds sql = sdsempty();
+    sql = sdscatprintf(sql, "SELECT COUNT(*) FROM `deal_history_%u` where `id` = %"PRIu64, (uint32_t)(order_id % HISTORY_HASH_NUM), order_id);
+
+    log_trace("exec sql: %s", sql);
+    int ret = mysql_real_query(conn, sql, sdslen(sql));
+    if (ret != 0) {
+        log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+        sdsfree(sql);
+        return 0;
+    }
+    sdsfree(sql);
+
+    size_t count = 0;
+    MYSQL_RES *result = mysql_store_result(conn);
+    size_t num_rows = mysql_num_rows(result);
+    if (num_rows == 1) {
+        MYSQL_ROW row = mysql_fetch_row(result);
+        count = strtoull(row[0], NULL, 0);
+    }
+    mysql_free_result(result);
+
+    return count;
 }
 
 json_t *get_order_deal_details(MYSQL *conn, uint64_t order_id, size_t offset, size_t limit)

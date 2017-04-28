@@ -9,6 +9,8 @@
 # include "aw_auth.h"
 # include "aw_kline.h"
 # include "aw_depth.h"
+# include "aw_price.h"
+# include "aw_deals.h"
 # include "aw_order.h"
 # include "aw_asset.h"
 # include "aw_message.h"
@@ -118,6 +120,14 @@ server:
     ret = init_depth();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init depth fail: %d", ret);
+    }
+    ret = init_price();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init price fail: %d", ret);
+    }
+    ret = init_deals();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init deals fail: %d", ret);
     }
     ret = init_order();
     if (ret < 0) {

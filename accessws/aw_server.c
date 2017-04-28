@@ -204,6 +204,26 @@ static int on_method_asset_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
     return 0;
 }
 
+static int on_method_price_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    return 0;
+}
+
+static int on_method_price_subscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    return 0;
+}
+
+static int on_method_deals_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    return 0;
+}
+
+static int on_method_deals_subscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    return 0;
+}
+
 static int on_message(nw_ses *ses, const char *remote, const char *url, void *message, size_t size)
 {
     struct clt_info *info = ws_ses_privdata(ses);
@@ -244,6 +264,14 @@ static int on_message(nw_ses *ses, const char *remote, const char *url, void *me
         ret = on_method_depth_query(ses, _id, info, params);
     } else if (strcmp(_method, "depth.subscribe") == 0) {
         ret = on_method_depth_subscribe(ses, _id, info, params);
+    } else if (strcmp(_method, "price.query") == 0) {
+        ret = on_method_price_query(ses, _id, info, params);
+    } else if (strcmp(_method, "price.subscribe") == 0) {
+        ret = on_method_price_subscribe(ses, _id, info, params);
+    } else if (strcmp(_method, "deals.query") == 0) {
+        ret = on_method_deals_query(ses, _id, info, params);
+    } else if (strcmp(_method, "deals.subscribe") == 0) {
+        ret = on_method_deals_subscribe(ses, _id, info, params);
     } else if (strcmp(_method, "order.put_limit") == 0) {
         ret = on_method_order_put_limit(ses, _id, info, params);
     } else if (strcmp(_method, "order.put_market") == 0) {

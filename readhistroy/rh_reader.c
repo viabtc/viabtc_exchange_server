@@ -56,7 +56,7 @@ json_t *get_user_balance_history(MYSQL *conn, uint32_t user_id,
         const char *asset, const char *business, uint64_t start_time, uint64_t end_time, size_t offset, size_t limit)
 {
     sds sql = sdsempty();
-    sql = sdscatprintf(sql, "SELECT `time`, `business`, `change`, `balance`, `detail` FROM `balance_history_%u` WHERE `user_id` = %u",
+    sql = sdscatprintf(sql, "SELECT `time`, `asset`, `business`, `change`, `balance`, `detail` FROM `balance_history_%u` WHERE `user_id` = %u",
             user_id % HISTORY_HASH_NUM, user_id);
 
     size_t asset_len = strlen(asset);
@@ -81,7 +81,7 @@ json_t *get_user_balance_history(MYSQL *conn, uint32_t user_id,
 
     sql = sdscatprintf(sql, " ORDER BY `id` DESC");
     if (offset) {
-        sql = sdscatprintf(sql, " LIMIT %zu, %zu", limit, offset);
+        sql = sdscatprintf(sql, " LIMIT %zu, %zu", offset, limit);
     } else {
         sql = sdscatprintf(sql, " LIMIT %zu", limit);
     }
@@ -103,19 +103,15 @@ json_t *get_user_balance_history(MYSQL *conn, uint32_t user_id,
         MYSQL_ROW row = mysql_fetch_row(result);
         double timestamp = strtod(row[0], NULL);
         json_object_set_new(record, "time", json_real(timestamp));
-        json_object_set_new(record, "business", json_string(row[1]));
-        json_object_set_new(record, "change", json_string(row[2]));
-        json_object_set_new(record, "balance", json_string(row[3]));
-        json_t *detail = NULL;
-        if (strlen(row[4]) > 0) {
-            detail = json_loads(row[4], 0, NULL);
-            if (detail == NULL || !json_is_object(detail)) {
-                if (detail) {
-                    json_decref(detail);
-                }
-                detail = json_object();
+        json_object_set_new(record, "asset", json_string(row[1]));
+        json_object_set_new(record, "business", json_string(row[2]));
+        json_object_set_new(record, "change", json_string(row[3]));
+        json_object_set_new(record, "balance", json_string(row[4]));
+        json_t *detail = json_loads(row[5], 0, NULL);
+        if (detail == NULL || !json_is_object(detail)) {
+            if (detail) {
+                json_decref(detail);
             }
-        } else {
             detail = json_object();
         }
         json_object_set_new(record, "detail", detail);
@@ -183,7 +179,7 @@ json_t *get_user_order_finished(MYSQL *conn, uint32_t user_id,
 
     sql = sdscatprintf(sql, " ORDER BY `id` DESC");
     if (offset) {
-        sql = sdscatprintf(sql, " LIMIT %zu, %zu", limit, offset);
+        sql = sdscatprintf(sql, " LIMIT %zu, %zu", offset, limit);
     } else {
         sql = sdscatprintf(sql, " LIMIT %zu", limit);
     }
@@ -263,7 +259,7 @@ json_t *get_order_deal_details(MYSQL *conn, uint64_t order_id, size_t offset, si
     sql = sdscatprintf(sql, "SELECT `time`, `deal_order_id`, `role`, `amount`, `price`, `deal`, `fee` "
             "FROM `deal_history_%u` where `id` = %"PRIu64" ORDER BY `id` DESC", (uint32_t)(order_id % HISTORY_HASH_NUM), order_id);
     if (offset) {
-        sql = sdscatprintf(sql, " LIMIT %zu, %zu", limit, offset);
+        sql = sdscatprintf(sql, " LIMIT %zu, %zu", offset, limit);
     } else {
         sql = sdscatprintf(sql, " LIMIT %zu", limit);
     }

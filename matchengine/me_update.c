@@ -92,7 +92,7 @@ int init_update(void)
     return 0;
 }
 
-int update_user_balance(bool real, uint32_t user_id, const char *asset, const char *business, uint64_t business_id, mpd_t *change)
+int update_user_balance(bool real, uint32_t user_id, const char *asset, const char *business, uint64_t business_id, mpd_t *change, json_t *detail)
 {
     struct update_key key;
     key.user_id = user_id;
@@ -122,12 +122,10 @@ int update_user_balance(bool real, uint32_t user_id, const char *asset, const ch
 
     if (real) {
         double now = current_timestamp();
-        json_t *detail = json_object();
         json_object_set_new(detail, "id", json_integer(business_id));
         char *detail_str = json_dumps(detail, 0);
         append_user_balance_history(now, user_id, asset, business, change, detail_str);
         free(detail_str);
-        json_decref(detail);
         push_balance_message(now, user_id, asset, business, change);
     }
 

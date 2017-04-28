@@ -156,7 +156,7 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 
 static int on_cmd_balance_update(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 {
-    if (json_array_size(params) != 5)
+    if (json_array_size(params) != 6)
         return reply_error_invalid_argument(ses, pkg);
 
     // user_id
@@ -189,7 +189,12 @@ static int on_cmd_balance_update(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     if (change == NULL)
         return reply_error_invalid_argument(ses, pkg);
 
-    int ret = update_user_balance(true, user_id, asset, business, business_id, change);
+    // detail
+    json_t *detail = json_array_get(params, 5);
+    if (!json_is_object(detail))
+        return reply_error_invalid_argument(ses, pkg);
+
+    int ret = update_user_balance(true, user_id, asset, business, business_id, change, detail);
     mpd_del(change);
     if (ret == -1) {
         return reply_error(ses, pkg, 10, "repeat update");

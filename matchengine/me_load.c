@@ -148,7 +148,12 @@ static int load_update_balance(json_t *params)
     if (change == NULL)
         return -__LINE__;
 
-    int ret = update_user_balance(false, user_id, asset, business, business_id, change);
+    // detail
+    json_t *detail = json_array_get(params, 5);
+    if (!json_is_object(detail))
+        return -__LINE__;
+
+    int ret = update_user_balance(false, user_id, asset, business, business_id, change, detail);
     mpd_del(change);
 
     if (ret < 0) {

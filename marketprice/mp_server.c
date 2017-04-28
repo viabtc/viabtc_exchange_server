@@ -168,50 +168,6 @@ static int on_cmd_market_deals(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     return reply_result(ses, pkg, result);
 }
 
-static int on_cmd_market_last(nw_ses *ses, rpc_pkg *pkg, json_t *params)
-{
-    if (json_array_size(params) != 2)
-        return reply_error_invalid_argument(ses, pkg);
-
-    const char *market = json_string_value(json_array_get(params, 0));
-    if (!market)
-        return reply_error_invalid_argument(ses, pkg);
-    if (!market_exist(market))
-        return reply_error_invalid_argument(ses, pkg);
-
-    int interval = json_integer_value(json_array_get(params, 1));
-    if (interval <= 0)
-        return reply_error_invalid_argument(ses, pkg);
-
-    json_t *result = NULL;
-    time_t now = time(NULL);
-    if (interval < 60) {
-        if (60 % interval != 0)
-            return reply_error_invalid_argument(ses, pkg);
-        result = get_market_kline_sec(market, now, now, interval);
-    } else if (interval < 3600) {
-        if (interval % 60 != 0 || 3600 % interval != 0)
-            return reply_error_invalid_argument(ses, pkg);
-        result = get_market_kline_min(market, now, now, interval);
-    } else if (interval < 86400) {
-        if (interval % 3600 != 0 || 86400 % interval != 0)
-            return reply_error_invalid_argument(ses, pkg);
-        result = get_market_kline_hour(market, now, now, interval);
-    } else if (interval < 86400 * 7) {
-        if (interval % 86400 != 0)
-            return reply_error_invalid_argument(ses, pkg);
-        result = get_market_kline_day(market, now, now, interval);
-    } else if (interval == 86400 * 7) {
-        result = get_market_kline_week(market, now, now, interval);
-    } else {
-        return reply_error_invalid_argument(ses, pkg);
-    }
-
-    if (result == NULL)
-        return reply_error_internal_error(ses, pkg);
-    return reply_result(ses, pkg, result);
-}
-
 static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
 {
     json_t *params = json_loadb(pkg->body, pkg->body_size, 0, NULL);
@@ -241,13 +197,6 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         ret = on_cmd_market_deals(ses, pkg, params);
         if (ret < 0) {
             log_error("on_cmd_market_deals %s fail: %d", params_str, ret);
-        }
-        break;
-    case CMD_MARKET_KLINE_LAST:
-        log_debug("from: %s cmd market kline last, params: %s", nw_sock_human_addr(&ses->peer_addr), params_str);
-        ret = on_cmd_market_last(ses, pkg, params);
-        if (ret < 0) {
-            log_error("on_cmd_market_last %s fail: %d", params_str, ret);
         }
         break;
     default:

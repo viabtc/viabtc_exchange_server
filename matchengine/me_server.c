@@ -404,7 +404,7 @@ static int on_cmd_order_query(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     json_object_set_new(result, "offset", json_integer(offset));
     json_t *orders = json_array();
     if (order_list == NULL) {
-        json_object_set_new(result, "orders", orders);
+        json_object_set_new(result, "records", orders);
         return reply_result(ses, pkg, result);
     }
 

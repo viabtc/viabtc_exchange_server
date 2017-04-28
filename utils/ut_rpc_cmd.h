@@ -18,11 +18,10 @@
 # define CMD_ORDER_CANCEL           204
 # define CMD_ORDER_BOOK             205
 # define CMD_ORDER_BOOK_DEPTH       206
-# define CMD_ORDER_BOOK_MERGE       207 // 已废除
-# define CMD_ORDER_DETAIL           208
-# define CMD_ORDER_HISTORY          209
-# define CMD_ORDER_DEALS            210
-# define CMD_ORDER_DETAIL_FINISHED  211
+# define CMD_ORDER_DETAIL           207
+# define CMD_ORDER_HISTORY          208
+# define CMD_ORDER_DEALS            209
+# define CMD_ORDER_DETAIL_FINISHED  210
 
 // market
 # define CMD_MARKET_STATUS          301

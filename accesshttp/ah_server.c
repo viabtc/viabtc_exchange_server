@@ -261,8 +261,6 @@ static int init_methods_handler(void)
     ERR_RET_LN(add_handler("trade.finished_order_detail", readhistory, CMD_ORDER_DETAIL_FINISHED));
 
     ERR_RET_LN(add_handler("market.depth", matchengine, CMD_ORDER_BOOK_DEPTH));
-    ERR_RET_LN(add_handler("market.depth_merge", matchengine, CMD_ORDER_BOOK_MERGE));
-
     ERR_RET_LN(add_handler("market.status", marketprice, CMD_MARKET_STATUS));
     ERR_RET_LN(add_handler("market.kline", marketprice, CMD_MARKET_KLINE));
     ERR_RET_LN(add_handler("market.deals", marketprice, CMD_MARKET_DEALS));

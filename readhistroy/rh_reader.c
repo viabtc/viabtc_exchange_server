@@ -81,7 +81,7 @@ json_t *get_user_balance_history(MYSQL *conn, uint32_t user_id,
 
     sql = sdscatprintf(sql, " ORDER BY `id` DESC");
     if (offset) {
-        sql = sdscatprintf(sql, " LIMIT %zu %zu", limit, offset);
+        sql = sdscatprintf(sql, " LIMIT %zu, %zu", limit, offset);
     } else {
         sql = sdscatprintf(sql, " LIMIT %zu", limit);
     }
@@ -106,7 +106,15 @@ json_t *get_user_balance_history(MYSQL *conn, uint32_t user_id,
         json_object_set_new(record, "business", json_string(row[1]));
         json_object_set_new(record, "change", json_string(row[2]));
         json_object_set_new(record, "balance", json_string(row[3]));
-        json_object_set_new(record, "detail", json_string(row[4]));
+        json_t *detail = NULL;
+        if (strlen(row[4]) > 0) {
+            json_t *detail = json_loads(row[4], 0, NULL);
+            if (detail == NULL)
+                detail = json_null();
+        } else {
+            detail = json_null();
+        }
+        json_object_set_new(record, "detail", detail);
 
         json_array_append_new(records, record);
     }
@@ -171,7 +179,7 @@ json_t *get_user_order_finished(MYSQL *conn, uint32_t user_id,
 
     sql = sdscatprintf(sql, " ORDER BY `id` DESC");
     if (offset) {
-        sql = sdscatprintf(sql, " LIMIT %zu %zu", limit, offset);
+        sql = sdscatprintf(sql, " LIMIT %zu, %zu", limit, offset);
     } else {
         sql = sdscatprintf(sql, " LIMIT %zu", limit);
     }
@@ -250,6 +258,11 @@ json_t *get_order_deal_details(MYSQL *conn, uint64_t order_id, size_t offset, si
     sds sql = sdsempty();
     sql = sdscatprintf(sql, "SELECT `time`, `deal_order_id`, `role`, `amount`, `price`, `deal`, `fee` "
             "FROM `deal_history_%u` where `id` = %"PRIu64" ORDER BY `id` DESC", (uint32_t)(order_id % HISTORY_HASH_NUM), order_id);
+    if (offset) {
+        sql = sdscatprintf(sql, " LIMIT %zu, %zu", limit, offset);
+    } else {
+        sql = sdscatprintf(sql, " LIMIT %zu", limit);
+    }
 
     log_trace("exec sql: %s", sql);
     int ret = mysql_real_query(conn, sql, sdslen(sql));

@@ -251,7 +251,6 @@ static void on_job(nw_job_entry *entry, void *privdata)
         return;
     }
     memset(rsp, 0, sizeof(struct job_reply));
-    log_trace("cmd: %u", req->command);
 
     int ret;
     switch (req->command) {

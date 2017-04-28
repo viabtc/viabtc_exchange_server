@@ -12,7 +12,8 @@
         "bind": [
             "stream@/tmp/accessws.sock"
         ],
-        "max_pkg_size": 102400
+        "max_pkg_size": 102400,
+        "protocol": "chat"
     },
     "monitor": {
         "bind": "tcp@0.0.0.0:8091",

@@ -88,6 +88,17 @@ static bool is_good_protocol(const char *protocol_list, const char *protocol)
     return false;
 }
 
+static bool is_good_origin(const char *origin, const char *require)
+{
+    size_t origin_len  = strlen(origin);
+    size_t require_len = strlen(require);
+    if (origin_len < require_len)
+        return false;
+    if (memcmp(origin + (origin_len - require_len), require, require_len) != 0)
+        return false;
+    return true;
+}
+
 static int on_http_message_complete(http_parser* parser)
 {
     struct clt_info *info = parser->data;
@@ -125,6 +136,11 @@ static int on_http_message_complete(http_parser* parser)
     const char *protocol_list = http_request_get_header(info->request, "Sec-WebSocket-Protocol");
     if (protocol_list && !is_good_protocol(protocol_list, svr->protocol))
         goto error;
+    if (strlen(svr->origin) > 0) {
+        const char *origin = http_request_get_header(info->request, "Origin");
+        if (origin == NULL || !is_good_origin(origin, svr->origin))
+            goto error;
+    }
 
     if (svr->type.on_privdata_alloc) {
         info->privdata = svr->type.on_privdata_alloc(svr);
@@ -466,6 +482,7 @@ ws_svr *ws_svr_create(ws_svr_cfg *cfg, ws_svr_type *type)
 
     svr->keep_alive = cfg->keep_alive;
     svr->protocol = strdup(cfg->protocol);
+    svr->origin   = strdup(cfg->origin);
     svr->privdata_cache = nw_cache_create(sizeof(struct clt_info));
     memcpy(&svr->type, type, sizeof(ws_svr_type));
 

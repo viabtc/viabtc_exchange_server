@@ -21,6 +21,7 @@ typedef struct ws_svr_cfg {
     uint32_t write_mem;
     int keep_alive;
     char *protocol;
+    char *origin;
 } ws_svr_cfg;
 
 typedef struct ws_svr_type {
@@ -37,6 +38,7 @@ typedef struct ws_svr {
     nw_cache *privdata_cache;
     int keep_alive;
     char *protocol;
+    char *origin;
     http_parser_settings settings;
     ws_svr_type type;
 } ws_svr;

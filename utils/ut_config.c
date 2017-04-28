@@ -296,6 +296,7 @@ int load_cfg_ws_svr(json_t *root, const char *key, ws_svr_cfg *cfg)
     ERR_RET(read_cfg_uint32(node, "write_mem", &cfg->write_mem, false, 0));
     ERR_RET(read_cfg_int(node, "keep_alive", &cfg->keep_alive, false, 3600));
     ERR_RET(read_cfg_str(node, "protocol", &cfg->protocol, "chat"));
+    ERR_RET(read_cfg_str(node, "origin", &cfg->origin, ""));
 
     return 0;
 }

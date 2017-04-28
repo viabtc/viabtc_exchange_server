@@ -535,26 +535,8 @@ static int on_cmd_order_book(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     return reply_result(ses, pkg, result);
 }
 
-static int on_cmd_order_book_depth(nw_ses *ses, rpc_pkg *pkg, json_t *params)
+static json_t *get_depth(market_t *market, size_t limit)
 {
-    if (json_array_size(params) != 2)
-        return reply_error_invalid_argument(ses, pkg);
-
-    // market
-    if (!json_is_string(json_array_get(params, 0)))
-        return reply_error_invalid_argument(ses, pkg);
-    const char *market_name = json_string_value(json_array_get(params, 0));
-    market_t *market = get_market(market_name);
-    if (market == NULL)
-        return reply_error_invalid_argument(ses, pkg);
-
-    // limit
-    if (!json_is_integer(json_array_get(params, 1)))
-        return reply_error_invalid_argument(ses, pkg);
-    size_t limit = json_integer_value(json_array_get(params, 1));
-    if (limit > ORDER_BOOK_MAX_LEN)
-        return reply_error_invalid_argument(ses, pkg);
-
     mpd_t *price = mpd_new(&mpd_ctx);
     mpd_t *amount = mpd_new(&mpd_ctx);
 
@@ -613,40 +595,11 @@ static int on_cmd_order_book_depth(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     json_object_set_new(result, "asks", asks);
     json_object_set_new(result, "bids", bids);
 
-    return reply_result(ses, pkg, result);
+    return result;
 }
 
-static int on_cmd_order_book_merge(nw_ses *ses, rpc_pkg *pkg, json_t *params)
+static json_t *get_depth_merge(market_t* market, size_t limit, mpd_t *interval)
 {
-    if (json_array_size(params) != 3)
-        return reply_error_invalid_argument(ses, pkg);
-
-    // market
-    if (!json_is_string(json_array_get(params, 0)))
-        return reply_error_invalid_argument(ses, pkg);
-    const char *market_name = json_string_value(json_array_get(params, 0));
-    market_t *market = get_market(market_name);
-    if (market == NULL)
-        return reply_error_invalid_argument(ses, pkg);
-
-    // limit
-    if (!json_is_integer(json_array_get(params, 1)))
-        return reply_error_invalid_argument(ses, pkg);
-    size_t limit = json_integer_value(json_array_get(params, 1));
-    if (limit > ORDER_BOOK_MAX_LEN)
-        return reply_error_invalid_argument(ses, pkg);
-
-    // interval
-    if (!json_is_string(json_array_get(params, 2)))
-        return reply_error_invalid_argument(ses, pkg);
-    mpd_t *interval = decimal(json_string_value(json_array_get(params, 2)), market->money_prec);
-    if (!interval)
-        return reply_error_invalid_argument(ses, pkg);
-    if (mpd_cmp(interval, mpd_zero, &mpd_ctx) < 0) {
-        mpd_del(interval);
-        return reply_error_invalid_argument(ses, pkg);
-    }
-
     mpd_t *q = mpd_new(&mpd_ctx);
     mpd_t *r = mpd_new(&mpd_ctx);
     mpd_t *price = mpd_new(&mpd_ctx);
@@ -710,11 +663,55 @@ static int on_cmd_order_book_merge(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     mpd_del(r);
     mpd_del(price);
     mpd_del(amount);
-    mpd_del(interval);
 
     json_t *result = json_object();
     json_object_set_new(result, "asks", asks);
     json_object_set_new(result, "bids", bids);
+
+    return result;
+}
+
+static int on_cmd_order_book_depth(nw_ses *ses, rpc_pkg *pkg, json_t *params)
+{
+    if (json_array_size(params) != 2)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // market
+    if (!json_is_string(json_array_get(params, 0)))
+        return reply_error_invalid_argument(ses, pkg);
+    const char *market_name = json_string_value(json_array_get(params, 0));
+    market_t *market = get_market(market_name);
+    if (market == NULL)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // limit
+    if (!json_is_integer(json_array_get(params, 1)))
+        return reply_error_invalid_argument(ses, pkg);
+    size_t limit = json_integer_value(json_array_get(params, 1));
+    if (limit > ORDER_BOOK_MAX_LEN)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // interval
+    if (!json_is_string(json_array_get(params, 2)))
+        return reply_error_invalid_argument(ses, pkg);
+    mpd_t *interval = decimal(json_string_value(json_array_get(params, 2)), market->money_prec);
+    if (!interval)
+        return reply_error_invalid_argument(ses, pkg);
+    if (mpd_cmp(interval, mpd_zero, &mpd_ctx) < 0) {
+        mpd_del(interval);
+        return reply_error_invalid_argument(ses, pkg);
+    }
+
+    json_t *result = NULL;
+    if (mpd_cmp(interval, mpd_zero, &mpd_ctx) == 0) {
+        result = get_depth(market, limit);
+    } else {
+        result = get_depth_merge(market, limit, interval);
+    }
+    mpd_del(interval);
+
+    if (result == NULL)
+        return reply_error_internal_error(ses, pkg);
 
     return reply_result(ses, pkg, result);
 }
@@ -825,13 +822,6 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         ret = on_cmd_order_book_depth(ses, pkg, params);
         if (ret < 0) {
             log_error("on_cmd_order_book_depth %s fail: %d", params_str, ret);
-        }
-        break;
-    case CMD_ORDER_BOOK_MERGE:
-        log_debug("from: %s cmd order book merge, params: %s", nw_sock_human_addr(&ses->peer_addr), params_str);
-        ret = on_cmd_order_book_merge(ses, pkg, params);
-        if (ret < 0) {
-            log_error("on_cmd_order_book_merge %s fail: %d", params_str, ret);
         }
         break;
     case CMD_ORDER_DETAIL:

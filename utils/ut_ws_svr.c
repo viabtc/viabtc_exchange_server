@@ -425,6 +425,8 @@ ws_svr *ws_svr_create(ws_svr_cfg *cfg, ws_svr_type *type)
 {
     if (type->on_message == NULL)
         return NULL;
+    if (type->on_privdata_alloc && !type->on_privdata_free)
+        return NULL;
 
     ws_svr *svr = malloc(sizeof(ws_svr));
     memset(svr, 0, sizeof(ws_svr));

@@ -108,11 +108,15 @@ json_t *get_user_balance_history(MYSQL *conn, uint32_t user_id,
         json_object_set_new(record, "balance", json_string(row[3]));
         json_t *detail = NULL;
         if (strlen(row[4]) > 0) {
-            json_t *detail = json_loads(row[4], 0, NULL);
-            if (detail == NULL)
-                detail = json_null();
+            detail = json_loads(row[4], 0, NULL);
+            if (detail == NULL || !json_is_object(detail)) {
+                if (detail) {
+                    json_decref(detail);
+                }
+                detail = json_object();
+            }
         } else {
-            detail = json_null();
+            detail = json_object();
         }
         json_object_set_new(record, "detail", detail);
 

@@ -15,7 +15,7 @@ struct clt_info {
     mpd_t       *maker_fee;
 };
 
-int init_server(int worker_id);
+int init_server(void);
 
 int send_error(nw_ses *ses, uint64_t id, int code, const char *message);
 int send_error_invalid_argument(nw_ses *ses, uint64_t id);

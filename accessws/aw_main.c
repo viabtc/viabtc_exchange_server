@@ -11,6 +11,7 @@
 # include "aw_depth.h"
 # include "aw_order.h"
 # include "aw_asset.h"
+# include "aw_listener.h"
 
 const char *__process__ = "accessws";
 const char *__version__ = "0.1.0";
@@ -80,21 +81,30 @@ int main(int argc, char *argv[])
         error(EXIT_FAILURE, errno, "init log fail: %d", ret);
     }
 
-    int worker_id = 0;
-    for (int i = 1; i < settings.worker_num; ++i) {
+    for (int i = 0; i < settings.worker_num; ++i) {
         int pid = fork();
         if (pid < 0) {
             error(EXIT_FAILURE, errno, "fork error");
         } else if (pid == 0) {
-            worker_id = i;
-            dlog_set_no_shift(default_dlog);
-            break;
+            process_title_set("%s_worker_%d", __process__, i);
+            goto server;
         }
     }
 
-    process_title_set("%s_worker_%d", __process__, worker_id);
+    process_title_set("%s_listener", __process__);
     daemon(1, 1);
     process_keepalive();
+
+    ret = init_listener();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init listener fail: %d", ret);
+    }
+    goto run;
+
+server:
+    daemon(1, 1);
+    process_keepalive();
+    dlog_set_no_shift(default_dlog);
 
     ret = init_auth();
     if (ret < 0) {
@@ -116,11 +126,12 @@ int main(int argc, char *argv[])
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init asset fail: %d", ret);
     }
-    ret = init_server(worker_id);
+    ret = init_server();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init server fail: %d", ret);
     }
 
+run:
     nw_timer_set(&cron_timer, 0.5, true, on_cron_check, NULL);
     nw_timer_start(&cron_timer);
 

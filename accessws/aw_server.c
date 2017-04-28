@@ -8,6 +8,7 @@
 # include "aw_auth.h"
 
 static ws_svr *svr;
+static rpc_clt *listener;
 static nw_cache *privdata_cache;
 
 static int send_json(nw_ses *ses, const json_t *json)
@@ -183,7 +184,7 @@ static void on_privdata_free(void *svr, void *privdata)
     nw_cache_free(privdata_cache, privdata);
 }
 
-int init_server(int worker_id)
+static int init_websocket_svr(void)
 {
     ws_svr_type type;
     memset(&type, 0, sizeof(type));
@@ -193,24 +194,70 @@ int init_server(int worker_id)
     type.on_privdata_alloc = on_privdata_alloc;
     type.on_privdata_free = on_privdata_free;
 
-    for (uint32_t i = 0; i < settings.svr.bind_count; ++i) {
-        nw_addr_t *addr = &(settings.svr.bind_arr[i].addr);
-        if (addr->family == AF_INET) {
-            addr->in.sin_port = htons(ntohs(addr->in.sin_port) + worker_id);
-        } else if (addr->family == AF_INET6) {
-            addr->in6.sin6_port = htons(ntohs(addr->in6.sin6_port) + worker_id);
-        }
-    }
-
     svr = ws_svr_create(&settings.svr, &type);
     if (svr == NULL)
-        return -__LINE__;
-    if (ws_svr_start(svr) < 0)
         return -__LINE__;
 
     privdata_cache = nw_cache_create(sizeof(struct clt_info));
     if (privdata_cache == NULL)
         return -__LINE__;
+
+    return 0;
+}
+
+static void on_listener_connect(nw_ses *ses, bool result)
+{
+    if (result) {
+        log_info("connect listener success");
+    } else {
+        log_info("connect listener fail");
+    }
+}
+
+static void on_listener_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
+{
+    return;
+}
+
+static void on_listener_recv_fd(nw_ses *ses, int fd)
+{
+    if (nw_svr_add_clt_fd(svr->raw_svr, fd) < 0) {
+        log_error("nw_svr_add_clt_fd: %d fail: %s", fd, strerror(errno));
+        close(fd);
+    }
+}
+
+static int init_listener_clt(void)
+{
+    rpc_clt_cfg cfg;
+    nw_addr_t addr;
+    memset(&cfg, 0, sizeof(cfg));
+    cfg.name = strdup("listener");
+    cfg.addr_count = 1;
+    cfg.addr_arr = &addr;
+    if (nw_sock_cfg_parse(AW_LISTENER_BIND, &addr, &cfg.sock_type) < 0)
+        return -__LINE__;
+    cfg.max_pkg_size = 1024;
+
+    rpc_clt_type type;
+    memset(&type, 0, sizeof(type));
+    type.on_connect  = on_listener_connect;
+    type.on_recv_pkg = on_listener_recv_pkg;
+    type.on_recv_fd  = on_listener_recv_fd;
+
+    listener = rpc_clt_create(&cfg, &type);
+    if (listener == NULL)
+        return -__LINE__;
+    if (rpc_clt_start(listener) < 0)
+        return -__LINE__;
+
+    return 0;
+}
+
+int init_server(void)
+{
+    ERR_RET(init_websocket_svr());
+    ERR_RET(init_listener_clt());
 
     return 0;
 }

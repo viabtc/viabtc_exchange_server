@@ -10,7 +10,7 @@
     },
     "svr": {
         "bind": [
-            "tcp@0.0.0.0:8090"
+            "stream@/tmp/accessws.sock"
         ],
         "max_pkg_size": 102400
     },

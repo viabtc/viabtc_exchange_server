@@ -9,6 +9,8 @@
 
 static rpc_clt *listener;
 static ws_svr *svr;
+static rpc_clt *matchengine;
+static rpc_clt *marketprice;
 static nw_state *state_context;
 static nw_cache *privdata_cache;
 
@@ -116,6 +118,25 @@ static int on_method_server_auth(nw_ses *ses, uint64_t id, struct clt_info *info
 
 static int on_method_kline_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
+    nw_state_entry *entry = nw_state_add(state_context, settings.timeout, 0);
+    struct state_data *state = entry->data;
+    state->ses = ses;
+    state->ses_id = ses->id;
+    state->request_id = id;
+
+    rpc_pkg pkg;
+    memset(&pkg, 0, sizeof(pkg));
+    pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
+    pkg.command   = CMD_MARKET_KLINE;
+    pkg.sequence  = entry->id;
+    pkg.body      = json_dumps(params, 0);
+    pkg.body_size = strlen(pkg.body);
+
+    rpc_clt_send(marketprice, &pkg);
+    log_trace("send request to %s, cmd: %u, sequence: %u, params: %s",
+            nw_sock_human_addr(rpc_clt_peer_addr(marketprice)), pkg.command, pkg.sequence, (char *)pkg.body);
+    free(pkg.body);
+
     return 0;
 }
 
@@ -126,6 +147,25 @@ static int on_method_kline_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
 
 static int on_method_depth_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
+    nw_state_entry *entry = nw_state_add(state_context, settings.timeout, 0);
+    struct state_data *state = entry->data;
+    state->ses = ses;
+    state->ses_id = ses->id;
+    state->request_id = id;
+
+    rpc_pkg pkg;
+    memset(&pkg, 0, sizeof(pkg));
+    pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
+    pkg.command   = CMD_ORDER_BOOK_DEPTH;
+    pkg.sequence  = entry->id;
+    pkg.body      = json_dumps(params, 0);
+    pkg.body_size = strlen(pkg.body);
+
+    rpc_clt_send(marketprice, &pkg);
+    log_trace("send request to %s, cmd: %u, sequence: %u, params: %s",
+            nw_sock_human_addr(rpc_clt_peer_addr(marketprice)), pkg.command, pkg.sequence, (char *)pkg.body);
+    free(pkg.body);
+
     return 0;
 }
 
@@ -307,6 +347,55 @@ static int init_state(void)
     return 0;
 }
 
+static void on_backend_connect(nw_ses *ses, bool result)
+{
+    rpc_clt *clt = ses->privdata;
+    if (result) {
+        log_info("connect %s:%s success", clt->name, nw_sock_human_addr(&ses->peer_addr));
+    } else {
+        log_info("connect %s:%s fail", clt->name, nw_sock_human_addr(&ses->peer_addr));
+    }
+}
+
+static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
+{
+    log_debug("recv pkg from: %s, cmd: %u, sequence: %u",
+            nw_sock_human_addr(&ses->peer_addr), pkg->command, pkg->sequence);
+    nw_state_entry *entry = nw_state_get(state_context, pkg->sequence);
+    if (entry) {
+        struct state_data *state = entry->data;
+        if (state->ses->id == state->ses_id) {
+            sds message = sdsnewlen(pkg->body, pkg->body_size);
+            log_trace("send response to: %s, message: %s", nw_sock_human_addr(&state->ses->peer_addr), message);
+            ws_send_text(state->ses, message);
+            sdsfree(message);
+        }
+        nw_state_del(state_context, pkg->sequence);
+    }
+}
+
+static int init_backend(void)
+{
+    rpc_clt_type ct;
+    memset(&ct, 0, sizeof(ct));
+    ct.on_connect = on_backend_connect;
+    ct.on_recv_pkg = on_backend_recv_pkg;
+
+    matchengine = rpc_clt_create(&settings.matchengine, &ct);
+    if (matchengine == NULL)
+        return -__LINE__;
+    if (rpc_clt_start(matchengine) < 0)
+        return -__LINE__;
+
+    marketprice = rpc_clt_create(&settings.marketprice, &ct);
+    if (marketprice == NULL)
+        return -__LINE__;
+    if (rpc_clt_start(marketprice) < 0)
+        return -__LINE__;
+
+    return 0;
+}
+
 static void on_listener_connect(nw_ses *ses, bool result)
 {
     if (result) {
@@ -360,6 +449,7 @@ int init_server(void)
 {
     ERR_RET(init_websocket_svr());
     ERR_RET(init_state());
+    ERR_RET(init_backend());
     ERR_RET(init_listener_clt());
 
     return 0;

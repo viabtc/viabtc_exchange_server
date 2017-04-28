@@ -95,6 +95,13 @@ char *nw_sock_ip_s(nw_addr_t *addr, char *ip)
     return ip;
 }
 
+int nw_sock_set_mode(nw_addr_t *addr, mode_t mode)
+{
+    if (addr->family != AF_UNIX)
+        return 0;
+    return chmod(addr->un.sun_path, mode);
+}
+
 int nw_sock_peer_addr(int sockfd, nw_addr_t *addr)
 {
     addr->addrlen = sizeof(addr->un);

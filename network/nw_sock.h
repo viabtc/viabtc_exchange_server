@@ -42,6 +42,9 @@ char *nw_sock_ip(nw_addr_t *addr);
 /* nw_sock_ip thread safe version, ip should at least NW_SOCK_IP_SIZE len */
 char *nw_sock_ip_s(nw_addr_t *addr, char *ip);
 
+/* set unix socket mode */
+int nw_sock_set_mode(nw_addr_t *addr, mode_t mode);
+
 /*
  * input: cfg, format: protocol@address
  * protocol list: TCP, UDP, STREAM, DGRAM, SEQPACKET (case-insensitive)

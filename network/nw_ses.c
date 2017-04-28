@@ -360,7 +360,13 @@ int nw_ses_bind(nw_ses *ses, nw_addr_t *addr)
     if (addr->family == AF_UNIX) {
         unlink(addr->un.sun_path);
     }
-    return bind(ses->sockfd, NW_SOCKADDR(addr), addr->addrlen);
+    int ret = bind(ses->sockfd, NW_SOCKADDR(addr), addr->addrlen);
+    if (ret < 0)
+        return ret;
+    if (addr->family == AF_UNIX) {
+        return nw_sock_set_mode(addr, 0777);
+    }
+    return 0;
 }
 
 int nw_ses_listen(nw_ses *ses, int backlog)

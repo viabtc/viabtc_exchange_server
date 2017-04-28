@@ -119,7 +119,7 @@ static int on_cmd_balance_history(MYSQL *conn, json_t *params, struct job_reply 
 
     size_t total = get_user_balance_history_count(conn, user_id, asset, business, start_time, end_time);
     json_t *records = get_user_balance_history(conn, user_id, asset, business, start_time, end_time, offset, limit);
-    if (rsp->result == NULL) {
+    if (records == NULL) {
         rsp->code = 2;
         rsp->message = sdsnew("internal error");
     }
@@ -162,7 +162,7 @@ static int on_cmd_order_history(MYSQL *conn, json_t *params, struct job_reply *r
 
     size_t total = get_user_order_finished_count(conn, user_id, market, start_time, end_time);
     json_t *records = get_user_order_finished(conn, user_id, market, start_time, end_time, offset, limit);
-    if (rsp->result == NULL) {
+    if (records == NULL) {
         rsp->code = 2;
         rsp->message = sdsnew("internal error");
     }
@@ -197,7 +197,7 @@ static int on_cmd_order_deals(MYSQL *conn, json_t *params, struct job_reply *rsp
 
     size_t total = get_order_deal_details_count(conn, order_id);
     json_t *records = get_order_deal_details(conn, order_id, offset, limit);
-    if (rsp->result == NULL) {
+    if (records == NULL) {
         rsp->code = 2;
         rsp->message = sdsnew("internal error");
     }

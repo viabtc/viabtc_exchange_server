@@ -11,6 +11,7 @@
 # include "aw_depth.h"
 # include "aw_order.h"
 # include "aw_asset.h"
+# include "aw_message.h"
 # include "aw_listener.h"
 
 const char *__process__ = "accessws";
@@ -125,6 +126,10 @@ server:
     ret = init_asset();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init asset fail: %d", ret);
+    }
+    ret = init_message();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init messagefail: %d", ret);
     }
     ret = init_server();
     if (ret < 0) {

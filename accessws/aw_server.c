@@ -80,6 +80,11 @@ int send_error_service_timeout(nw_ses *ses, uint64_t id)
     return send_error(ses, id, 5, "service timeout");
 }
 
+int send_error_require_auth(nw_ses *ses, uint64_t id)
+{
+    return send_error(ses, id, 6, "require authentication");
+}
+
 int send_result(nw_ses *ses, uint64_t id, json_t *result)
 {
     json_t *reply = json_object();
@@ -223,31 +228,49 @@ static int on_method_depth_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
 
 static int on_method_order_put_limit(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
+    if (!info->auth)
+        return send_error_require_auth(ses, id);
+
     return 0;
 }
 
 static int on_method_order_put_market(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
+    if (!info->auth)
+        return send_error_require_auth(ses, id);
+
     return 0;
 }
 
 static int on_method_order_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
+    if (!info->auth)
+        return send_error_require_auth(ses, id);
+
     return 0;
 }
 
 static int on_method_order_subscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
+    if (!info->auth)
+        return send_error_require_auth(ses, id);
+
     return 0;
 }
 
 static int on_method_asset_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
+    if (!info->auth)
+        return send_error_require_auth(ses, id);
+
     return 0;
 }
 
 static int on_method_asset_subscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
+    if (!info->auth)
+        return send_error_require_auth(ses, id);
+
     return 0;
 }
 

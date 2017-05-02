@@ -41,7 +41,7 @@ static void on_job(nw_job_entry *entry, void *privdata)
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, post_write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &reply);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, (long)(settings.timeout * 1000));
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, (long)(settings.backend_timeout * 1000));
 
     CURLcode ret = curl_easy_perform(curl);
     if (ret != CURLE_OK) {
@@ -149,7 +149,7 @@ int send_auth_request(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *p
     if (token == NULL)
         return send_error_invalid_argument(ses, id);
 
-    nw_state_entry *entry = nw_state_add(state_context, settings.timeout, 0);
+    nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
     struct state_data *state = entry->data;
     state->ses = ses;
     state->ses_id = ses->id;

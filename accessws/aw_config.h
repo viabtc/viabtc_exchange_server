@@ -47,7 +47,8 @@ struct settings {
     rpc_clt_cfg         matchengine;
     rpc_clt_cfg         marketprice;
     rpc_clt_cfg         readhistory;
-    double              timeout;
+    double              backend_timeout;
+    double              cache_timeout;
     int                 worker_num;
     char                *auth_url;
 };

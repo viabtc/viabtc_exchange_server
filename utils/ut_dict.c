@@ -188,7 +188,7 @@ int dict_replace(dict_t *dt, void *key, void *val)
 {
     dict_entry *entry = dict_find(dt, key);
     if (entry == NULL) {
-        if (dict_add(dt, key, val) < 0)
+        if (dict_add(dt, key, val) == NULL)
             return -1;
         return 1;
     }

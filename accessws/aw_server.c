@@ -464,6 +464,7 @@ static int on_method_asset_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
     if (!info->auth)
         return send_error_require_auth(ses, id);
 
+    asset_unsubscribe(info->user_id, ses);
     size_t params_size = json_array_size(params);
     for (size_t i = 0; i < params_size; ++i) {
         const char *asset = json_string_value(json_array_get(params, i));
@@ -570,7 +571,7 @@ static void on_close(nw_ses *ses, const char *remote)
     log_trace("remote: %"PRIu64":%s websocket connection close", ses->id, remote);
     struct clt_info *info = ws_ses_privdata(ses);
     if (info->auth) {
-        asset_on_ses_close(info->user_id, ses);
+        asset_unsubscribe(info->user_id, ses);
     }
 }
 

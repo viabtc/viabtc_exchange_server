@@ -208,12 +208,37 @@ int asset_subscribe(uint32_t user_id, nw_ses *ses, const char *asset)
     return 0;
 }
 
-void asset_on_update(uint32_t user_id, const char *asset)
+int asset_unsubscribe(uint32_t user_id, nw_ses *ses)
 {
     void *key = (void *)(uintptr_t)user_id;
     dict_entry *entry = dict_find(dict_sub, key);
     if (entry == NULL)
-        return;
+        return 0;
+
+    list_t *list = entry->val;
+    list_iter *iter = list_get_iterator(list, LIST_START_HEAD);
+    list_node *node;
+    while ((node = list_next(iter)) != NULL) {
+        struct sub_unit *unit = node->value;
+        if (unit->ses == ses) {
+            list_del(list, node);
+        }
+    }
+    list_release_iterator(iter);
+
+    if (list->len == 0) {
+        dict_delete(dict_sub, key);
+    }
+
+    return 0;
+}
+
+int asset_on_update(uint32_t user_id, const char *asset)
+{
+    void *key = (void *)(uintptr_t)user_id;
+    dict_entry *entry = dict_find(dict_sub, key);
+    if (entry == NULL)
+        return 0;
 
     bool notify = false;
     list_t *list = entry->val;
@@ -228,7 +253,7 @@ void asset_on_update(uint32_t user_id, const char *asset)
     }
     list_release_iterator(iter);
     if (!notify)
-        return;
+        return 0;
 
     json_t *trade_params = json_array();
     json_array_append_new(trade_params, json_integer(user_id));
@@ -252,28 +277,7 @@ void asset_on_update(uint32_t user_id, const char *asset)
             nw_sock_human_addr(rpc_clt_peer_addr(matchengine)), pkg.command, pkg.sequence, (char *)pkg.body);
     free(pkg.body);
     json_decref(trade_params);
-}
 
-void asset_on_ses_close(uint32_t user_id, nw_ses *ses)
-{
-    void *key = (void *)(uintptr_t)user_id;
-    dict_entry *entry = dict_find(dict_sub, key);
-    if (entry == NULL)
-        return;
-
-    list_t *list = entry->val;
-    list_iter *iter = list_get_iterator(list, LIST_START_HEAD);
-    list_node *node;
-    while ((node = list_next(iter)) != NULL) {
-        struct sub_unit *unit = node->value;
-        if (unit->ses == ses) {
-            list_del(list, node);
-        }
-    }
-    list_release_iterator(iter);
-
-    if (list->len == 0) {
-        dict_delete(dict_sub, key);
-    }
+    return 0;
 }
 

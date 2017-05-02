@@ -226,10 +226,103 @@ static int on_method_depth_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
     return 0;
 }
 
+static int on_method_price_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    return 0;
+}
+
+static int on_method_price_subscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    return 0;
+}
+
+static int on_method_deals_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    sds key = sdsempty();
+    char *params_str = json_dumps(params, 0);
+    key = sdscatprintf(key, "%u-%s", CMD_MARKET_DEALS, params_str);
+    int ret = process_cache(ses, key);
+    if (ret > 0) {
+        free(params_str);
+        sdsfree(key);
+        return 0;
+    }
+
+    nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
+    struct state_data *state = entry->data;
+    state->ses = ses;
+    state->ses_id = ses->id;
+    state->request_id = id;
+    state->cache_key = key;
+
+    rpc_pkg pkg;
+    memset(&pkg, 0, sizeof(pkg));
+    pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
+    pkg.command   = CMD_MARKET_DEALS;
+    pkg.sequence  = entry->id;
+    pkg.body      = params_str;
+    pkg.body_size = strlen(pkg.body);
+
+    rpc_clt_send(marketprice, &pkg);
+    log_trace("send request to %s, cmd: %u, sequence: %u, params: %s",
+            nw_sock_human_addr(rpc_clt_peer_addr(marketprice)), pkg.command, pkg.sequence, (char *)pkg.body);
+    free(pkg.body);
+
+    return 0;
+}
+
+static int on_method_deals_subscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    return 0;
+}
+
 static int on_method_order_put_limit(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
     if (!info->auth)
         return send_error_require_auth(ses, id);
+    if (json_array_size(params) != 4)
+        return send_error_invalid_argument(ses, id);
+
+    const char *market = json_string_value(json_array_get(params, 0));
+    if (market == NULL)
+        return send_error_invalid_argument(ses, id);
+    int side = json_integer_value(json_array_get(params, 1));
+    if (side == 0)
+        return send_error_invalid_argument(ses, id);
+    const char *amount = json_string_value(json_array_get(params, 2));
+    if (amount == NULL)
+        return send_error_invalid_argument(ses, id);
+    const char *price = json_string_value(json_array_get(params, 3));
+    if (price == NULL)
+        return send_error_invalid_argument(ses, id);
+
+    json_t *trade_params = json_array();
+    json_array_append_new(trade_params, json_integer(info->user_id));
+    json_array_append_new(trade_params, json_string(market));
+    json_array_append_new(trade_params, json_integer(side));
+    json_array_append_new(trade_params, json_string(amount));
+    json_array_append_new(trade_params, json_string(price));
+    json_array_append_new_mpd(trade_params, info->taker_fee);
+    json_array_append_new_mpd(trade_params, info->maker_fee);
+
+    nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
+    struct state_data *state = entry->data;
+    state->ses = ses;
+    state->ses_id = ses->id;
+    state->request_id = id;
+
+    rpc_pkg pkg;
+    memset(&pkg, 0, sizeof(pkg));
+    pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
+    pkg.command   = CMD_ORDER_PUT_LIMIT;
+    pkg.sequence  = entry->id;
+    pkg.body      = json_dumps(trade_params, 0);
+    pkg.body_size = strlen(pkg.body);
+
+    rpc_clt_send(matchengine, &pkg);
+    log_trace("send request to %s, cmd: %u, sequence: %u, params: %s",
+            nw_sock_human_addr(rpc_clt_peer_addr(marketprice)), pkg.command, pkg.sequence, (char *)pkg.body);
+    free(pkg.body);
 
     return 0;
 }
@@ -238,6 +331,45 @@ static int on_method_order_put_market(nw_ses *ses, uint64_t id, struct clt_info 
 {
     if (!info->auth)
         return send_error_require_auth(ses, id);
+    if (json_array_size(params) != 3)
+        return send_error_invalid_argument(ses, id);
+
+    const char *market = json_string_value(json_array_get(params, 0));
+    if (market == NULL)
+        return send_error_invalid_argument(ses, id);
+    int side = json_integer_value(json_array_get(params, 1));
+    if (side == 0)
+        return send_error_invalid_argument(ses, id);
+    const char *amount = json_string_value(json_array_get(params, 2));
+    if (amount == NULL)
+        return send_error_invalid_argument(ses, id);
+
+    json_t *trade_params = json_array();
+    json_array_append_new(trade_params, json_integer(info->user_id));
+    json_array_append_new(trade_params, json_string(market));
+    json_array_append_new(trade_params, json_integer(side));
+    json_array_append_new(trade_params, json_string(amount));
+    json_array_append_new_mpd(trade_params, info->taker_fee);
+    json_array_append_new_mpd(trade_params, info->maker_fee);
+
+    nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
+    struct state_data *state = entry->data;
+    state->ses = ses;
+    state->ses_id = ses->id;
+    state->request_id = id;
+
+    rpc_pkg pkg;
+    memset(&pkg, 0, sizeof(pkg));
+    pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
+    pkg.command   = CMD_ORDER_PUT_MARKET;
+    pkg.sequence  = entry->id;
+    pkg.body      = json_dumps(trade_params, 0);
+    pkg.body_size = strlen(pkg.body);
+
+    rpc_clt_send(matchengine, &pkg);
+    log_trace("send request to %s, cmd: %u, sequence: %u, params: %s",
+            nw_sock_human_addr(rpc_clt_peer_addr(marketprice)), pkg.command, pkg.sequence, (char *)pkg.body);
+    free(pkg.body);
 
     return 0;
 }
@@ -246,6 +378,42 @@ static int on_method_order_query(nw_ses *ses, uint64_t id, struct clt_info *info
 {
     if (!info->auth)
         return send_error_require_auth(ses, id);
+    if (json_array_size(params) != 3) return send_error_invalid_argument(ses, id);
+
+    const char *market = json_string_value(json_array_get(params, 0));
+    if (market == NULL)
+        return send_error_invalid_argument(ses, id);
+    if (!json_is_integer(json_array_get(params, 1)))
+        return send_error_invalid_argument(ses, id);
+    int offset = json_integer_value(json_array_get(params, 1));
+    if (!json_is_integer(json_array_get(params, 2)))
+        return send_error_invalid_argument(ses, id);
+    int limit = json_integer_value(json_array_get(params, 2));
+
+    json_t *trade_params = json_array();
+    json_array_append_new(trade_params, json_integer(info->user_id));
+    json_array_append_new(trade_params, json_string(market));
+    json_array_append_new(trade_params, json_integer(offset));
+    json_array_append_new(trade_params, json_integer(limit));
+
+    nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
+    struct state_data *state = entry->data;
+    state->ses = ses;
+    state->ses_id = ses->id;
+    state->request_id = id;
+
+    rpc_pkg pkg;
+    memset(&pkg, 0, sizeof(pkg));
+    pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
+    pkg.command   = CMD_ORDER_QUERY;
+    pkg.sequence  = entry->id;
+    pkg.body      = json_dumps(trade_params, 0);
+    pkg.body_size = strlen(pkg.body);
+
+    rpc_clt_send(matchengine, &pkg);
+    log_trace("send request to %s, cmd: %u, sequence: %u, params: %s",
+            nw_sock_human_addr(rpc_clt_peer_addr(marketprice)), pkg.command, pkg.sequence, (char *)pkg.body);
+    free(pkg.body);
 
     return 0;
 }
@@ -263,6 +431,29 @@ static int on_method_asset_query(nw_ses *ses, uint64_t id, struct clt_info *info
     if (!info->auth)
         return send_error_require_auth(ses, id);
 
+    json_t *trade_params = json_array();
+    json_array_append_new(trade_params, json_integer(info->user_id));
+    json_array_extend(trade_params, params);
+
+    nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
+    struct state_data *state = entry->data;
+    state->ses = ses;
+    state->ses_id = ses->id;
+    state->request_id = id;
+
+    rpc_pkg pkg;
+    memset(&pkg, 0, sizeof(pkg));
+    pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
+    pkg.command   = CMD_BALANCE_HISTORY;
+    pkg.sequence  = entry->id;
+    pkg.body      = json_dumps(trade_params, 0);
+    pkg.body_size = strlen(pkg.body);
+
+    rpc_clt_send(matchengine, &pkg);
+    log_trace("send request to %s, cmd: %u, sequence: %u, params: %s",
+            nw_sock_human_addr(rpc_clt_peer_addr(marketprice)), pkg.command, pkg.sequence, (char *)pkg.body);
+    free(pkg.body);
+
     return 0;
 }
 
@@ -271,26 +462,6 @@ static int on_method_asset_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
     if (!info->auth)
         return send_error_require_auth(ses, id);
 
-    return 0;
-}
-
-static int on_method_price_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
-{
-    return 0;
-}
-
-static int on_method_price_subscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
-{
-    return 0;
-}
-
-static int on_method_deals_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
-{
-    return 0;
-}
-
-static int on_method_deals_subscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
-{
     return 0;
 }
 

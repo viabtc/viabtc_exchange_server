@@ -6,6 +6,7 @@
 # include "aw_config.h"
 # include "aw_server.h"
 # include "aw_auth.h"
+# include "aw_asset.h"
 
 static ws_svr *svr;
 static rpc_clt *listener;
@@ -108,14 +109,11 @@ int send_success(nw_ses *ses, uint64_t id)
 int send_notify(nw_ses *ses, const char *method, json_t *params)
 {
     json_t *notify = json_object();
-    json_object_set_new(notify, "method", json_string("method"));
+    json_object_set_new(notify, "method", json_string(method));
     json_object_set_new(notify, "params", params);
     json_object_set_new(notify, "id", json_null());
 
-    int ret = send_json(ses, notify);
-    json_decref(notify);
-
-    return ret;
+    return send_json(ses, notify);
 }
 
 static int on_method_server_time(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
@@ -321,8 +319,9 @@ static int on_method_order_put_limit(nw_ses *ses, uint64_t id, struct clt_info *
 
     rpc_clt_send(matchengine, &pkg);
     log_trace("send request to %s, cmd: %u, sequence: %u, params: %s",
-            nw_sock_human_addr(rpc_clt_peer_addr(marketprice)), pkg.command, pkg.sequence, (char *)pkg.body);
+            nw_sock_human_addr(rpc_clt_peer_addr(matchengine)), pkg.command, pkg.sequence, (char *)pkg.body);
     free(pkg.body);
+    json_decref(trade_params);
 
     return 0;
 }
@@ -368,8 +367,9 @@ static int on_method_order_put_market(nw_ses *ses, uint64_t id, struct clt_info 
 
     rpc_clt_send(matchengine, &pkg);
     log_trace("send request to %s, cmd: %u, sequence: %u, params: %s",
-            nw_sock_human_addr(rpc_clt_peer_addr(marketprice)), pkg.command, pkg.sequence, (char *)pkg.body);
+            nw_sock_human_addr(rpc_clt_peer_addr(matchengine)), pkg.command, pkg.sequence, (char *)pkg.body);
     free(pkg.body);
+    json_decref(trade_params);
 
     return 0;
 }
@@ -412,8 +412,9 @@ static int on_method_order_query(nw_ses *ses, uint64_t id, struct clt_info *info
 
     rpc_clt_send(matchengine, &pkg);
     log_trace("send request to %s, cmd: %u, sequence: %u, params: %s",
-            nw_sock_human_addr(rpc_clt_peer_addr(marketprice)), pkg.command, pkg.sequence, (char *)pkg.body);
+            nw_sock_human_addr(rpc_clt_peer_addr(matchengine)), pkg.command, pkg.sequence, (char *)pkg.body);
     free(pkg.body);
+    json_decref(trade_params);
 
     return 0;
 }
@@ -444,15 +445,16 @@ static int on_method_asset_query(nw_ses *ses, uint64_t id, struct clt_info *info
     rpc_pkg pkg;
     memset(&pkg, 0, sizeof(pkg));
     pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
-    pkg.command   = CMD_BALANCE_HISTORY;
+    pkg.command   = CMD_BALANCE_QUERY;
     pkg.sequence  = entry->id;
     pkg.body      = json_dumps(trade_params, 0);
     pkg.body_size = strlen(pkg.body);
 
     rpc_clt_send(matchengine, &pkg);
     log_trace("send request to %s, cmd: %u, sequence: %u, params: %s",
-            nw_sock_human_addr(rpc_clt_peer_addr(marketprice)), pkg.command, pkg.sequence, (char *)pkg.body);
+            nw_sock_human_addr(rpc_clt_peer_addr(matchengine)), pkg.command, pkg.sequence, (char *)pkg.body);
     free(pkg.body);
+    json_decref(trade_params);
 
     return 0;
 }
@@ -462,7 +464,15 @@ static int on_method_asset_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
     if (!info->auth)
         return send_error_require_auth(ses, id);
 
-    return 0;
+    size_t params_size = json_array_size(params);
+    for (size_t i = 0; i < params_size; ++i) {
+        const char *asset = json_string_value(json_array_get(params, i));
+        if (asset == NULL || strlen(asset) >= ASSET_NAME_MAX_LEN)
+            return send_error_require_auth(ses, id);
+        asset_subscribe(info->user_id, ses, asset);
+    }
+
+    return send_success(ses, id);
 }
 
 static int on_message(nw_ses *ses, const char *remote, const char *url, void *message, size_t size)
@@ -558,6 +568,10 @@ static void on_upgrade(nw_ses *ses, const char *remote)
 static void on_close(nw_ses *ses, const char *remote)
 {
     log_trace("remote: %"PRIu64":%s websocket connection close", ses->id, remote);
+    struct clt_info *info = ws_ses_privdata(ses);
+    if (info->auth) {
+        asset_on_ses_close(info->user_id, ses);
+    }
 }
 
 static void *on_privdata_alloc(void *svr)

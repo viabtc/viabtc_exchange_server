@@ -37,6 +37,8 @@
 # include "ut_rpc_cmd.h"
 # include "ut_ws_svr.h"
 
+# define ASSET_NAME_MAX_LEN     7
+
 # define AW_LISTENER_BIND   "seqpacket@/tmp/accessws_listener.sock"
 
 struct settings {

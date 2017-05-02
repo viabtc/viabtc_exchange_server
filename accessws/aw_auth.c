@@ -102,6 +102,7 @@ static void on_result(struct state_data *state, sds token, json_t *result)
     }
 
     info->auth = true;
+    log_info("auth success, token: %s, user_id: %u", token, info->user_id);
     if (state->ses->id == state->ses_id)
         send_success(state->ses, state->request_id);
     return;
@@ -156,7 +157,9 @@ int send_auth_request(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *p
     state->request_id = id;
     state->info = info;
 
+    log_info("send auth request, token: %s", token);
     nw_job_add(job_context, entry->id, sdsnew(token));
+
     return 0;
 }
 

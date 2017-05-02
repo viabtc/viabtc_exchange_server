@@ -613,6 +613,7 @@ int market_put_limit_order(bool real, market_t *m, uint32_t user_id, uint32_t si
             if (ret < 0) {
                 log_fatal("append_order_history fail: %d, order: %"PRIu64"", ret, order->id);
             }
+            push_order_message(ORDER_EVENT_FINISH, order, m);
         }
         order_free(order);
     } else {

@@ -368,7 +368,7 @@ static int execute_limit_ask_order(bool real, market_t *m, order_t *taker)
         uint64_t deal_id = ++deals_id_start;
         if (real) {
             append_order_deal_history(taker->update_time, taker->id, maker->id, MARKET_ROLE_TAKER, MARKET_ROLE_MAKER, amount, price, deal, ask_fee, bid_fee);
-            push_deal_message(taker->update_time, m->name, taker, maker, price, amount, ask_fee, bid_fee, MARKET_ORDER_SIDE_ASK, deal_id);
+            push_deal_message(taker->update_time, m->name, taker, maker, price, amount, ask_fee, bid_fee, MARKET_ORDER_SIDE_ASK, deal_id, m->stock, m->money);
         }
 
         mpd_sub(taker->left, taker->left, amount, &mpd_ctx);
@@ -418,12 +418,12 @@ static int execute_limit_ask_order(bool real, market_t *m, order_t *taker)
 
         if (mpd_cmp(maker->left, mpd_zero, &mpd_ctx) == 0) {
             if (real) {
-                push_order_message(ORDER_EVENT_FINISH, maker);
+                push_order_message(ORDER_EVENT_FINISH, maker, m);
             }
             order_finish(real, m, maker);
         } else {
             if (real) {
-                push_order_message(ORDER_EVENT_UPDATE, maker);
+                push_order_message(ORDER_EVENT_UPDATE, maker, m);
             }
         }
     }
@@ -475,7 +475,7 @@ static int execute_limit_bid_order(bool real, market_t *m, order_t *taker)
         uint64_t deal_id = ++deals_id_start;
         if (real) {
             append_order_deal_history(taker->update_time, maker->id, taker->id, MARKET_ROLE_MAKER, MARKET_ROLE_TAKER, amount, price, deal, ask_fee, bid_fee);
-            push_deal_message(taker->update_time, m->name, maker, taker, price, amount, ask_fee, bid_fee, MARKET_ORDER_SIDE_BID, deal_id);
+            push_deal_message(taker->update_time, m->name, maker, taker, price, amount, ask_fee, bid_fee, MARKET_ORDER_SIDE_BID, deal_id, m->stock, m->money);
         }
 
         mpd_sub(taker->left, taker->left, amount, &mpd_ctx);
@@ -525,12 +525,12 @@ static int execute_limit_bid_order(bool real, market_t *m, order_t *taker)
 
         if (mpd_cmp(maker->left, mpd_zero, &mpd_ctx) == 0) {
             if (real) {
-                push_order_message(ORDER_EVENT_FINISH, maker);
+                push_order_message(ORDER_EVENT_FINISH, maker, m);
             }
             order_finish(real, m, maker);
         } else {
             if (real) {
-                push_order_message(ORDER_EVENT_UPDATE, maker);
+                push_order_message(ORDER_EVENT_UPDATE, maker, m);
             }
         }
     }
@@ -617,7 +617,7 @@ int market_put_limit_order(bool real, market_t *m, uint32_t user_id, uint32_t si
         order_free(order);
     } else {
         if (real) {
-            push_order_message(ORDER_EVENT_PUT, order);
+            push_order_message(ORDER_EVENT_PUT, order, m);
         }
         ret = order_put(m, order);
         if (ret < 0) {
@@ -660,7 +660,7 @@ static int execute_market_ask_order(bool real, market_t *m, order_t *taker)
         uint64_t deal_id = ++deals_id_start;
         if (real) {
             append_order_deal_history(taker->update_time, taker->id, maker->id, MARKET_ROLE_TAKER, MARKET_ROLE_MAKER, amount, price, deal, ask_fee, bid_fee);
-            push_deal_message(taker->update_time, m->name, taker, maker, price, amount, ask_fee, bid_fee, MARKET_ORDER_SIDE_ASK, deal_id);
+            push_deal_message(taker->update_time, m->name, taker, maker, price, amount, ask_fee, bid_fee, MARKET_ORDER_SIDE_ASK, deal_id, m->stock, m->money);
         }
 
         mpd_sub(taker->left, taker->left, amount, &mpd_ctx);
@@ -710,12 +710,12 @@ static int execute_market_ask_order(bool real, market_t *m, order_t *taker)
 
         if (mpd_cmp(maker->left, mpd_zero, &mpd_ctx) == 0) {
             if (real) {
-                push_order_message(ORDER_EVENT_FINISH, maker);
+                push_order_message(ORDER_EVENT_FINISH, maker, m);
             }
             order_finish(real, m, maker);
         } else {
             if (real) {
-                push_order_message(ORDER_EVENT_UPDATE, maker);
+                push_order_message(ORDER_EVENT_UPDATE, maker, m);
             }
         }
     }
@@ -778,7 +778,7 @@ static int execute_market_bid_order(bool real, market_t *m, order_t *taker)
         uint64_t deal_id = ++deals_id_start;
         if (real) {
             append_order_deal_history(taker->update_time, maker->id, taker->id, MARKET_ROLE_MAKER, MARKET_ROLE_TAKER, amount, price, deal, ask_fee, bid_fee);
-            push_deal_message(taker->update_time, m->name, maker, taker, price, amount, ask_fee, bid_fee, MARKET_ORDER_SIDE_BID, deal_id);
+            push_deal_message(taker->update_time, m->name, maker, taker, price, amount, ask_fee, bid_fee, MARKET_ORDER_SIDE_BID, deal_id, m->stock, m->money);
         }
 
         mpd_sub(taker->left, taker->left, deal, &mpd_ctx);
@@ -828,12 +828,12 @@ static int execute_market_bid_order(bool real, market_t *m, order_t *taker)
 
         if (mpd_cmp(maker->left, mpd_zero, &mpd_ctx) == 0) {
             if (real) {
-                push_order_message(ORDER_EVENT_FINISH, maker);
+                push_order_message(ORDER_EVENT_FINISH, maker, m);
             }
             order_finish(real, m, maker);
         } else {
             if (real) {
-                push_order_message(ORDER_EVENT_UPDATE, maker);
+                push_order_message(ORDER_EVENT_UPDATE, maker, m);
             }
         }
     }
@@ -911,7 +911,7 @@ int market_put_market_order(bool real, market_t *m, uint32_t user_id, uint32_t s
         if (ret < 0) {
             log_fatal("append_order_history fail: %d, order: %"PRIu64"", ret, order->id);
         }
-        push_order_message(ORDER_EVENT_FINISH, order);
+        push_order_message(ORDER_EVENT_FINISH, order, m);
     }
 
     order_free(order);
@@ -921,7 +921,7 @@ int market_put_market_order(bool real, market_t *m, uint32_t user_id, uint32_t s
 int market_cancel_order(bool real, market_t *m, order_t *order)
 {
     if (real) {
-        push_order_message(ORDER_EVENT_FINISH, order);
+        push_order_message(ORDER_EVENT_FINISH, order, m);
     }
     order_finish(real, m, order);
     return 0;

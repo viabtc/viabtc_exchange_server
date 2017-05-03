@@ -82,6 +82,10 @@ int init_message(void)
         log_stderr("Set kafka brokers: %s fail: %s", settings.brokers, errstr);
         return -__LINE__;
     }
+    if (rd_kafka_conf_set(conf, "queue.buffering.max.ms", "100", errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
+        log_stderr("Set kafka buffering: %s fail: %s", settings.brokers, errstr);
+        return -__LINE__;
+    }
     rd_kafka_conf_set_log_cb(conf, on_logger);
     rd_kafka_conf_set_dr_msg_cb(conf, on_delivery);
 

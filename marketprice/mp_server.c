@@ -150,7 +150,7 @@ static int on_cmd_market_kline(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 
 static int on_cmd_market_deals(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 {
-    if (json_array_size(params) != 2)
+    if (json_array_size(params) != 3)
         return reply_error_invalid_argument(ses, pkg);
 
     const char *market = json_string_value(json_array_get(params, 0));
@@ -161,7 +161,11 @@ static int on_cmd_market_deals(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     if (limit <= 0 || limit > MARKET_DEALS_MAX)
         return reply_error_invalid_argument(ses, pkg);
 
-    json_t *result = get_market_deals(market, limit);
+    if (!json_is_integer(json_array_get(params, 2)))
+        return reply_error_invalid_argument(ses, pkg);
+    uint64_t last_id = json_integer_value(json_array_get(params, 2));
+
+    json_t *result = get_market_deals(market, limit, last_id);
     if (result == NULL)
         return reply_error_internal_error(ses, pkg);
 

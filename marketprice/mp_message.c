@@ -16,6 +16,7 @@ struct market_info {
     dict_t *day;
     dict_t *update;
     list_t *deals;
+    list_t *deals_json;
     double update_time;
 };
 
@@ -106,6 +107,11 @@ static void list_deals_free(void *val)
     free(val);
 }
 
+static void list_deals_json_free(void *val)
+{
+    json_decref(val);
+}
+
 static int load_market_kline(redisContext *context, sds key, dict_t *dict, time_t start)
 {
     redisReply *reply = redisCmd(context, "HGETALL %s", key);
@@ -120,6 +126,25 @@ static int load_market_kline(redisContext *context, sds key, dict_t *dict, time_
         if (info) {
             dict_add(dict, &timestamp, info);
         }
+    }
+    freeReplyObject(reply);
+
+    return 0;
+}
+
+static int load_market_deals(redisContext *context, sds key, struct market_info *info)
+{
+    redisReply *reply = redisCmd(context, "LRANGE %s 0 %d", key, MARKET_DEALS_MAX - 1);
+    if (reply == NULL) {
+        return -__LINE__;
+    }
+    for (size_t i = 0; i < reply->elements; ++i) {
+        json_t *deal = json_loadb(reply->element[i]->str, reply->element[i]->len, 0, NULL);
+        if (deal == NULL) {
+            freeReplyObject(reply);
+            return -__LINE__;
+        }
+        list_add_node_tail(info->deals_json, deal);
     }
     freeReplyObject(reply);
 
@@ -176,6 +201,14 @@ static int load_market(redisContext *context, struct market_info *info)
     sdsclear(key);
     key = sdscatprintf(key, "k:%s:1d", info->name);
     ret = load_market_kline(context, key, info->day, 0);
+    if (ret < 0) {
+        sdsfree(key);
+        return ret;
+    }
+
+    sdsclear(key);
+    key = sdscatprintf(key, "k:%s:deals", info->name);
+    ret = load_market_deals(context, key, info);
     if (ret < 0) {
         sdsfree(key);
         return ret;
@@ -241,6 +274,12 @@ static struct market_info *create_market(const char *market)
     lt.free = list_deals_free;
     info->deals = list_create(&lt);
     if (info->deals == NULL)
+        return NULL;
+
+    memset(&lt, 0, sizeof(lt));
+    lt.free = list_deals_json_free;
+    info->deals_json = list_create(&lt);
+    if (info->deals_json == NULL)
         return NULL;
 
     sds key = sdsnew(market);
@@ -405,7 +444,10 @@ static int market_update(const char *market, double timestamp, mpd_t *price, mpd
     }
 
     list_add_node_tail(info->deals, json_dumps(deal, 0));
-    json_decref(deal);
+    list_add_node_head(info->deals_json, deal);
+    if (info->deals_json->len > MARKET_DEALS_MAX) {
+        list_del(info->deals_json, list_tail(info->deals_json));
+    }
 
     // update time
     info->update_time = current_timestamp();
@@ -510,7 +552,7 @@ static int flush_deals_list(redisContext *context, const char *market, list_t *l
     free(argvlen);
     freeReplyObject(reply);
 
-    reply = redisCmd(context, "LTRIM m:%s:deals 0 %d", market, MARKET_DEALS_MAX - 1);
+    reply = redisCmd(context, "LTRIM k:%s:deals 0 %d", market, MARKET_DEALS_MAX - 1);
     if (reply) {
         freeReplyObject(reply);
     }
@@ -1101,34 +1143,29 @@ json_t *get_market_kline_week(const char *market, time_t start, time_t end, int 
     return result;
 }
 
-json_t *get_market_deals(const char *market, int limit)
+json_t *get_market_deals(const char *market, int limit, uint64_t last_id)
 {
     struct market_info *info = market_query(market);
     if (info == NULL)
         return NULL;
 
-    redisContext *context = redis_sentinel_connect_master(redis);
-    if (context == NULL)
-        return NULL;
-    redisReply *reply = redisCmd(context, "LRANGE k:%s:deals 0 %d", market, limit - 1);
-    if (reply == NULL) {
-        redisFree(context);
-        return NULL;
-    }
-    redisFree(context);
-
+    int count = 0;
     json_t *result = json_array();
-    for (size_t i = 0; i < reply->elements; ++i) {
-        json_t *deal = json_loadb(reply->element[i]->str, reply->element[i]->len, 0, NULL);
-        if (deal == NULL) {
-            log_error("invalid deal info: %s", reply->element[i]->str);
-            freeReplyObject(reply);
-            json_decref(result);
-            return NULL;
+    list_iter *iter = list_get_iterator(info->deals_json, LIST_START_HEAD);
+    list_node *node;
+    while ((node = list_next(iter)) != NULL) {
+        json_t *deal = node->value;
+        uint64_t id = json_integer_value(json_object_get(deal, "id"));
+        if (id <= last_id) {
+            break;
         }
-        json_array_append_new(result, deal);
+        json_array_append(result, deal);
+        count += 1;
+        if (count == limit) {
+            break;
+        }
     }
-    freeReplyObject(reply);
+    list_release_iterator(iter);
 
     return result;
 }

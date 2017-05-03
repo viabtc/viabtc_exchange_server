@@ -6,6 +6,7 @@
 # include "aw_config.h"
 # include "aw_message.h"
 # include "aw_asset.h"
+# include "aw_order.h"
 
 static kafka_consumer_t *kafka_deals;
 static kafka_consumer_t *kafka_orders;
@@ -18,6 +19,9 @@ static void on_deals_message(sds message, int64_t offset)
 
 static int process_orders_message(json_t *msg)
 {
+    int event = json_integer_value(json_object_get(msg, "event"));
+    if (event == 0)
+        return -__LINE__;
     json_t *order = json_object_get(msg, "order");
     if (order == NULL)
         return -__LINE__;
@@ -29,6 +33,7 @@ static int process_orders_message(json_t *msg)
 
     asset_on_update(user_id, stock);
     asset_on_update(user_id, money);
+    order_on_update(user_id, event, order);
 
     return 0;
 }

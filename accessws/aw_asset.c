@@ -136,6 +136,7 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         }
         break;
     default:
+        log_error("recv unknown command: %u from: %s", pkg->command, nw_sock_human_addr(&ses->peer_addr));
         break;
     }
     

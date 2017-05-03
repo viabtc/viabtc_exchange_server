@@ -256,7 +256,7 @@ static int init_methods_handler(void)
     ERR_RET_LN(add_handler("trade.order_book", matchengine, CMD_ORDER_BOOK));
     ERR_RET_LN(add_handler("trade.pending_order_detail", matchengine, CMD_ORDER_DETAIL));
 
-    ERR_RET_LN(add_handler("trade.order_deals", readhistory, CMD_ORDER_DEALS));
+    ERR_RET_LN(add_handler("trade.order_detail", readhistory, CMD_ORDER_DEALS));
     ERR_RET_LN(add_handler("trade.finished_order", readhistory, CMD_ORDER_HISTORY));
     ERR_RET_LN(add_handler("trade.finished_order_detail", readhistory, CMD_ORDER_DETAIL_FINISHED));
 

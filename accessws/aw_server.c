@@ -8,6 +8,7 @@
 # include "aw_auth.h"
 # include "aw_asset.h"
 # include "aw_order.h"
+# include "aw_deals.h"
 
 static ws_svr *svr;
 static rpc_clt *listener;
@@ -272,7 +273,16 @@ static int on_method_deals_query(nw_ses *ses, uint64_t id, struct clt_info *info
 
 static int on_method_deals_subscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
-    return 0;
+    deals_unsubscribe(ses);
+    size_t params_size = json_array_size(params);
+    for (size_t i = 0; i < params_size; ++i) {
+        const char *market = json_string_value(json_array_get(params, i));
+        if (market == NULL || strlen(market) >= MARKET_NAME_MAX_LEN)
+            return send_error_require_auth(ses, id);
+        deals_subscribe(ses, market);
+    }
+
+    return send_success(ses, id);
 }
 
 static int on_method_order_put_limit(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
@@ -580,6 +590,8 @@ static void on_close(nw_ses *ses, const char *remote)
 {
     log_trace("remote: %"PRIu64":%s websocket connection close", ses->id, remote);
     struct clt_info *info = ws_ses_privdata(ses);
+
+    deals_unsubscribe(ses);
     if (info->auth) {
         order_unsubscribe(info->user_id, ses);
         asset_unsubscribe(info->user_id, ses);

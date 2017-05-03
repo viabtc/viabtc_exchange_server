@@ -55,6 +55,7 @@ struct settings {
     kafka_consumer_cfg  balances;
     double              backend_timeout;
     double              cache_timeout;
+    double              deals_interval;
     int                 worker_num;
     char                *auth_url;
 };

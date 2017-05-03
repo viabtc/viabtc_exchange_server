@@ -8,5 +8,8 @@
 
 int init_deals(void);
 
+int deals_subscribe(nw_ses *ses, const char *market);
+int deals_unsubscribe(nw_ses *ses);
+
 # endif
 

@@ -92,12 +92,8 @@ static int send_asset_notify(struct state_data *state, json_t *params)
 static int on_balance_query_reply(nw_ses *ses, rpc_pkg *pkg, struct state_data *state)
 {
     json_t *reply = json_loadb(pkg->body, pkg->body_size, 0, NULL);
-    if (reply == NULL) {
-        sds hex = hexdump(pkg->body, pkg->body_size);
-        log_error("invalid reply from: %s, cmd: %u, reply: \n%s", nw_sock_human_addr(&ses->peer_addr), pkg->command, hex);
-        sdsfree(hex);
+    if (reply == NULL)
         return -__LINE__;
-    }
 
     json_t *error = json_object_get(reply, "error");
     json_t *result = json_object_get(reply, "result");

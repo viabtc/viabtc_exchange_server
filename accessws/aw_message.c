@@ -8,14 +8,8 @@
 # include "aw_asset.h"
 # include "aw_order.h"
 
-static kafka_consumer_t *kafka_deals;
 static kafka_consumer_t *kafka_orders;
 static kafka_consumer_t *kafka_balances;
-
-static void on_deals_message(sds message, int64_t offset)
-{
-    log_trace("deal message: %s", message);
-}
 
 static int process_orders_message(json_t *msg)
 {
@@ -87,12 +81,6 @@ static void on_balances_message(sds message, int64_t offset)
 
 int init_message(void)
 {
-    settings.deals.offset = RD_KAFKA_OFFSET_END;
-    kafka_deals = kafka_consumer_create(&settings.deals, on_deals_message);
-    if (kafka_deals == NULL) {
-        return -__LINE__;
-    }
-
     settings.orders.offset = RD_KAFKA_OFFSET_END;
     kafka_orders = kafka_consumer_create(&settings.orders, on_orders_message);
     if (kafka_orders == NULL) {

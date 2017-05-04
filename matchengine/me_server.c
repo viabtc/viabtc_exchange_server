@@ -673,7 +673,7 @@ static json_t *get_depth_merge(market_t* market, size_t limit, mpd_t *interval)
 
 static int on_cmd_order_book_depth(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 {
-    if (json_array_size(params) != 2)
+    if (json_array_size(params) != 3)
         return reply_error_invalid_argument(ses, pkg);
 
     // market

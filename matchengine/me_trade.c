@@ -56,6 +56,8 @@ int init_trade(void)
 market_t *get_market(const char *name)
 {
     dict_entry *entry = dict_find(dict_market, name);
-    return entry->val;
+    if (entry)
+        return entry->val;
+    return NULL;
 }
 

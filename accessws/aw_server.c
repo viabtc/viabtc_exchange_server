@@ -228,6 +228,36 @@ static int on_method_depth_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
 
 static int on_method_price_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
+    sds key = sdsempty();
+    char *params_str = json_dumps(params, 0);
+    key = sdscatprintf(key, "%u-%s", CMD_MARKET_STATUS, params_str);
+    int ret = process_cache(ses, key);
+    if (ret > 0) {
+        sdsfree(key);
+        free(params_str);
+        return 0;
+    }
+
+    nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
+    struct state_data *state = entry->data;
+    state->ses = ses;
+    state->ses_id = ses->id;
+    state->request_id = id;
+    state->cache_key = key;
+
+    rpc_pkg pkg;
+    memset(&pkg, 0, sizeof(pkg));
+    pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
+    pkg.command   = CMD_MARKET_STATUS;
+    pkg.sequence  = entry->id;
+    pkg.body      = params_str;
+    pkg.body_size = strlen(pkg.body);
+
+    rpc_clt_send(marketprice, &pkg);
+    log_trace("send request to %s, cmd: %u, sequence: %u, params: %s",
+            nw_sock_human_addr(rpc_clt_peer_addr(marketprice)), pkg.command, pkg.sequence, (char *)pkg.body);
+    free(pkg.body);
+
     return 0;
 }
 

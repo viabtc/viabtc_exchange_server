@@ -132,6 +132,9 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
     }
 
     json_t *error = json_object_get(reply, "error");
+    if (error && !json_is_null(error)) {
+        dict_delete(dict_market, state->market);
+    }
     json_t *result = json_object_get(reply, "result");
     if (error == NULL || !json_is_null(error) || result == NULL) {
         log_error("error reply from: %s, cmd: %u, reply: %s", nw_sock_human_addr(&ses->peer_addr), pkg->command, reply_str);

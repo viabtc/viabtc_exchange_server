@@ -1170,3 +1170,12 @@ json_t *get_market_deals(const char *market, int limit, uint64_t last_id)
     return result;
 }
 
+mpd_t  *get_market_last_price(const char *market)
+{
+    struct market_info *info = market_query(market);
+    if (info == NULL)
+        return NULL;
+
+    return info->last;
+}
+

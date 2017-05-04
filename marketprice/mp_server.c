@@ -156,6 +156,8 @@ static int on_cmd_market_deals(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     const char *market = json_string_value(json_array_get(params, 0));
     if (!market)
         return reply_error_invalid_argument(ses, pkg);
+    if (!market_exist(market))
+        return reply_error_invalid_argument(ses, pkg);
 
     int limit = json_integer_value(json_array_get(params, 1));
     if (limit <= 0 || limit > MARKET_DEALS_MAX)
@@ -168,6 +170,28 @@ static int on_cmd_market_deals(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     json_t *result = get_market_deals(market, limit, last_id);
     if (result == NULL)
         return reply_error_internal_error(ses, pkg);
+
+    return reply_result(ses, pkg, result);
+}
+
+static int on_cmd_market_last(nw_ses *ses, rpc_pkg *pkg, json_t *params)
+{
+    if (json_array_size(params) != 1)
+        return reply_error_invalid_argument(ses, pkg);
+
+    const char *market = json_string_value(json_array_get(params, 0));
+    if (!market)
+        return reply_error_invalid_argument(ses, pkg);
+    if (!market_exist(market))
+        return reply_error_invalid_argument(ses, pkg);
+
+    mpd_t *last = get_market_last_price(market);
+    if (last == NULL)
+        return reply_error_internal_error(ses, pkg);
+
+    char *last_str = mpd_to_sci(last, 0);
+    json_t *result = json_string(last_str);
+    free(last_str);
 
     return reply_result(ses, pkg, result);
 }
@@ -201,6 +225,13 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         ret = on_cmd_market_deals(ses, pkg, params);
         if (ret < 0) {
             log_error("on_cmd_market_deals %s fail: %d", params_str, ret);
+        }
+        break;
+    case CMD_MARKET_LAST:
+        log_debug("from: %s cmd market last, params: %s", nw_sock_human_addr(&ses->peer_addr), params_str);
+        ret = on_cmd_market_last(ses, pkg, params);
+        if (ret < 0) {
+            log_error("on_cmd_market_last %s fail: %d", params_str, ret);
         }
         break;
     default:

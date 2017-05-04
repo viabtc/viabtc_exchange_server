@@ -18,6 +18,7 @@ static rpc_clt *marketprice;
 static rpc_clt *readhistory;
 static nw_state *state_context;
 static nw_cache *privdata_cache;
+static dict_t *method_map;
 static dict_t *backend_cache;
 
 struct state_data {
@@ -31,6 +32,8 @@ struct cache_val {
     sds         data;
     double      time;
 };
+
+typedef int (*on_request_method)(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params);
 
 static int send_json(nw_ses *ses, const json_t *json)
 {
@@ -172,6 +175,7 @@ static int on_method_kline_query(nw_ses *ses, uint64_t id, struct clt_info *info
     pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
     pkg.command   = CMD_MARKET_KLINE;
     pkg.sequence  = entry->id;
+    pkg.req_id    = id;
     pkg.body      = params_str;
     pkg.body_size = strlen(pkg.body);
 
@@ -212,6 +216,7 @@ static int on_method_depth_query(nw_ses *ses, uint64_t id, struct clt_info *info
     pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
     pkg.command   = CMD_ORDER_BOOK_DEPTH;
     pkg.sequence  = entry->id;
+    pkg.req_id    = id;
     pkg.body      = params_str;
     pkg.body_size = strlen(pkg.body);
 
@@ -252,6 +257,7 @@ static int on_method_price_query(nw_ses *ses, uint64_t id, struct clt_info *info
     pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
     pkg.command   = CMD_MARKET_STATUS;
     pkg.sequence  = entry->id;
+    pkg.req_id    = id;
     pkg.body      = params_str;
     pkg.body_size = strlen(pkg.body);
 
@@ -301,6 +307,7 @@ static int on_method_deals_query(nw_ses *ses, uint64_t id, struct clt_info *info
     pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
     pkg.command   = CMD_MARKET_DEALS;
     pkg.sequence  = entry->id;
+    pkg.req_id    = id;
     pkg.body      = params_str;
     pkg.body_size = strlen(pkg.body);
 
@@ -366,6 +373,7 @@ static int on_method_order_put_limit(nw_ses *ses, uint64_t id, struct clt_info *
     pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
     pkg.command   = CMD_ORDER_PUT_LIMIT;
     pkg.sequence  = entry->id;
+    pkg.req_id    = id;
     pkg.body      = json_dumps(trade_params, 0);
     pkg.body_size = strlen(pkg.body);
 
@@ -414,6 +422,7 @@ static int on_method_order_put_market(nw_ses *ses, uint64_t id, struct clt_info 
     pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
     pkg.command   = CMD_ORDER_PUT_MARKET;
     pkg.sequence  = entry->id;
+    pkg.req_id    = id;
     pkg.body      = json_dumps(trade_params, 0);
     pkg.body_size = strlen(pkg.body);
 
@@ -456,6 +465,7 @@ static int on_method_order_cancel(nw_ses *ses, uint64_t id, struct clt_info *inf
     pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
     pkg.command   = CMD_ORDER_CANCEL;
     pkg.sequence  = entry->id;
+    pkg.req_id    = id;
     pkg.body      = json_dumps(trade_params, 0);
     pkg.body_size = strlen(pkg.body);
 
@@ -502,6 +512,7 @@ static int on_method_order_query(nw_ses *ses, uint64_t id, struct clt_info *info
     pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
     pkg.command   = CMD_ORDER_QUERY;
     pkg.sequence  = entry->id;
+    pkg.req_id    = id;
     pkg.body      = json_dumps(trade_params, 0);
     pkg.body_size = strlen(pkg.body);
 
@@ -536,6 +547,7 @@ static int on_method_order_history(nw_ses *ses, uint64_t id, struct clt_info *in
     pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
     pkg.command   = CMD_ORDER_HISTORY;
     pkg.sequence  = entry->id;
+    pkg.req_id    = id;
     pkg.body      = json_dumps(read_params, 0);
     pkg.body_size = strlen(pkg.body);
 
@@ -585,6 +597,7 @@ static int on_method_asset_query(nw_ses *ses, uint64_t id, struct clt_info *info
     pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
     pkg.command   = CMD_BALANCE_QUERY;
     pkg.sequence  = entry->id;
+    pkg.req_id    = id;
     pkg.body      = json_dumps(trade_params, 0);
     pkg.body_size = strlen(pkg.body);
 
@@ -619,6 +632,7 @@ static int on_method_asset_history(nw_ses *ses, uint64_t id, struct clt_info *in
     pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
     pkg.command   = CMD_BALANCE_HISTORY;
     pkg.sequence  = entry->id;
+    pkg.req_id    = id;
     pkg.body      = json_dumps(read_params, 0);
     pkg.body_size = strlen(pkg.body);
 
@@ -673,54 +687,18 @@ static int on_message(nw_ses *ses, const char *remote, const char *url, void *me
     sds _msg = sdsnewlen(message, size);
     log_trace("remote: %"PRIu64":%s message: %s", ses->id, remote, _msg);
 
-    int ret;
     uint64_t _id = json_integer_value(id);
     const char *_method = json_string_value(method);
-    if        (strcmp(_method, "server.time") == 0) {
-        ret = on_method_server_time(ses, _id, info, params);
-    } else if (strcmp(_method, "server.auth") == 0) {
-        ret = on_method_server_auth(ses, _id, info, params);
-    } else if (strcmp(_method, "kline.query") == 0) {
-        ret = on_method_kline_query(ses, _id, info, params);
-    } else if (strcmp(_method, "kline.subscribe") == 0) {
-        ret = on_method_kline_subscribe(ses, _id, info, params);
-    } else if (strcmp(_method, "depth.query") == 0) {
-        ret = on_method_depth_query(ses, _id, info, params);
-    } else if (strcmp(_method, "depth.subscribe") == 0) {
-        ret = on_method_depth_subscribe(ses, _id, info, params);
-    } else if (strcmp(_method, "price.query") == 0) {
-        ret = on_method_price_query(ses, _id, info, params);
-    } else if (strcmp(_method, "price.subscribe") == 0) {
-        ret = on_method_price_subscribe(ses, _id, info, params);
-    } else if (strcmp(_method, "deals.query") == 0) {
-        ret = on_method_deals_query(ses, _id, info, params);
-    } else if (strcmp(_method, "deals.subscribe") == 0) {
-        ret = on_method_deals_subscribe(ses, _id, info, params);
-    } else if (strcmp(_method, "order.put_limit") == 0) {
-        ret = on_method_order_put_limit(ses, _id, info, params);
-    } else if (strcmp(_method, "order.put_market") == 0) {
-        ret = on_method_order_put_market(ses, _id, info, params);
-    } else if (strcmp(_method, "order.cancel") == 0) {
-        ret = on_method_order_cancel(ses, _id, info, params);
-    } else if (strcmp(_method, "order.query") == 0) {
-        ret = on_method_order_query(ses, _id, info, params);
-    } else if (strcmp(_method, "order.history") == 0) {
-        ret = on_method_order_history(ses, _id, info, params);
-    } else if (strcmp(_method, "order.subscribe") == 0) {
-        ret = on_method_order_subscribe(ses, _id, info, params);
-    } else if (strcmp(_method, "asset.query") == 0) {
-        ret = on_method_asset_query(ses, _id, info, params);
-    } else if (strcmp(_method, "asset.history") == 0) {
-        ret = on_method_asset_history(ses, _id, info, params);
-    } else if (strcmp(_method, "asset.subscribe") == 0) {
-        ret = on_method_asset_subscribe(ses, _id, info, params);
+    dict_entry *entry = dict_find(method_map, _method);
+    if (entry) {
+        on_request_method handler = entry->val;
+        int ret = handler(ses, _id, info, params);
+        if (ret < 0) {
+            log_error("remote: %"PRIu64":%s, request fail: %d, request: %s", ses->id, remote, ret, _msg);
+            return -__LINE__;
+        }
     } else {
         log_error("remote: %"PRIu64":%s, unknown method, request: %s", ses->id, remote, _msg);
-    }
-
-    if (ret < 0) {
-        log_error("remote: %"PRIu64":%s, request fail: %d, request: %s", ses->id, remote, ret, _msg);
-        return -__LINE__;
     }
 
     sdsfree(_msg);
@@ -772,7 +750,34 @@ static void on_privdata_free(void *svr, void *privdata)
     nw_cache_free(privdata_cache, privdata);
 }
 
-static int init_websocket_svr(void)
+static uint32_t dict_method_hash_func(const void *key)
+{
+    return dict_generic_hash_function(key, strlen(key));
+}
+
+static int dict_method_key_compare(const void *key1, const void *key2)
+{
+    return strcmp(key1, key2);
+}
+
+static void *dict_method_key_dup(const void *key)
+{
+    return strdup(key);
+}
+
+static void dict_method_key_free(void *key)
+{
+    free(key);
+}
+
+static int add_handler(char *method, on_request_method func)
+{
+    if (dict_add(method_map, method, func) == NULL)
+        return __LINE__;
+    return 0;
+}
+
+static int init_svr(void)
 {
     ws_svr_type type;
     memset(&type, 0, sizeof(type));
@@ -789,6 +794,37 @@ static int init_websocket_svr(void)
     privdata_cache = nw_cache_create(sizeof(struct clt_info));
     if (privdata_cache == NULL)
         return -__LINE__;
+
+    dict_types dt;
+    memset(&dt, 0, sizeof(dt));
+    dt.hash_function = dict_method_hash_func;
+    dt.key_compare = dict_method_key_compare;
+    dt.key_dup = dict_method_key_dup;
+    dt.key_destructor = dict_method_key_free;
+
+    method_map = dict_create(&dt, 64);
+    if (method_map == NULL)
+        return -__LINE__;
+
+    ERR_RET_LN(add_handler("server.time",       on_method_server_time));
+    ERR_RET_LN(add_handler("server.auth",       on_method_server_auth));
+    ERR_RET_LN(add_handler("kline.query",       on_method_kline_query));
+    ERR_RET_LN(add_handler("kline.subscribe",   on_method_kline_subscribe));
+    ERR_RET_LN(add_handler("depth.query",       on_method_depth_query));
+    ERR_RET_LN(add_handler("depth.subscribe",   on_method_depth_subscribe));
+    ERR_RET_LN(add_handler("price.query",       on_method_price_query));
+    ERR_RET_LN(add_handler("price.subscribe",   on_method_price_subscribe));
+    ERR_RET_LN(add_handler("deals.query",       on_method_deals_query));
+    ERR_RET_LN(add_handler("deals.subscribe",   on_method_deals_subscribe));
+    ERR_RET_LN(add_handler("order.put_limit",   on_method_order_put_limit));
+    ERR_RET_LN(add_handler("order.put_market",  on_method_order_put_market));
+    ERR_RET_LN(add_handler("order.cancel",      on_method_order_cancel));
+    ERR_RET_LN(add_handler("order.history",     on_method_order_history));
+    ERR_RET_LN(add_handler("order.query",       on_method_order_query));
+    ERR_RET_LN(add_handler("order.subscribe",   on_method_order_subscribe));
+    ERR_RET_LN(add_handler("asset.query",       on_method_asset_query));
+    ERR_RET_LN(add_handler("asset.history",     on_method_asset_history));
+    ERR_RET_LN(add_handler("asset.subscribe",   on_method_asset_subscribe));
 
     return 0;
 }
@@ -976,7 +1012,7 @@ static int init_listener_clt(void)
 
 int init_server(void)
 {
-    ERR_RET(init_websocket_svr());
+    ERR_RET(init_svr());
     ERR_RET(init_state());
     ERR_RET(init_backend());
     ERR_RET(init_listener_clt());

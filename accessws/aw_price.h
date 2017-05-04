@@ -8,5 +8,8 @@
 
 int init_price(void);
 
+int price_subscribe(nw_ses *ses, const char *market);
+int price_unsubscribe(nw_ses *ses);
+
 # endif
 

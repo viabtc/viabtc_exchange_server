@@ -55,6 +55,7 @@ struct settings {
     double              backend_timeout;
     double              cache_timeout;
     double              deals_interval;
+    double              price_interval;
     int                 worker_num;
     char                *auth_url;
 };

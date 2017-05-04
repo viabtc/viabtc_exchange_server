@@ -68,12 +68,15 @@ static void on_backend_connect(nw_ses *ses, bool result)
     }
 }
 
-static int send_asset_notify(struct state_data *state, json_t *params)
+static int on_balance_query_reply(struct state_data *state, json_t *result)
 {
     void *key = (void *)(uintptr_t)state->user_id;
     dict_entry *entry = dict_find(dict_sub, key);
     if (entry == NULL)
         return 0 ;
+
+    json_t *params = json_array();
+    json_array_append(params, result);
 
     list_t *list = entry->val;
     list_iter *iter = list_get_iterator(list, LIST_START_HEAD);
@@ -85,50 +88,49 @@ static int send_asset_notify(struct state_data *state, json_t *params)
         }
     }
     list_release_iterator(iter);
-
-    return 0;
-}
-
-static int on_balance_query_reply(nw_ses *ses, rpc_pkg *pkg, struct state_data *state)
-{
-    json_t *reply = json_loadb(pkg->body, pkg->body_size, 0, NULL);
-    if (reply == NULL)
-        return -__LINE__;
-
-    json_t *error = json_object_get(reply, "error");
-    json_t *result = json_object_get(reply, "result");
-    if (error == NULL || !json_is_null(error) || result == NULL) {
-        sds reply_str = sdsnewlen(pkg->body, pkg->body_size);
-        log_error("error reply from: %s, cmd: %u, reply: %s", nw_sock_human_addr(&ses->peer_addr), pkg->command, reply_str);
-        sdsfree(reply_str);
-        json_decref(reply);
-        return -__LINE__;
-    }
-
-    json_t *params = json_array();
-    json_array_append(params, result);
-    send_asset_notify(state, params);
     json_decref(params);
-    json_decref(reply);
 
     return 0;
 }
 
 static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
 {
-    log_debug("recv pkg from: %s, cmd: %u, sequence: %u",
-            nw_sock_human_addr(&ses->peer_addr), pkg->command, pkg->sequence);
+    sds reply_str = sdsnewlen(pkg->body, pkg->body_size);
+    log_debug("recv pkg from: %s, cmd: %u, sequence: %u, reply: %s",
+            nw_sock_human_addr(&ses->peer_addr), pkg->command, pkg->sequence, reply_str);
     nw_state_entry *entry = nw_state_get(state_context, pkg->sequence);
-    if (entry == NULL)
+    if (entry == NULL) {
+        sdsfree(reply_str);
         return;
+    }
     struct state_data *state = entry->data;
+
+    json_t *reply = json_loadb(pkg->body, pkg->body_size, 0, NULL);
+    if (reply == NULL) {
+        sds hex = hexdump(pkg->body, pkg->body_size);
+        log_error("invalid reply from: %s, cmd: %u, reply: \n%s", nw_sock_human_addr(&ses->peer_addr), pkg->command, hex);
+        sdsfree(hex);
+        sdsfree(reply_str);
+        nw_state_del(state_context, pkg->sequence);
+        return;
+    }
+
+    json_t *error = json_object_get(reply, "error");
+    json_t *result = json_object_get(reply, "result");
+    if (error == NULL || !json_is_null(error) || result == NULL) {
+        log_error("error reply from: %s, cmd: %u, reply: %s", nw_sock_human_addr(&ses->peer_addr), pkg->command, reply_str);
+        sdsfree(reply_str);
+        json_decref(reply);
+        nw_state_del(state_context, pkg->sequence);
+        return;
+    }
 
     int ret;
     switch (pkg->command) {
     case CMD_BALANCE_QUERY:
-        ret = on_balance_query_reply(ses, pkg, state);
+        ret = on_balance_query_reply(state, result);
         if (ret < 0) {
-            log_error("on_balance_query_reply fail: %d", ret);
+            log_error("on_balance_query_reply fail: %d, reply: %s", ret, reply_str);
         }
         break;
     default:
@@ -136,6 +138,8 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         break;
     }
     
+    sdsfree(reply_str);
+    json_decref(reply);
     nw_state_del(state_context, pkg->sequence);
 }
 

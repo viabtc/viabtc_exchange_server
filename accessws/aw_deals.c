@@ -7,10 +7,10 @@
 # include "aw_deals.h"
 # include "aw_server.h"
 
+static nw_timer timer;
 static dict_t *dict_market;
 static rpc_clt *marketprice;
 static nw_state *state_context;
-static nw_timer timer;
 
 struct state_data {
     char market[MARKET_NAME_MAX_LEN];
@@ -77,64 +77,76 @@ static void on_backend_connect(nw_ses *ses, bool result)
     }
 }
 
-static int on_order_deals_reply(nw_ses *ses, rpc_pkg *pkg, struct state_data *state)
+static int on_order_deals_reply(struct state_data *state, json_t *result)
 {
     dict_entry *entry = dict_find(dict_market, state->market);
     if (entry == NULL)
         return -__LINE__;
     struct market_val *obj = entry->val;
 
-    json_t *reply = json_loadb(pkg->body, pkg->body_size, 0, NULL);
-    if (reply == NULL)
+    if (!json_is_array(result))
         return -__LINE__;
-
-    json_t *error = json_object_get(reply, "error");
-    json_t *result = json_object_get(reply, "result");
-    if (error == NULL || !json_is_null(error) || result == NULL || !json_is_array(result)) {
-        sds reply_str = sdsnewlen(pkg->body, pkg->body_size);
-        log_error("error reply from: %s, cmd: %u, reply: %s", nw_sock_human_addr(&ses->peer_addr), pkg->command, reply_str);
-        sdsfree(reply_str);
-        json_decref(reply);
-        return -__LINE__;
-    }
-
     if (json_array_size(result) > 0) {
         json_t *first = json_array_get(result, 0);
         uint64_t id = json_integer_value(json_object_get(first, "id"));
-        if (id == 0) {
-            json_decref(reply);
+        if (id == 0)
             return -__LINE__;
-        }
         obj->last_id = id;
+
+        json_t *params = json_array();
+        json_array_append_new(params, json_string(state->market));
+        json_array_append(params, result);
 
         dict_iterator *iter = dict_get_iterator(obj->sessions);
         dict_entry *entry;
         while ((entry = dict_next(iter)) != NULL) {
-            send_notify(entry->key, "deals.update", result);
+            send_notify(entry->key, "deals.update", params);
         }
         dict_release_iterator(iter);
+        json_decref(params);
     }
-
-    json_decref(reply);
 
     return 0;
 }
 
 static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
 {
-    log_debug("recv pkg from: %s, cmd: %u, sequence: %u",
-            nw_sock_human_addr(&ses->peer_addr), pkg->command, pkg->sequence);
+    sds reply_str = sdsnewlen(pkg->body, pkg->body_size);
+    log_debug("recv pkg from: %s, cmd: %u, sequence: %u, reply: %s",
+            nw_sock_human_addr(&ses->peer_addr), pkg->command, pkg->sequence, reply_str);
     nw_state_entry *entry = nw_state_get(state_context, pkg->sequence);
-    if (entry == NULL)
+    if (entry == NULL) {
+        sdsfree(reply_str);
         return;
+    }
     struct state_data *state = entry->data;
+
+    json_t *reply = json_loadb(pkg->body, pkg->body_size, 0, NULL);
+    if (reply == NULL) {
+        sds hex = hexdump(pkg->body, pkg->body_size);
+        log_error("invalid reply from: %s, cmd: %u, reply: \n%s", nw_sock_human_addr(&ses->peer_addr), pkg->command, hex);
+        sdsfree(hex);
+        sdsfree(reply_str);
+        nw_state_del(state_context, pkg->sequence);
+        return;
+    }
+
+    json_t *error = json_object_get(reply, "error");
+    json_t *result = json_object_get(reply, "result");
+    if (error == NULL || !json_is_null(error) || result == NULL) {
+        log_error("error reply from: %s, cmd: %u, reply: %s", nw_sock_human_addr(&ses->peer_addr), pkg->command, reply_str);
+        sdsfree(reply_str);
+        json_decref(reply);
+        nw_state_del(state_context, pkg->sequence);
+        return;
+    }
 
     int ret;
     switch (pkg->command) {
     case CMD_MARKET_DEALS:
-        ret = on_order_deals_reply(ses, pkg, state);
+        ret = on_order_deals_reply(state, result);
         if (ret < 0) {
-            log_error("on_order_deals_reply fail: %d", ret);
+            log_error("on_order_deals_reply fail: %d, reply: %s", ret, reply_str);
         }
         break;
     default:
@@ -142,6 +154,8 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         break;
     }
     
+    sdsfree(reply_str);
+    json_decref(reply);
     nw_state_del(state_context, pkg->sequence);
 }
 

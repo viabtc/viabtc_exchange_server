@@ -56,12 +56,15 @@ static int read_config_from_json(json_t *root)
         return -__LINE__;
     }
 
-    ERR_RET(read_cfg_real(root, "backend_timeout", &settings.backend_timeout, false, 1.0));
-    ERR_RET(read_cfg_real(root, "cache_timeout", &settings.cache_timeout, false, 0.1));
-    ERR_RET(read_cfg_real(root, "deals_interval", &settings.deals_interval, false, 0.1));
-    ERR_RET(read_cfg_real(root, "price_interval", &settings.price_interval, false, 0.1));
     ERR_RET(read_cfg_int(root, "worker_num", &settings.worker_num, false, 1));
     ERR_RET(read_cfg_str(root, "auth_url", &settings.auth_url, NULL));
+    ERR_RET(read_cfg_real(root, "backend_timeout", &settings.backend_timeout, false, 1.0));
+    ERR_RET(read_cfg_real(root, "cache_timeout", &settings.cache_timeout, false, 0.1));
+
+    ERR_RET(read_cfg_real(root, "deals_interval", &settings.deals_interval, false, 0.1));
+    ERR_RET(read_cfg_real(root, "price_interval", &settings.price_interval, false, 0.1));
+    ERR_RET(read_cfg_real(root, "kline_interval", &settings.kline_interval, false, 0.5));
+    ERR_RET(read_cfg_real(root, "depth_interval", &settings.depth_interval, false, 0.5));
 
     return 0;
 }

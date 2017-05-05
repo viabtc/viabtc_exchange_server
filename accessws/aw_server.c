@@ -10,6 +10,7 @@
 # include "aw_order.h"
 # include "aw_deals.h"
 # include "aw_price.h"
+# include "aw_kline.h"
 
 static ws_svr *svr;
 static rpc_clt *listener;
@@ -189,7 +190,17 @@ static int on_method_kline_query(nw_ses *ses, uint64_t id, struct clt_info *info
 
 static int on_method_kline_subscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
-    return 0;
+    if (json_array_size(params) != 2)
+        return send_error_invalid_argument(ses, id);
+
+    const char *market = json_string_value(json_array_get(params, 0));
+    int interval = json_integer_value(json_array_get(params, 1));
+    if (market == NULL || interval <= 0)
+        return send_error_invalid_argument(ses, id);
+
+    kline_unsubscribe(ses);
+    kline_subscribe(ses, market, interval);
+    return send_success(ses, id);
 }
 
 static int on_method_depth_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
@@ -276,7 +287,7 @@ static int on_method_price_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
     for (size_t i = 0; i < params_size; ++i) {
         const char *market = json_string_value(json_array_get(params, i));
         if (market == NULL || strlen(market) >= MARKET_NAME_MAX_LEN)
-            return send_error_require_auth(ses, id);
+            return send_error_invalid_argument(ses, id);
         price_subscribe(ses, market);
     }
 
@@ -726,8 +737,10 @@ static void on_close(nw_ses *ses, const char *remote)
     log_trace("remote: %"PRIu64":%s websocket connection close", ses->id, remote);
     struct clt_info *info = ws_ses_privdata(ses);
 
+    kline_unsubscribe(ses);
     price_unsubscribe(ses);
     deals_unsubscribe(ses);
+
     if (info->auth) {
         order_unsubscribe(info->user_id, ses);
         asset_unsubscribe(info->user_id, ses);

@@ -52,12 +52,16 @@ struct settings {
     rpc_clt_cfg         readhistory;
     kafka_consumer_cfg  orders;
     kafka_consumer_cfg  balances;
-    double              backend_timeout;
-    double              cache_timeout;
-    double              deals_interval;
-    double              price_interval;
+
     int                 worker_num;
     char                *auth_url;
+    double              backend_timeout;
+    double              cache_timeout;
+
+    double              deals_interval;
+    double              price_interval;
+    double              kline_interval;
+    double              depth_interval;
 };
 
 extern struct settings settings;

@@ -66,6 +66,8 @@ static int read_config_from_json(json_t *root)
     ERR_RET(read_cfg_real(root, "kline_interval", &settings.kline_interval, false, 0.5));
     ERR_RET(read_cfg_real(root, "depth_interval", &settings.depth_interval, false, 0.5));
 
+    ERR_RET(read_cfg_int(root, "depth_subscribe_max", &settings.depth_subscribe_max, false, 100));
+
     return 0;
 }
 

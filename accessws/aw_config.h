@@ -39,6 +39,7 @@
 
 # define ASSET_NAME_MAX_LEN     8
 # define MARKET_NAME_MAX_LEN    16
+# define INTERVAL_MAX_LEN       10
 
 # define AW_LISTENER_BIND   "seqpacket@/tmp/accessws_listener.sock"
 
@@ -62,6 +63,8 @@ struct settings {
     double              price_interval;
     double              kline_interval;
     double              depth_interval;
+
+    int                 depth_subscribe_max;
 };
 
 extern struct settings settings;

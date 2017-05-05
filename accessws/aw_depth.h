@@ -8,5 +8,8 @@
 
 int init_depth(void);
 
+int depth_subscribe(nw_ses *ses, const char *market, uint32_t limit, const char *interval);
+int depth_unsubscribe(nw_ses *ses);
+
 # endif
 

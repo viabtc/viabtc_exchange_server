@@ -6,11 +6,12 @@
 # include "aw_config.h"
 # include "aw_server.h"
 # include "aw_auth.h"
-# include "aw_asset.h"
-# include "aw_order.h"
-# include "aw_deals.h"
-# include "aw_price.h"
 # include "aw_kline.h"
+# include "aw_depth.h"
+# include "aw_price.h"
+# include "aw_deals.h"
+# include "aw_order.h"
+# include "aw_asset.h"
 
 static ws_svr *svr;
 static rpc_clt *listener;
@@ -195,11 +196,13 @@ static int on_method_kline_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
 
     const char *market = json_string_value(json_array_get(params, 0));
     int interval = json_integer_value(json_array_get(params, 1));
-    if (market == NULL || interval <= 0)
+    if (market == NULL || strlen(market) >= MARKET_NAME_MAX_LEN || interval <= 0)
         return send_error_invalid_argument(ses, id);
 
     kline_unsubscribe(ses);
-    kline_subscribe(ses, market, interval);
+    if (kline_subscribe(ses, market, interval) < 0)
+        return send_error_internal_error(ses, id);
+
     return send_success(ses, id);
 }
 
@@ -231,9 +234,9 @@ static int on_method_depth_query(nw_ses *ses, uint64_t id, struct clt_info *info
     pkg.body      = params_str;
     pkg.body_size = strlen(pkg.body);
 
-    rpc_clt_send(marketprice, &pkg);
+    rpc_clt_send(matchengine, &pkg);
     log_trace("send request to %s, cmd: %u, sequence: %u, params: %s",
-            nw_sock_human_addr(rpc_clt_peer_addr(marketprice)), pkg.command, pkg.sequence, (char *)pkg.body);
+            nw_sock_human_addr(rpc_clt_peer_addr(matchengine)), pkg.command, pkg.sequence, (char *)pkg.body);
     free(pkg.body);
 
     return 0;
@@ -241,7 +244,20 @@ static int on_method_depth_query(nw_ses *ses, uint64_t id, struct clt_info *info
 
 static int on_method_depth_subscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
-    return 0;
+    if (json_array_size(params) != 3)
+        return send_error_invalid_argument(ses, id);
+
+    const char *market = json_string_value(json_array_get(params, 0));
+    int limit = json_integer_value(json_array_get(params, 1));
+    const char *interval = json_string_value(json_array_get(params, 2));
+    if (market == NULL || strlen(market) >= MARKET_NAME_MAX_LEN || limit <= 0 || interval == NULL || strlen(interval) >= INTERVAL_MAX_LEN)
+        return send_error_invalid_argument(ses, id);
+
+    depth_unsubscribe(ses);
+    if (depth_subscribe(ses, market, limit, interval) < 0)
+        return send_error_internal_error(ses, id);
+
+    return send_success(ses, id);
 }
 
 static int on_method_price_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
@@ -288,7 +304,8 @@ static int on_method_price_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
         const char *market = json_string_value(json_array_get(params, i));
         if (market == NULL || strlen(market) >= MARKET_NAME_MAX_LEN)
             return send_error_invalid_argument(ses, id);
-        price_subscribe(ses, market);
+        if (price_subscribe(ses, market) < 0)
+            return send_error_internal_error(ses, id);
     }
 
     return send_success(ses, id);
@@ -338,7 +355,8 @@ static int on_method_deals_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
         const char *market = json_string_value(json_array_get(params, i));
         if (market == NULL || strlen(market) >= MARKET_NAME_MAX_LEN)
             return send_error_require_auth(ses, id);
-        deals_subscribe(ses, market);
+        if (deals_subscribe(ses, market) < 0)
+            return send_error_internal_error(ses, id);
     }
 
     return send_success(ses, id);
@@ -581,7 +599,8 @@ static int on_method_order_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
         const char *market = json_string_value(json_array_get(params, i));
         if (market == NULL || strlen(market) >= MARKET_NAME_MAX_LEN)
             return send_error_require_auth(ses, id);
-        order_subscribe(info->user_id, ses, market);
+        if (order_subscribe(info->user_id, ses, market) < 0)
+            return send_error_internal_error(ses, id);
     }
 
     return send_success(ses, id);
@@ -666,7 +685,8 @@ static int on_method_asset_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
         const char *asset = json_string_value(json_array_get(params, i));
         if (asset == NULL || strlen(asset) >= ASSET_NAME_MAX_LEN)
             return send_error_require_auth(ses, id);
-        asset_subscribe(info->user_id, ses, asset);
+        if (asset_subscribe(info->user_id, ses, asset) < 0)
+            return send_error_internal_error(ses, id);
     }
 
     return send_success(ses, id);
@@ -735,12 +755,13 @@ static void on_upgrade(nw_ses *ses, const char *remote)
 static void on_close(nw_ses *ses, const char *remote)
 {
     log_trace("remote: %"PRIu64":%s websocket connection close", ses->id, remote);
-    struct clt_info *info = ws_ses_privdata(ses);
 
     kline_unsubscribe(ses);
+    depth_unsubscribe(ses);
     price_unsubscribe(ses);
     deals_unsubscribe(ses);
 
+    struct clt_info *info = ws_ses_privdata(ses);
     if (info->auth) {
         order_unsubscribe(info->user_id, ses);
         asset_unsubscribe(info->user_id, ses);

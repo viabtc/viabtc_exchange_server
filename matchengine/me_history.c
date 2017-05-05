@@ -58,7 +58,7 @@ static void on_job(nw_job_entry *entry, void *privdata)
     log_trace("exec sql: %s", sql);
     while (true) {
         int ret = mysql_real_query(conn, sql, sdslen(sql));
-        if (ret != 0) {
+        if (ret != 0 || ret != 1062) {
             log_error("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
             usleep(1000 * 1000);
             continue;

@@ -202,14 +202,16 @@ static json_t *get_depth_diff(json_t *first, json_t *second, uint32_t limit)
     return diff;
 }
 
-static int broadcast_update(dict_t *sessions, json_t *result)
+static int broadcast_update(dict_t *sessions, bool clean, json_t *result)
 {
     json_t *params = json_array();
+    json_array_append_new(params, json_boolean(clean));
     json_array_append(params, result);
+
     dict_iterator *iter = dict_get_iterator(sessions);
     dict_entry *entry;
     while ((entry = dict_next(iter)) != NULL) {
-        send_notify(entry->key, "kline.update", params);
+        send_notify(entry->key, "depth.update", params);
     }
     dict_release_iterator(iter);
     json_decref(params);
@@ -227,7 +229,7 @@ static int on_market_depth_reply(struct state_data *state, json_t *result)
     if (val->last == NULL) {
         val->last = result;
         json_incref(result);
-        return broadcast_update(val->sessions, result);
+        return broadcast_update(val->sessions, true, result);
     }
 
     json_t *diff = get_depth_diff(val->last, result, key->limit);
@@ -237,7 +239,7 @@ static int on_market_depth_reply(struct state_data *state, json_t *result)
 
     val->last = result;
     json_incref(result);
-    broadcast_update(val->sessions, diff);
+    broadcast_update(val->sessions, false, diff);
     json_decref(diff);
 
     return 0;
@@ -421,6 +423,30 @@ int depth_unsubscribe(nw_ses *ses)
         }
     }
     dict_release_iterator(iter);
+
+    return 0;
+}
+
+int send_clean_depth(nw_ses *ses, const char *market, uint32_t limit, const char *interval)
+{
+    struct depth_key key;
+    memset(&key, 0, sizeof(key));
+    strncpy(key.market, market, MARKET_NAME_MAX_LEN - 1);
+    strncpy(key.interval, interval, INTERVAL_MAX_LEN - 1);
+    key.limit = limit;
+
+    dict_entry *entry = dict_find(dict_depth, &key);
+    if (entry == NULL)
+        return 0;
+
+    struct depth_val *obj = entry->val;
+    if (obj->last) {
+        json_t *params = json_array();
+        json_array_append_new(params, json_boolean(true));
+        json_array_append(params, obj->last);
+        send_notify(ses, "depth.update", params);
+        json_decref(params);
+    }
 
     return 0;
 }

@@ -257,7 +257,9 @@ static int on_method_depth_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
     if (depth_subscribe(ses, market, limit, interval) < 0)
         return send_error_internal_error(ses, id);
 
-    return send_success(ses, id);
+    send_success(ses, id);
+    send_clean_depth(ses, market, limit, interval);
+    return 0;
 }
 
 static int on_method_price_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)

@@ -100,7 +100,10 @@ static int kline_compare(json_t *first, json_t *second)
 {
     char *first_str = json_dumps(first, 0);
     char *second_str = json_dumps(second, 0);
-    return strcmp(first_str, second_str);
+    int cmp = strcmp(first_str, second_str);
+    free(first_str);
+    free(second_str);
+    return cmp;
 }
 
 static int on_market_kline_reply(struct state_data *state, json_t *result)

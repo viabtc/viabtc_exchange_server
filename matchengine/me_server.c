@@ -412,7 +412,7 @@ static int on_cmd_order_query(nw_ses *ses, rpc_pkg *pkg, json_t *params)
         list_release_iterator(iter);
     }
 
-    json_object_set_new(result, "orders", orders);
+    json_object_set_new(result, "records", orders);
     return reply_result(ses, pkg, result);
 }
 

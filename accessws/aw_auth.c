@@ -144,11 +144,15 @@ int send_auth_request(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *p
 {
     if (info->auth)
         return send_error(ses, id, 10, "authenticated");
-    if (json_array_size(params) != 1)
+    if (json_array_size(params) != 2)
         return send_error_invalid_argument(ses, id);
     const char *token = json_string_value(json_array_get(params, 0));
     if (token == NULL)
         return send_error_invalid_argument(ses, id);
+    const char *source = json_string_value(json_array_get(params, 2));
+    if (source == NULL || strlen(source) >= SOURCE_MAX_LEN)
+        return send_error_invalid_argument(ses, id);
+    info->source = strdup(source);
 
     nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
     struct state_data *state = entry->data;

@@ -8,7 +8,7 @@
 
 # include "me_market.h"
 
-# define HISTORY_HASH_NUM   1000
+# define HISTORY_HASH_NUM   100
 
 int init_history(void);
 int fini_history(void);

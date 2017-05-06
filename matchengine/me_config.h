@@ -38,6 +38,7 @@
 
 # define ASSET_NAME_MAX_LEN     7
 # define BUSINESS_NAME_MAX_LEN  15
+# define SOURCE_MAX_LEN         31
 
 # define ORDER_BOOK_MAX_LEN     100
 # define ORDER_LIST_MAX_LEN     100

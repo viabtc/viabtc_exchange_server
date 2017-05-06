@@ -191,8 +191,10 @@ static int on_cmd_balance_update(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 
     // detail
     json_t *detail = json_array_get(params, 5);
-    if (!json_is_object(detail))
+    if (!json_is_object(detail)) {
+        mpd_del(change);
         return reply_error_invalid_argument(ses, pkg);
+    }
 
     int ret = update_user_balance(true, user_id, asset, business, business_id, change, detail);
     mpd_del(change);
@@ -210,7 +212,7 @@ static int on_cmd_balance_update(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 
 static int on_cmd_order_put_limit(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 {
-    if (json_array_size(params) != 7)
+    if (json_array_size(params) != 8)
         return reply_error_invalid_argument(ses, pkg);
 
     // user_id
@@ -266,11 +268,20 @@ static int on_cmd_order_put_limit(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     if (maker_fee == NULL || mpd_cmp(maker_fee, mpd_zero, &mpd_ctx) < 0 || mpd_cmp(maker_fee, mpd_one, &mpd_ctx) >= 0)
         goto invalid_argument;
 
-    int ret = market_put_limit_order(true, market, user_id, side, amount, price, taker_fee, maker_fee);
+    // source
+    if (!json_is_string(json_array_get(params, 7)))
+        goto invalid_argument;
+    const char *source = json_string_value(json_array_get(params, 7));
+    if (strlen(source) >= SOURCE_MAX_LEN)
+        goto invalid_argument;
+
+    int ret = market_put_limit_order(true, market, user_id, side, amount, price, taker_fee, maker_fee, source);
+
     mpd_del(amount);
     mpd_del(price);
     mpd_del(taker_fee);
     mpd_del(maker_fee);
+
     if (ret == -1) {
         return reply_error(ses, pkg, 10, "balance not enough");
     } else if (ret < 0) {
@@ -296,7 +307,7 @@ invalid_argument:
 
 static int on_cmd_order_put_market(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 {
-    if (json_array_size(params) != 5)
+    if (json_array_size(params) != 6)
         return reply_error_invalid_argument(ses, pkg);
 
     // user_id
@@ -336,9 +347,18 @@ static int on_cmd_order_put_market(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     if (taker_fee == NULL || mpd_cmp(taker_fee, mpd_zero, &mpd_ctx) < 0 || mpd_cmp(taker_fee, mpd_one, &mpd_ctx) >= 0)
         goto invalid_argument;
 
-    int ret = market_put_market_order(true, market, user_id, side, amount, taker_fee);
+    // source
+    if (!json_is_string(json_array_get(params, 7)))
+        goto invalid_argument;
+    const char *source = json_string_value(json_array_get(params, 7));
+    if (strlen(source) >= SOURCE_MAX_LEN)
+        goto invalid_argument;
+
+    int ret = market_put_market_order(true, market, user_id, side, amount, taker_fee, source);
+
     mpd_del(amount);
     mpd_del(taker_fee);
+
     if (ret == -1) {
         return reply_error(ses, pkg, 10, "balance not enough");
     } else if (ret < 0) {
@@ -715,9 +735,9 @@ static int on_cmd_order_detail(nw_ses *ses, rpc_pkg *pkg, json_t *params)
         return reply_error_invalid_argument(ses, pkg);
 
     // order_id
-    if (!json_is_integer(json_array_get(params, 2)))
+    if (!json_is_integer(json_array_get(params, 1)))
         return reply_error_invalid_argument(ses, pkg);
-    uint64_t order_id = json_integer_value(json_array_get(params, 2));
+    uint64_t order_id = json_integer_value(json_array_get(params, 1));
 
     order_t *order = market_get_order(market, order_id);
     if (order == NULL) {

@@ -8,7 +8,7 @@
 
 # include "rh_config.h"
 
-# define HISTORY_HASH_NUM   1000
+# define HISTORY_HASH_NUM   100
 
 size_t get_user_balance_history_count(MYSQL *conn, uint32_t user_id, const char *asset, const char *business, uint64_t start_time, uint64_t end_time);
 json_t *get_user_balance_history(MYSQL *conn, uint32_t user_id,

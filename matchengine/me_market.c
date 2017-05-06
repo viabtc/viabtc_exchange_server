@@ -127,6 +127,7 @@ static void order_free(order_t *order)
     mpd_del(order->deal_money);
     mpd_del(order->deal_fee);
     free(order->market);
+    free(order->source);
     free(order);
 }
 
@@ -135,6 +136,7 @@ json_t *get_order_info(order_t *order)
     json_t *info = json_object();
     json_object_set_new(info, "id", json_integer(order->id));
     json_object_set_new(info, "market", json_string(order->market));
+    json_object_set_new(info, "source", json_string(order->source));
     json_object_set_new(info, "type", json_integer(order->type));
     json_object_set_new(info, "side", json_integer(order->side));
     json_object_set_new(info, "user", json_integer(order->user_id));
@@ -546,7 +548,7 @@ static int execute_limit_bid_order(bool real, market_t *m, order_t *taker)
     return 0;
 }
 
-int market_put_limit_order(bool real, market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *price, mpd_t *taker_fee, mpd_t *maker_fee)
+int market_put_limit_order(bool real, market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *price, mpd_t *taker_fee, mpd_t *maker_fee, const char *source)
 {
     if (side == MARKET_ORDER_SIDE_ASK) {
         mpd_t *balance = balance_get(user_id, BALANCE_TYPE_AVAILABLE, m->stock);
@@ -575,6 +577,7 @@ int market_put_limit_order(bool real, market_t *m, uint32_t user_id, uint32_t si
     order->create_time  = current_timestamp();
     order->update_time  = order->create_time;
     order->market       = strdup(m->name);
+    order->source       = strdup(source);
     order->user_id      = user_id;
     order->price        = mpd_new(&mpd_ctx);
     order->amount       = mpd_new(&mpd_ctx);
@@ -850,7 +853,7 @@ static int execute_market_bid_order(bool real, market_t *m, order_t *taker)
     return 0;
 }
 
-int market_put_market_order(bool real, market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *taker_fee)
+int market_put_market_order(bool real, market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *taker_fee, const char *source)
 {
     if (side == MARKET_ORDER_SIDE_ASK) {
         mpd_t *balance = balance_get(user_id, BALANCE_TYPE_AVAILABLE, m->stock);
@@ -875,6 +878,7 @@ int market_put_market_order(bool real, market_t *m, uint32_t user_id, uint32_t s
     order->create_time  = current_timestamp();
     order->update_time  = order->create_time;
     order->market       = strdup(m->name);
+    order->source       = strdup(source);
     order->user_id      = user_id;
     order->price        = mpd_new(&mpd_ctx);
     order->amount       = mpd_new(&mpd_ctx);

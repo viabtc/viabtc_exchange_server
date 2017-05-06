@@ -392,6 +392,7 @@ static int on_method_order_put_limit(nw_ses *ses, uint64_t id, struct clt_info *
     json_array_append_new(trade_params, json_string(price));
     json_array_append_new_mpd(trade_params, info->taker_fee);
     json_array_append_new_mpd(trade_params, info->maker_fee);
+    json_array_append_new(trade_params, json_string(info->source));
 
     nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
     struct state_data *state = entry->data;
@@ -440,6 +441,7 @@ static int on_method_order_put_market(nw_ses *ses, uint64_t id, struct clt_info 
     json_array_append_new(trade_params, json_integer(side));
     json_array_append_new(trade_params, json_string(amount));
     json_array_append_new_mpd(trade_params, info->taker_fee);
+    json_array_append_new(trade_params, json_string(info->source));
 
     nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
     struct state_data *state = entry->data;
@@ -778,6 +780,8 @@ static void *on_privdata_alloc(void *svr)
 static void on_privdata_free(void *svr, void *privdata)
 {
     struct clt_info *info = privdata;
+    if (info->source)
+        free(info->source);
     if (info->taker_fee)
         mpd_del(info->taker_fee);
     if (info->maker_fee)

@@ -400,7 +400,7 @@ int make_slice(time_t timestamp)
 static void on_timer(nw_timer *timer, void *privdata)
 {
     time_t now = time(NULL);
-    if (now - last_slice_time >= settings.slice_interval) {
+    if ((now - last_slice_time) >= settings.slice_interval && (now % settings.slice_interval) <= 5) {
         make_slice(now);
         last_slice_time = now;
     }
@@ -408,7 +408,7 @@ static void on_timer(nw_timer *timer, void *privdata)
 
 int init_persist(void)
 {
-    nw_timer_set(&timer, 60, true, on_timer, NULL);
+    nw_timer_set(&timer, 1.0, true, on_timer, NULL);
     nw_timer_start(&timer);
 
     return 0;

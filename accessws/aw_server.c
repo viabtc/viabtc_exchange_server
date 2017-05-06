@@ -921,11 +921,11 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         ws_send_text(state->ses, message);
         sdsfree(message);
     }
-    if (state->cache_key && dict_find(backend_cache, state->cache_key) == NULL) {
+    if (state->cache_key) {
         struct cache_val val;
         val.data = sdsnewlen(pkg->body, pkg->body_size);
         val.time = current_timestamp();
-        dict_add(backend_cache, state->cache_key, &val);
+        dict_replace(backend_cache, state->cache_key, &val);
         state->cache_key = NULL;
     }
     nw_state_del(state_context, pkg->sequence);

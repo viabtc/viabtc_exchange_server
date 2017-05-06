@@ -36,6 +36,9 @@
             "prec": 8
         }, {
             "name": "BTC",
+            "prec": 12
+        }, {
+            "name": "ETH",
             "prec": 8
         }
     ],
@@ -49,6 +52,26 @@
             "money": {
                 "name": "CNY",
                 "prec": 2
+            }
+        }, {
+            "name": "ETHCNY",
+            "stock": {
+                "name": "ETH",
+                "prec": 4
+            },
+            "money": {
+                "name": "CNY",
+                "prec": 2
+            }
+        }, {
+            "name": "ETHBTC",
+            "stock": {
+                "name": "ETH",
+                "prec": 4
+            },
+            "money": {
+                "name": "BTC",
+                "prec": 8
             }
         }
     ],

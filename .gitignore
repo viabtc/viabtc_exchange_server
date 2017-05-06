@@ -37,3 +37,6 @@ core*
 *.txt
 *.log
 tags
+
+# Python
+*.pyc

@@ -427,7 +427,7 @@ int depth_unsubscribe(nw_ses *ses)
     return 0;
 }
 
-int send_clean_depth(nw_ses *ses, const char *market, uint32_t limit, const char *interval)
+int depth_send_clean(nw_ses *ses, const char *market, uint32_t limit, const char *interval)
 {
     struct depth_key key;
     memset(&key, 0, sizeof(key));

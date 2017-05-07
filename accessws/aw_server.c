@@ -258,7 +258,7 @@ static int on_method_depth_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
         return send_error_internal_error(ses, id);
 
     send_success(ses, id);
-    send_clean_depth(ses, market, limit, interval);
+    depth_send_clean(ses, market, limit, interval);
     return 0;
 }
 

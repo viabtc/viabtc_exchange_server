@@ -348,9 +348,9 @@ static int on_cmd_order_put_market(nw_ses *ses, rpc_pkg *pkg, json_t *params)
         goto invalid_argument;
 
     // source
-    if (!json_is_string(json_array_get(params, 7)))
+    if (!json_is_string(json_array_get(params, 5)))
         goto invalid_argument;
-    const char *source = json_string_value(json_array_get(params, 7));
+    const char *source = json_string_value(json_array_get(params, 5));
     if (strlen(source) >= SOURCE_MAX_LEN)
         goto invalid_argument;
 

@@ -305,29 +305,49 @@ market_t *market_create(struct market *conf)
     return m;
 }
 
-static int append_balance_trade_add(order_t *order, const char *asset, const char *business, mpd_t *change, mpd_t *price, mpd_t *amount)
+static int append_balance_trade_add(order_t *order, const char *asset, mpd_t *change, mpd_t *price, mpd_t *amount)
 {
     json_t *detail = json_object();
+    json_object_set_new(detail, "m", json_string(order->market));
     json_object_set_new(detail, "i", json_integer(order->id));
     json_object_set_new_mpd(detail, "p", price);
-    json_object_set_new_mpd(detail, "m", amount);
+    json_object_set_new_mpd(detail, "a", amount);
     char *detail_str = json_dumps(detail, 0);
-    int ret = append_user_balance_history(order->update_time, order->user_id, asset, business, change, detail_str);
+    int ret = append_user_balance_history(order->update_time, order->user_id, asset, "trade", change, detail_str);
     free(detail_str);
     json_decref(detail);
     return ret;
 }
 
-static int append_balance_trade_sub(order_t *order, const char *asset, const char *business, mpd_t *change, mpd_t *price, mpd_t *amount)
+static int append_balance_trade_sub(order_t *order, const char *asset, mpd_t *change, mpd_t *price, mpd_t *amount)
 {
     json_t *detail = json_object();
+    json_object_set_new(detail, "m", json_string(order->market));
     json_object_set_new(detail, "i", json_integer(order->id));
     json_object_set_new_mpd(detail, "p", price);
-    json_object_set_new_mpd(detail, "m", amount);
+    json_object_set_new_mpd(detail, "a", amount);
     char *detail_str = json_dumps(detail, 0);
     mpd_t *real_change = mpd_new(&mpd_ctx);
     mpd_copy_negate(real_change, change, &mpd_ctx);
-    int ret = append_user_balance_history(order->update_time, order->user_id, asset, business, real_change, detail_str);
+    int ret = append_user_balance_history(order->update_time, order->user_id, asset, "trade", real_change, detail_str);
+    mpd_del(real_change);
+    free(detail_str);
+    json_decref(detail);
+    return ret;
+}
+
+
+static int append_balance_trade_fee(order_t *order, const char *asset, mpd_t *change, mpd_t *price, mpd_t *amount)
+{
+    json_t *detail = json_object();
+    json_object_set_new(detail, "m", json_string(order->market));
+    json_object_set_new(detail, "i", json_integer(order->id));
+    json_object_set_new_mpd(detail, "p", price);
+    json_object_set_new_mpd(detail, "a", amount);
+    char *detail_str = json_dumps(detail, 0);
+    mpd_t *real_change = mpd_new(&mpd_ctx);
+    mpd_copy_negate(real_change, change, &mpd_ctx);
+    int ret = append_user_balance_history(order->update_time, order->user_id, asset, "trade_fee", real_change, detail_str);
     mpd_del(real_change);
     free(detail_str);
     json_decref(detail);
@@ -380,19 +400,17 @@ static int execute_limit_ask_order(bool real, market_t *m, order_t *taker)
 
         balance_add(taker->user_id, BALANCE_TYPE_AVAILABLE, m->money, deal);
         if (real) {
-            append_balance_trade_add(taker, m->money, m->name, deal, price, amount);
+            append_balance_trade_add(taker, m->money, deal, price, amount);
         }
         if (mpd_cmp(ask_fee, mpd_zero, &mpd_ctx) > 0) {
             balance_sub(taker->user_id, BALANCE_TYPE_AVAILABLE, m->money, ask_fee);
             if (real) {
-                char business[100];
-                snprintf(business, sizeof(business), "%s_FEE", m->name);
-                append_balance_trade_sub(taker, m->money, business, ask_fee, price, amount);
+                append_balance_trade_fee(taker, m->money, ask_fee, price, amount);
             }
         }
         balance_sub(taker->user_id, BALANCE_TYPE_AVAILABLE, m->stock, amount);
         if (real) {
-            append_balance_trade_sub(taker, m->stock, m->name, amount, price, amount);
+            append_balance_trade_sub(taker, m->stock, amount, price, amount);
         }
 
         mpd_sub(maker->left, maker->left, amount, &mpd_ctx);
@@ -403,19 +421,17 @@ static int execute_limit_ask_order(bool real, market_t *m, order_t *taker)
 
         balance_add(maker->user_id, BALANCE_TYPE_AVAILABLE, m->stock, amount);
         if (real) {
-            append_balance_trade_add(maker, m->stock, m->name, amount, price, amount);
+            append_balance_trade_add(maker, m->stock, amount, price, amount);
         }
         if (mpd_cmp(bid_fee, mpd_zero, &mpd_ctx) > 0) {
             balance_sub(maker->user_id, BALANCE_TYPE_AVAILABLE, m->stock, bid_fee);
             if (real) {
-                char business[100];
-                snprintf(business, sizeof(business), "%s_FEE", m->name);
-                append_balance_trade_sub(maker, m->stock, business, bid_fee, price, amount);
+                append_balance_trade_fee(maker, m->stock, bid_fee, price, amount);
             }
         }
         balance_sub(maker->user_id, BALANCE_TYPE_FREEZE, m->money, deal);
         if (real) {
-            append_balance_trade_sub(maker, m->money, m->name, deal, price, amount);
+            append_balance_trade_sub(maker, m->money, deal, price, amount);
         }
 
         if (mpd_cmp(maker->left, mpd_zero, &mpd_ctx) == 0) {
@@ -487,19 +503,17 @@ static int execute_limit_bid_order(bool real, market_t *m, order_t *taker)
 
         balance_add(taker->user_id, BALANCE_TYPE_AVAILABLE, m->stock, amount);
         if (real) {
-            append_balance_trade_add(taker, m->stock, m->name, amount, price, amount);
+            append_balance_trade_add(taker, m->stock, amount, price, amount);
         }
         if (mpd_cmp(bid_fee, mpd_zero, &mpd_ctx) > 0) {
             balance_sub(taker->user_id, BALANCE_TYPE_AVAILABLE, m->stock, bid_fee);
             if (real) {
-                char business[100];
-                snprintf(business, sizeof(business), "%s_FEE", m->name);
-                append_balance_trade_sub(taker, m->stock, business, bid_fee, price, amount);
+                append_balance_trade_fee(taker, m->stock, bid_fee, price, amount);
             }
         }
         balance_sub(taker->user_id, BALANCE_TYPE_AVAILABLE, m->money, deal);
         if (real) {
-            append_balance_trade_sub(taker, m->money, m->name, deal, price, amount);
+            append_balance_trade_sub(taker, m->money, deal, price, amount);
         }
 
         mpd_sub(maker->left, maker->left, amount, &mpd_ctx);
@@ -510,19 +524,17 @@ static int execute_limit_bid_order(bool real, market_t *m, order_t *taker)
 
         balance_add(maker->user_id, BALANCE_TYPE_AVAILABLE, m->money, deal);
         if (real) {
-            append_balance_trade_add(maker, m->money, m->name, deal, price, amount);
+            append_balance_trade_add(maker, m->money, deal, price, amount);
         }
         if (mpd_cmp(ask_fee, mpd_zero, &mpd_ctx) > 0) {
             balance_sub(maker->user_id, BALANCE_TYPE_AVAILABLE, m->money, ask_fee);
             if (real) {
-                char business[100];
-                snprintf(business, sizeof(business), "%s_FEE", m->name);
-                append_balance_trade_sub(maker, m->money, business, ask_fee, price, amount);
+                append_balance_trade_fee(maker, m->money, ask_fee, price, amount);
             }
         }
         balance_sub(maker->user_id, BALANCE_TYPE_FREEZE, m->stock, amount);
         if (real) {
-            append_balance_trade_sub(maker, m->stock, m->name, amount, price, amount);
+            append_balance_trade_sub(maker, m->stock, amount, price, amount);
         }
 
         if (mpd_cmp(maker->left, mpd_zero, &mpd_ctx) == 0) {
@@ -674,19 +686,17 @@ static int execute_market_ask_order(bool real, market_t *m, order_t *taker)
 
         balance_add(taker->user_id, BALANCE_TYPE_AVAILABLE, m->money, deal);
         if (real) {
-            append_balance_trade_add(taker, m->money, m->name, deal, price, amount);
+            append_balance_trade_add(taker, m->money, deal, price, amount);
         }
         if (mpd_cmp(ask_fee, mpd_zero, &mpd_ctx) > 0) {
             balance_sub(taker->user_id, BALANCE_TYPE_AVAILABLE, m->money, ask_fee);
             if (real) {
-                char business[100];
-                snprintf(business, sizeof(business), "%s_FEE", m->name);
-                append_balance_trade_sub(taker, m->money, business, ask_fee, price, amount);
+                append_balance_trade_fee(taker, m->money, ask_fee, price, amount);
             }
         }
         balance_sub(taker->user_id, BALANCE_TYPE_AVAILABLE, m->stock, amount);
         if (real) {
-            append_balance_trade_sub(taker, m->stock, m->name, amount, price, amount);
+            append_balance_trade_sub(taker, m->stock, amount, price, amount);
         }
 
         mpd_sub(maker->left, maker->left, amount, &mpd_ctx);
@@ -697,19 +707,17 @@ static int execute_market_ask_order(bool real, market_t *m, order_t *taker)
 
         balance_add(maker->user_id, BALANCE_TYPE_AVAILABLE, m->stock, amount);
         if (real) {
-            append_balance_trade_add(maker, m->stock, m->name, amount, price, amount);
+            append_balance_trade_add(maker, m->stock, amount, price, amount);
         }
         if (mpd_cmp(bid_fee, mpd_zero, &mpd_ctx) > 0) {
             balance_sub(maker->user_id, BALANCE_TYPE_AVAILABLE, m->stock, bid_fee);
             if (real) {
-                char business[100];
-                snprintf(business, sizeof(business), "%s_FEE", m->name);
-                append_balance_trade_sub(maker, m->stock, business, bid_fee, price, amount);
+                append_balance_trade_fee(maker, m->stock, bid_fee, price, amount);
             }
         }
         balance_sub(maker->user_id, BALANCE_TYPE_FREEZE, m->money, deal);
         if (real) {
-            append_balance_trade_sub(maker, m->money, m->name, amount, price, amount);
+            append_balance_trade_sub(maker, m->money, amount, price, amount);
         }
 
         if (mpd_cmp(maker->left, mpd_zero, &mpd_ctx) == 0) {
@@ -792,19 +800,17 @@ static int execute_market_bid_order(bool real, market_t *m, order_t *taker)
 
         balance_add(taker->user_id, BALANCE_TYPE_AVAILABLE, m->stock, amount);
         if (real) {
-            append_balance_trade_add(taker, m->stock, m->name, amount, price, amount);
+            append_balance_trade_add(taker, m->stock, amount, price, amount);
         }
         if (mpd_cmp(bid_fee, mpd_zero, &mpd_ctx) > 0) {
             balance_sub(taker->user_id, BALANCE_TYPE_AVAILABLE, m->stock, bid_fee);
             if (real) {
-                char business[100];
-                snprintf(business, sizeof(business), "%s_FEE", m->name);
-                append_balance_trade_sub(taker, m->stock, business, bid_fee, price, amount);
+                append_balance_trade_fee(taker, m->stock, bid_fee, price, amount);
             }
         }
         balance_sub(taker->user_id, BALANCE_TYPE_AVAILABLE, m->money, deal);
         if (real) {
-            append_balance_trade_sub(taker, m->money, m->name, deal, price, amount);
+            append_balance_trade_sub(taker, m->money, deal, price, amount);
         }
 
         mpd_sub(maker->left, maker->left, amount, &mpd_ctx);
@@ -815,19 +821,17 @@ static int execute_market_bid_order(bool real, market_t *m, order_t *taker)
 
         balance_add(maker->user_id, BALANCE_TYPE_AVAILABLE, m->money, deal);
         if (real) {
-            append_balance_trade_add(maker, m->money, m->name, deal, price, amount);
+            append_balance_trade_add(maker, m->money, deal, price, amount);
         }
         if (mpd_cmp(ask_fee, mpd_zero, &mpd_ctx) > 0) {
             balance_sub(maker->user_id, BALANCE_TYPE_AVAILABLE, m->money, ask_fee);
             if (real) {
-                char business[100];
-                snprintf(business, sizeof(business), "%s_FEE", m->name);
-                append_balance_trade_sub(maker, m->money, business, ask_fee, price, amount);
+                append_balance_trade_fee(maker, m->money, ask_fee, price, amount);
             }
         }
         balance_sub(maker->user_id, BALANCE_TYPE_FREEZE, m->stock, amount);
         if (real) {
-            append_balance_trade_sub(maker, m->stock, m->name, amount, price, amount);
+            append_balance_trade_sub(maker, m->stock, amount, price, amount);
         }
 
         if (mpd_cmp(maker->left, mpd_zero, &mpd_ctx) == 0) {

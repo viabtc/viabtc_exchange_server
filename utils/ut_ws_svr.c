@@ -358,7 +358,7 @@ static int send_reply(nw_ses *ses, uint8_t opcode, void *payload, size_t payload
         pkg_len = 2 + sizeof(len);
     } else {
         p[1] |= 127;
-        uint64_t len = htole64(payload_len);
+        uint64_t len = htobe64(payload_len);
         memcpy(p + 2, &len, sizeof(len));
         pkg_len = 2 + sizeof(len);
     }

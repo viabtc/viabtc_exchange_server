@@ -149,7 +149,7 @@ int send_auth_request(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *p
     const char *token = json_string_value(json_array_get(params, 0));
     if (token == NULL)
         return send_error_invalid_argument(ses, id);
-    const char *source = json_string_value(json_array_get(params, 2));
+    const char *source = json_string_value(json_array_get(params, 1));
     if (source == NULL || strlen(source) >= SOURCE_MAX_LEN)
         return send_error_invalid_argument(ses, id);
     info->source = strdup(source);

@@ -337,9 +337,21 @@ static int send_reply(nw_ses *ses, uint8_t opcode, void *payload, size_t payload
     if (payload == NULL)
         payload_len = 0;
 
-    void *buf = malloc(10 + payload_len);
-    if (buf == NULL)
-        return -1;
+    static void *buf;
+    static size_t buf_size = 1024;
+    if (buf == NULL) {
+        buf = malloc(1024);
+        if (buf == NULL)
+            return -1;
+    }
+    size_t require_len = 10 + payload_len;
+    if (buf_size < require_len) {
+        void *new = realloc(buf, require_len);
+        if (new == NULL)
+            return -1;
+        buf = new;
+        buf_size = require_len;
+    }
 
     size_t pkg_len = 0;
     uint8_t *p = buf;
@@ -368,9 +380,7 @@ static int send_reply(nw_ses *ses, uint8_t opcode, void *payload, size_t payload
         pkg_len += payload_len;
     }
 
-    int ret = nw_ses_send(ses, buf, pkg_len);
-    free(buf);
-    return ret;
+    return nw_ses_send(ses, buf, pkg_len);
 }
 
 static int send_pong_message(nw_ses *ses)

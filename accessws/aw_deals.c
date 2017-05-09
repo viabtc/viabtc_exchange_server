@@ -18,6 +18,7 @@ struct state_data {
 
 struct market_val {
     dict_t *sessions;
+    list_t *deals;
     uint64_t last_id;
 };
 
@@ -67,6 +68,11 @@ static void dict_market_val_free(void *val)
     free(obj);
 }
 
+static void list_free(void *value)
+{
+    json_decref(value);
+}
+
 static void on_backend_connect(nw_ses *ses, bool result)
 {
     rpc_clt *clt = ses->privdata;
@@ -86,25 +92,36 @@ static int on_order_deals_reply(struct state_data *state, json_t *result)
 
     if (!json_is_array(result))
         return -__LINE__;
-    if (json_array_size(result) > 0) {
-        json_t *first = json_array_get(result, 0);
-        uint64_t id = json_integer_value(json_object_get(first, "id"));
-        if (id == 0)
-            return -__LINE__;
-        obj->last_id = id;
+    size_t array_size = json_array_size(result);
+    if (array_size == 0)
+        return 0;
 
-        json_t *params = json_array();
-        json_array_append_new(params, json_string(state->market));
-        json_array_append(params, result);
+    json_t *first = json_array_get(result, 0);
+    uint64_t id = json_integer_value(json_object_get(first, "id"));
+    if (id == 0)
+        return -__LINE__;
+    obj->last_id = id;
 
-        dict_iterator *iter = dict_get_iterator(obj->sessions);
-        dict_entry *entry;
-        while ((entry = dict_next(iter)) != NULL) {
-            send_notify(entry->key, "deals.update", params);
-        }
-        dict_release_iterator(iter);
-        json_decref(params);
+    for (size_t i = array_size; i > 0; --i) {
+        json_t *deal = json_array_get(result, i - 1);
+        json_incref(deal);
+        list_add_node_head(obj->deals, deal);
     }
+
+    while (obj->deals->len > DEALS_QUERY_LIMIT) {
+        list_del(obj->deals, list_tail(obj->deals));
+    }
+
+    json_t *params = json_array();
+    json_array_append_new(params, json_string(state->market));
+    json_array_append(params, result);
+
+    dict_iterator *iter = dict_get_iterator(obj->sessions);
+    while ((entry = dict_next(iter)) != NULL) {
+        send_notify(entry->key, "deals.update", params);
+    }
+    dict_release_iterator(iter);
+    json_decref(params);
 
     return 0;
 }
@@ -256,6 +273,14 @@ int deals_subscribe(nw_ses *ses, const char *market)
         if (val.sessions == NULL)
             return -__LINE__;
 
+        list_type lt;
+        memset(&lt, 0, sizeof(lt));
+        lt.free = list_free;
+
+        val.deals = list_create(&lt);
+        if (val.deals == NULL)
+            return -__LINE__;
+
         entry = dict_add(dict_market, (char *)market, &val);
         if (entry == NULL)
             return -__LINE__;
@@ -263,6 +288,33 @@ int deals_subscribe(nw_ses *ses, const char *market)
 
     struct market_val *obj = entry->val;
     dict_add(obj->sessions, ses, NULL);
+
+    return 0;
+}
+
+int deals_send_full(nw_ses *ses, const char *market)
+{
+    dict_entry *entry = dict_find(dict_market, market);
+    if (entry == NULL)
+        return -__LINE__;
+    struct market_val *obj = entry->val;
+    if (obj->deals->len == 0)
+        return 0;
+
+    json_t *result = json_array();
+    list_iter *iter = list_get_iterator(obj->deals, LIST_START_HEAD);
+    list_node *node;
+    while ((node = list_next(iter)) != NULL) {
+        json_array_append(result, node->value);
+    }
+    list_release_iterator(iter);
+
+    json_t *params = json_array();
+    json_array_append_new(params, json_string(market));
+    json_array_append(params, result);
+
+    send_notify(ses, "deals.update", params);
+    json_decref(params);
 
     return 0;
 }

@@ -361,7 +361,12 @@ static int on_method_deals_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
             return send_error_internal_error(ses, id);
     }
 
-    return send_success(ses, id);
+    send_success(ses, id);
+    for (size_t i = 0; i < params_size; ++i) {
+        deals_send_full(ses, json_string_value(json_array_get(params, i)));
+    }
+
+    return 0;
 }
 
 static int on_method_order_put_limit(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)

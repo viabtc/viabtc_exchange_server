@@ -373,7 +373,7 @@ static int market_update(const char *market, double timestamp, mpd_t *price, mpd
     // update sec
     time_t time_sec = (time_t)timestamp;
     dict_entry *entry;
-    struct kline_info *kinfo;
+    struct kline_info *kinfo = NULL;
     entry = dict_find(info->sec, &time_sec);
     if (entry) {
         kinfo = entry->val;
@@ -952,9 +952,8 @@ json_t *get_market_kline_sec(const char *market, time_t start, time_t end, int i
     if (start < now - settings.sec_max)
         start = now - settings.sec_max;
     struct kline_info *klast = get_last_kline(info->sec, start - 1, now - settings.sec_max, 1);
-    struct kline_info *kinfo;
     for (; start <= end; start += interval) {
-        kinfo = NULL;
+        struct kline_info *kinfo = NULL;
         for (int i = 0; i < interval; ++i) {
             time_t timestamp = start + i;
             dict_entry *entry = dict_find(info->sec, &timestamp);
@@ -991,10 +990,9 @@ json_t *get_market_kline_min(const char *market, time_t start, time_t end, int i
         start = start_min;
     start = start / interval * interval;
     struct kline_info *klast = get_last_kline(info->min, start - 60, start_min, 60);
-    struct kline_info *kinfo;
     int step = interval / 60;
     for (; start <= end; start += interval) {
-        kinfo = NULL;
+        struct kline_info *kinfo = NULL;
         for (int i = 0; i < step; ++i) {
             time_t timestamp = start + i * 60;
             dict_entry *entry = dict_find(info->min, &timestamp);
@@ -1036,10 +1034,9 @@ json_t *get_market_kline_hour(const char *market, time_t start, time_t end, int 
     start = base - interval;
 
     struct kline_info *klast = get_last_kline(info->hour, start - 3600, start_min, 3600);
-    struct kline_info *kinfo;
     int step = interval / 3600;
     for (; start <= end; start += interval) {
-        kinfo = NULL;
+        struct kline_info *kinfo = NULL;
         for (int i = 0; i < step; ++i) {
             time_t timestamp = start + i * 3600;
             dict_entry *entry = dict_find(info->hour, &timestamp);
@@ -1076,10 +1073,9 @@ json_t *get_market_kline_day(const char *market, time_t start, time_t end, int i
     start = base;
 
     struct kline_info *klast = get_last_kline(info->day, start - 86400, start - 86400 * 30, 86400);
-    struct kline_info *kinfo;
     int step = interval / 86400;
     for (; start <= end; start += interval) {
-        kinfo = NULL;
+        struct kline_info *kinfo = NULL;
         for (int i = 0; i < step; ++i) {
             time_t timestamp = start + i * 86400;
             dict_entry *entry = dict_find(info->day, &timestamp);
@@ -1116,10 +1112,9 @@ json_t *get_market_kline_week(const char *market, time_t start, time_t end, int 
     start = base - interval;
 
     struct kline_info *klast = get_last_kline(info->day, start - 86400, start - 86400 * 30, 86400);
-    struct kline_info *kinfo;
     int step = interval / 86400;
     for (; start <= end; start += interval) {
-        kinfo = NULL;
+        struct kline_info *kinfo = NULL;
         for (int i = 0; i < step; ++i) {
             time_t timestamp = start + i * 86400;
             dict_entry *entry = dict_find(info->day, &timestamp);
@@ -1138,6 +1133,72 @@ json_t *get_market_kline_week(const char *market, time_t start, time_t end, int 
         }
         append_kinfo(result, start, kinfo);
         klast = kinfo;
+    }
+
+    return result;
+}
+
+static time_t get_month_start(int tm_year, int tm_mon)
+{
+    struct tm mtm;
+    memset(&mtm, 0, sizeof(mtm));
+    mtm.tm_year = tm_year;
+    mtm.tm_mon  = tm_mon;
+    mtm.tm_mday = 1;
+    return mktime(&mtm);
+}
+
+static time_t get_next_month(int *tm_year, int *tm_mon)
+{
+    if (*tm_mon == 11) {
+        *tm_mon = 0;
+        *tm_year += 1;
+    } else {
+        *tm_mon += 1;
+    }
+    struct tm mtm;
+    memset(&mtm, 0, sizeof(mtm));
+    mtm.tm_year = *tm_year;
+    mtm.tm_mon  = *tm_mon;
+    mtm.tm_mday = 1;
+    return mktime(&mtm);
+}
+
+json_t *get_market_kline_month(const char *market, time_t start, time_t end, int interval)
+{
+    struct market_info *info = market_query(market);
+    if (info == NULL)
+        return NULL;
+
+    json_t *result = json_array();
+    struct tm *timeinfo = localtime(&start);
+    int tm_year = timeinfo->tm_year;
+    int tm_mon  = timeinfo->tm_mon;
+    time_t mon_start = get_month_start(tm_year, tm_mon);
+
+    struct kline_info *klast = get_last_kline(info->day, start - 86400, start - 86400 * 30, 86400);
+    for (; mon_start <= end; ) {
+        struct kline_info *kinfo = NULL;
+        time_t mon_next = get_next_month(&tm_year, &tm_mon);
+        time_t timestamp = mon_start;
+        for (; timestamp < mon_next && timestamp <= end; timestamp += 86400) {
+            dict_entry *entry = dict_find(info->day, &timestamp);
+            if (entry == NULL)
+                continue;
+            struct kline_info *item = entry->val;
+            if (kinfo == NULL)
+                kinfo = kline_info_new(item->open);
+            kline_info_merge(kinfo, item);
+        }
+        if (kinfo == NULL) {
+            if (klast == NULL) {
+                continue;
+            }
+            kinfo = kline_info_new(klast->close);
+        }
+        append_kinfo(result, mon_start, kinfo);
+        klast = kinfo;
+        mon_start = mon_next;
     }
 
     return result;

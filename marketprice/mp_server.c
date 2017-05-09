@@ -110,11 +110,11 @@ static int on_cmd_market_kline(nw_ses *ses, rpc_pkg *pkg, json_t *params)
         return reply_error_invalid_argument(ses, pkg);
 
     time_t end = json_integer_value(json_array_get(params, 2));
-    if (end <= 0 || start > end)
-        return reply_error_invalid_argument(ses, pkg);
     time_t now = time(NULL);
     if (end > now)
         end = now;
+    if (end <= 0 || start > end)
+        return reply_error_invalid_argument(ses, pkg);
 
     int interval = json_integer_value(json_array_get(params, 3));
     if (interval <= 0)
@@ -139,6 +139,8 @@ static int on_cmd_market_kline(nw_ses *ses, rpc_pkg *pkg, json_t *params)
         result = get_market_kline_day(market, start, end, interval);
     } else if (interval == 86400 * 7) {
         result = get_market_kline_week(market, start, end, interval);
+    } else if (interval == 86400 * 30) {
+        result = get_market_kline_month(market, start, end, interval);
     } else {
         return reply_error_invalid_argument(ses, pkg);
     }

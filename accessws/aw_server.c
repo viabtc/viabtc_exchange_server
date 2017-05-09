@@ -42,7 +42,7 @@ static int send_json(nw_ses *ses, const json_t *json)
     char *message_data = json_dumps(json, 0);
     if (message_data == NULL)
         return -__LINE__;
-    log_trace("send to: %s message: %s", nw_sock_human_addr(&ses->peer_addr), message_data);
+    log_trace("send to: %s, size: %zu, message: %s", nw_sock_human_addr(&ses->peer_addr), strlen(message_data), message_data);
     int ret = ws_send_text(ses, message_data);
     free(message_data);
     return ret;
@@ -908,7 +908,7 @@ static void on_backend_connect(nw_ses *ses, bool result)
 
 static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
 {
-    log_debug("recv pkg from: %s, cmd: %u, sequence: %u",
+    log_trace("recv pkg from: %s, cmd: %u, sequence: %u",
             nw_sock_human_addr(&ses->peer_addr), pkg->command, pkg->sequence);
     nw_state_entry *entry = nw_state_get(state_context, pkg->sequence);
     if (entry == NULL)
@@ -917,7 +917,7 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
     struct state_data *state = entry->data;
     if (state->ses->id == state->ses_id) {
         sds message = sdsnewlen(pkg->body, pkg->body_size);
-        log_trace("send response to: %s, message: %s", nw_sock_human_addr(&state->ses->peer_addr), message);
+        log_trace("send response to: %s, size: %zu, message: %s", nw_sock_human_addr(&state->ses->peer_addr), sdslen(message), message);
         ws_send_text(state->ses, message);
         sdsfree(message);
     }

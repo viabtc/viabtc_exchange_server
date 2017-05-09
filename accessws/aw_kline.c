@@ -133,7 +133,7 @@ static int on_market_kline_reply(struct state_data *state, json_t *result)
 static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
 {
     sds reply_str = sdsnewlen(pkg->body, pkg->body_size);
-    log_debug("recv pkg from: %s, cmd: %u, sequence: %u, reply: %s",
+    log_trace("recv pkg from: %s, cmd: %u, sequence: %u, reply: %s",
             nw_sock_human_addr(&ses->peer_addr), pkg->command, pkg->sequence, reply_str);
     nw_state_entry *entry = nw_state_get(state_context, pkg->sequence);
     if (entry == NULL) {

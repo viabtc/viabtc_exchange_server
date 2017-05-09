@@ -266,7 +266,7 @@ static int on_method_price_query(nw_ses *ses, uint64_t id, struct clt_info *info
 {
     sds key = sdsempty();
     char *params_str = json_dumps(params, 0);
-    key = sdscatprintf(key, "%u-%s", CMD_MARKET_STATUS, params_str);
+    key = sdscatprintf(key, "%u-%s", CMD_MARKET_LAST, params_str);
     int ret = process_cache(ses, key);
     if (ret > 0) {
         sdsfree(key);
@@ -284,7 +284,7 @@ static int on_method_price_query(nw_ses *ses, uint64_t id, struct clt_info *info
     rpc_pkg pkg;
     memset(&pkg, 0, sizeof(pkg));
     pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
-    pkg.command   = CMD_MARKET_STATUS;
+    pkg.command   = CMD_MARKET_LAST;
     pkg.sequence  = entry->id;
     pkg.req_id    = id;
     pkg.body      = params_str;

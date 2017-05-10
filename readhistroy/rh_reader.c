@@ -231,7 +231,7 @@ json_t *get_user_order_finished(MYSQL *conn, uint32_t user_id,
 size_t get_order_deal_details_count(MYSQL *conn, uint64_t order_id)
 {
     sds sql = sdsempty();
-    sql = sdscatprintf(sql, "SELECT COUNT(*) FROM `deal_history_%u` where `id` = %"PRIu64, (uint32_t)(order_id % HISTORY_HASH_NUM), order_id);
+    sql = sdscatprintf(sql, "SELECT COUNT(*) FROM `deal_history_%u` where `order_id` = %"PRIu64, (uint32_t)(order_id % HISTORY_HASH_NUM), order_id);
 
     log_trace("exec sql: %s", sql);
     int ret = mysql_real_query(conn, sql, sdslen(sql));
@@ -245,10 +245,14 @@ size_t get_order_deal_details_count(MYSQL *conn, uint64_t order_id)
     size_t count = 0;
     MYSQL_RES *result = mysql_store_result(conn);
     size_t num_rows = mysql_num_rows(result);
+
+
     if (num_rows == 1) {
         MYSQL_ROW row = mysql_fetch_row(result);
         count = strtoull(row[0], NULL, 0);
     }
+
+
     mysql_free_result(result);
 
     return count;
@@ -258,7 +262,7 @@ json_t *get_order_deal_details(MYSQL *conn, uint64_t order_id, size_t offset, si
 {
     sds sql = sdsempty();
     sql = sdscatprintf(sql, "SELECT `time`, `deal_order_id`, `role`, `amount`, `price`, `deal`, `fee` "
-            "FROM `deal_history_%u` where `id` = %"PRIu64" ORDER BY `id` DESC", (uint32_t)(order_id % HISTORY_HASH_NUM), order_id);
+            "FROM `deal_history_%u` where `order_id` = %"PRIu64" ORDER BY `id` DESC", (uint32_t)(order_id % HISTORY_HASH_NUM), order_id);
     if (offset) {
         sql = sdscatprintf(sql, " LIMIT %zu, %zu", offset, limit);
     } else {

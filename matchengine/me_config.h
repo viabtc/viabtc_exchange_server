@@ -49,7 +49,8 @@
 
 struct asset {
     char                *name;
-    int                 prec;
+    int                 prec_save;
+    int                 prec_show;
 };
 
 struct market {

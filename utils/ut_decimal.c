@@ -45,7 +45,8 @@ mpd_t *decimal(const char *str, int prec)
 
 char *rstripzero(char *str)
 {
-    log_trace("befor: %s", str);
+    if (strchr(str, 'e'))
+        return str;
     char *point = strchr(str, '.');
     if (point == NULL)
         return str;
@@ -61,7 +62,6 @@ char *rstripzero(char *str)
     if (str[len - 1] == '.') {
         str[len - 1] = '\0';
     }
-    log_trace("after: %s", str);
 
     return str;
 }

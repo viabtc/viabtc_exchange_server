@@ -3,7 +3,7 @@ CREATE TABLE `slice_balance_example` (
     `user_id`       INT UNSIGNED NOT NULL,
     `asset`         VARCHAR(30) NOT NULL,
     `t`             TINYINT UNSIGNED NOT NULL,
-    `balance`       DECIMAL(30,10) NOT NULL
+    `balance`       DECIMAL(30,16) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `slice_order_example` (
@@ -14,15 +14,15 @@ CREATE TABLE `slice_order_example` (
     `update_time`   DOUBLE NOT NULL,
     `user_id`       INT UNSIGNED NOT NULL,
     `market`        VARCHAR(30) NOT NULL,
-    `price`         DECIMAL(30,10) NOT NULL,
-    `amount`        DECIMAL(30,10) NOT NULL,
-    `taker_fee`     DECIMAL(30,10) NOT NULL,
-    `maker_fee`     DECIMAL(30,10) NOT NULL,
-    `left`          DECIMAL(30,10) NOT NULL,
-    `freeze`        DECIMAL(30,10) NOT NULL,
-    `deal_stock`    DECIMAL(30,10) NOT NULL,
-    `deal_money`    DECIMAL(30,10) NOT NULL,
-    `deal_fee`      DECIMAL(30,10) NOT NULL
+    `price`         DECIMAL(30,8) NOT NULL,
+    `amount`        DECIMAL(30,8) NOT NULL,
+    `taker_fee`     DECIMAL(30,4) NOT NULL,
+    `maker_fee`     DECIMAL(30,4) NOT NULL,
+    `left`          DECIMAL(30,8) NOT NULL,
+    `freeze`        DECIMAL(30,8) NOT NULL,
+    `deal_stock`    DECIMAL(30,8) NOT NULL,
+    `deal_money`    DECIMAL(30,16) NOT NULL,
+    `deal_fee`      DECIMAL(30,12) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `slice_history` (

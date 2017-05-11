@@ -408,11 +408,11 @@ int read_cfg_str(json_t *root, const char *key, char **val, const char *default_
     return 0;
 }
 
-int read_cfg_mpd(json_t *root, const char *key, mpd_t **val, const mpd_t *default_val)
+int read_cfg_mpd(json_t *root, const char *key, mpd_t **val, const char *default_val)
 {
     json_t *node = json_object_get(root, key);
     if (!node && default_val) {
-        *val = mpd_qncopy(default_val);
+        *val = decimal(default_val, 0);
         if (*val == NULL)
             return -__LINE__;
         return 0;

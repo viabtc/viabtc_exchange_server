@@ -59,6 +59,7 @@ struct market {
     int                 fee_prec;
     int                 stock_prec;
     int                 money_prec;
+    mpd_t               *min_amount;
 };
 
 struct settings {

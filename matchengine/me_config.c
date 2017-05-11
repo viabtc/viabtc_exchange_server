@@ -44,6 +44,7 @@ static int load_markets(json_t *root, const char *key)
             return -__LINE__;
         ERR_RET_LN(read_cfg_str(row, "name", &settings.markets[i].name, NULL));
         ERR_RET_LN(read_cfg_int(row, "fee_prec", &settings.markets[i].fee_prec, false, 4));
+        ERR_RET_LN(read_cfg_mpd(row, "min_amount", &settings.markets[i].min_amount, "0.01"));
 
         json_t *stock = json_object_get(row, "stock");
         if (!stock || !json_is_object(stock))

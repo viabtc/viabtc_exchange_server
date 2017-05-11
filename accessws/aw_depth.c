@@ -164,7 +164,7 @@ static json_t *get_list_diff(json_t *list1, json_t *list2, uint32_t limit, int s
     }
 
     for (;list2_pos < list2_size; ++list2_pos) {
-        json_array_append_new(diff, json_array_get(list2, list2_pos));
+        json_array_append(diff, json_array_get(list2, list2_pos));
     }
 
     if (json_array_size(diff) == 0) {

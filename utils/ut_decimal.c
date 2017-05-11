@@ -4,7 +4,6 @@
  */
 
 # include "ut_decimal.h"
-# include "ut_log.h"
 
 mpd_context_t mpd_ctx;
 

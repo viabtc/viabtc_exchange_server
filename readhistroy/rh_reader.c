@@ -5,16 +5,7 @@
 
 # include "rh_config.h"
 # include "rh_reader.h"
-
-static char *rstripzero(char *str)
-{
-    size_t len = strlen(str);
-    for (size_t i = len; i > 0; i--) {
-        if (str[i - 1] == '0')
-            str[i - 1] = '\0';
-    }
-    return str;
-}
+# include "ut_decimal.h"
 
 size_t get_user_balance_history_count(MYSQL *conn, uint32_t user_id, const char *asset, const char *business, uint64_t start_time, uint64_t end_time)
 {

@@ -4,6 +4,7 @@
  */
 
 # include "ut_decimal.h"
+# include "ut_log.h"
 
 mpd_context_t mpd_ctx;
 
@@ -42,15 +43,33 @@ mpd_t *decimal(const char *str, int prec)
     return result;
 }
 
+char *rstripzero(char *str)
+{
+    log_trace("befor: %s", str);
+    char *point = strchr(str, '.');
+    if (point == NULL)
+        return str;
+    int len = strlen(str);
+    for (int i = len - 1; i >= 0; --i) {
+        if (str[i] == '0') {
+            str[i] = '\0';
+            --len;
+        } else {
+            break;
+        }
+    }
+    if (str[len - 1] == '.') {
+        str[len - 1] = '\0';
+    }
+    log_trace("after: %s", str);
+
+    return str;
+}
+
 int json_object_set_new_mpd(json_t *obj, const char *key, mpd_t *value)
 {
     char *str = mpd_to_sci(value, 0);
-    size_t len = strlen(str);
-    for (size_t i = len - 1; i > 0; i--) {
-        if (str[i - 1] == '0')
-            str[i - 1] = '\0';
-    }
-    int ret = json_object_set_new(obj, key, json_string(str));
+    int ret = json_object_set_new(obj, key, json_string(rstripzero(str)));
     free(str);
     return ret;
 }
@@ -58,12 +77,7 @@ int json_object_set_new_mpd(json_t *obj, const char *key, mpd_t *value)
 int json_array_append_new_mpd(json_t *obj, mpd_t *value)
 {
     char *str = mpd_to_sci(value, 0);
-    size_t len = strlen(str);
-    for (size_t i = len - 1; i > 0; i--) {
-        if (str[i - 1] == '0')
-            str[i - 1] = '\0';
-    }
-    int ret = json_array_append_new(obj, json_string(str));
+    int ret = json_array_append_new(obj, json_string(rstripzero(str)));
     free(str);
     return ret;
 }

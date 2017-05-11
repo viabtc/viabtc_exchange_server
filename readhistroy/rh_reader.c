@@ -6,7 +6,7 @@
 # include "rh_config.h"
 # include "rh_reader.h"
 
-static char *strip_end_zero(char *str)
+static char *rstripzero(char *str)
 {
     size_t len = strlen(str);
     for (size_t i = len; i > 0; i--) {
@@ -115,8 +115,8 @@ json_t *get_user_balance_history(MYSQL *conn, uint32_t user_id,
         json_object_set_new(record, "time", json_real(timestamp));
         json_object_set_new(record, "asset", json_string(row[1]));
         json_object_set_new(record, "business", json_string(row[2]));
-        json_object_set_new(record, "change", json_string(strip_end_zero(row[3])));
-        json_object_set_new(record, "balance", json_string(strip_end_zero(row[4])));
+        json_object_set_new(record, "change", json_string(rstripzero(row[3])));
+        json_object_set_new(record, "balance", json_string(rstripzero(row[4])));
         json_t *detail = json_loads(row[5], 0, NULL);
         if (detail == NULL || !json_is_object(detail)) {
             if (detail) {
@@ -223,13 +223,13 @@ json_t *get_user_order_finished(MYSQL *conn, uint32_t user_id,
         json_object_set_new(record, "type", json_integer(type));
         uint32_t side = atoi(row[7]);
         json_object_set_new(record, "side", json_integer(side));
-        json_object_set_new(record, "price", json_string(strip_end_zero(row[8])));
-        json_object_set_new(record, "amount", json_string(strip_end_zero(row[9])));
-        json_object_set_new(record, "taker_fee", json_string(strip_end_zero(row[10])));
-        json_object_set_new(record, "maker_fee", json_string(strip_end_zero(row[11])));
-        json_object_set_new(record, "deal_stock", json_string(strip_end_zero(row[12])));
-        json_object_set_new(record, "deal_money", json_string(strip_end_zero(row[13])));
-        json_object_set_new(record, "deal_fee", json_string(strip_end_zero(row[14])));
+        json_object_set_new(record, "price", json_string(rstripzero(row[8])));
+        json_object_set_new(record, "amount", json_string(rstripzero(row[9])));
+        json_object_set_new(record, "taker_fee", json_string(rstripzero(row[10])));
+        json_object_set_new(record, "maker_fee", json_string(rstripzero(row[11])));
+        json_object_set_new(record, "deal_stock", json_string(rstripzero(row[12])));
+        json_object_set_new(record, "deal_money", json_string(rstripzero(row[13])));
+        json_object_set_new(record, "deal_fee", json_string(rstripzero(row[14])));
 
         json_array_append_new(records, record);
     }
@@ -300,10 +300,10 @@ json_t *get_order_deal_details(MYSQL *conn, uint64_t order_id, size_t offset, si
         json_object_set_new(record, "deal_order_id", json_integer(deal_order_id));
         int role = atoi(row[2]);
         json_object_set_new(record, "role", json_integer(role));
-        json_object_set_new(record, "amount", json_string(strip_end_zero(row[3])));
-        json_object_set_new(record, "price", json_string(strip_end_zero(row[4])));
-        json_object_set_new(record, "deal", json_string(strip_end_zero(row[5])));
-        json_object_set_new(record, "fee", json_string(strip_end_zero(row[6])));
+        json_object_set_new(record, "amount", json_string(rstripzero(row[3])));
+        json_object_set_new(record, "price", json_string(rstripzero(row[4])));
+        json_object_set_new(record, "deal", json_string(rstripzero(row[5])));
+        json_object_set_new(record, "fee", json_string(rstripzero(row[6])));
 
         json_array_append_new(records, record);
     }
@@ -349,13 +349,13 @@ json_t *get_finished_order_detail(MYSQL *conn, uint64_t order_id)
     json_object_set_new(detail, "type", json_integer(type));
     uint32_t side = atoi(row[7]);
     json_object_set_new(detail, "side", json_integer(side));
-    json_object_set_new(detail, "price", json_string(strip_end_zero(row[8])));
-    json_object_set_new(detail, "amount", json_string(strip_end_zero(row[9])));
-    json_object_set_new(detail, "taker_fee", json_string(strip_end_zero(row[10])));
-    json_object_set_new(detail, "maker_fee", json_string(strip_end_zero(row[11])));
-    json_object_set_new(detail, "deal_stock", json_string(strip_end_zero(row[12])));
-    json_object_set_new(detail, "deal_money", json_string(strip_end_zero(row[13])));
-    json_object_set_new(detail, "deal_fee", json_string(strip_end_zero(row[14])));
+    json_object_set_new(detail, "price", json_string(rstripzero(row[8])));
+    json_object_set_new(detail, "amount", json_string(rstripzero(row[9])));
+    json_object_set_new(detail, "taker_fee", json_string(rstripzero(row[10])));
+    json_object_set_new(detail, "maker_fee", json_string(rstripzero(row[11])));
+    json_object_set_new(detail, "deal_stock", json_string(rstripzero(row[12])));
+    json_object_set_new(detail, "deal_money", json_string(rstripzero(row[13])));
+    json_object_set_new(detail, "deal_fee", json_string(rstripzero(row[14])));
     mysql_free_result(result);
 
     return detail;

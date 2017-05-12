@@ -12,8 +12,6 @@ struct clt_info {
     bool        auth;
     uint32_t    user_id;
     char        *source;
-    mpd_t       *taker_fee;
-    mpd_t       *maker_fee;
 };
 
 int init_server(void);

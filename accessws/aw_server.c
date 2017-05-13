@@ -298,7 +298,58 @@ static int on_method_price_query(nw_ses *ses, uint64_t id, struct clt_info *info
     return 0;
 }
 
+static int on_method_price_ex_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    sds key = sdsempty();
+    char *params_str = json_dumps(params, 0);
+    key = sdscatprintf(key, "%u-%s", CMD_MARKET_LAST, params_str);
+    int ret = process_cache(ses, key);
+    if (ret > 0) {
+        sdsfree(key);
+        free(params_str);
+        return 0;
+    }
+
+    nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
+    struct state_data *state = entry->data;
+    state->ses = ses;
+    state->ses_id = ses->id;
+    state->request_id = id;
+    state->cache_key = key;
+
+    rpc_pkg pkg;
+    memset(&pkg, 0, sizeof(pkg));
+    pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
+    pkg.command   = CMD_MARKET_LAST;
+    pkg.sequence  = entry->id;
+    pkg.req_id    = id;
+    pkg.body      = params_str;
+    pkg.body_size = strlen(pkg.body);
+
+    rpc_clt_send(marketprice, &pkg);
+    log_trace("send request to %s, cmd: %u, sequence: %u, params: %s",
+            nw_sock_human_addr(rpc_clt_peer_addr(marketprice)), pkg.command, pkg.sequence, (char *)pkg.body);
+    free(pkg.body);
+
+    return 0;
+}
+
 static int on_method_price_subscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    price_unsubscribe(ses);
+    size_t params_size = json_array_size(params);
+    for (size_t i = 0; i < params_size; ++i) {
+        const char *market = json_string_value(json_array_get(params, i));
+        if (market == NULL || strlen(market) >= MARKET_NAME_MAX_LEN)
+            return send_error_invalid_argument(ses, id);
+        if (price_subscribe(ses, market) < 0)
+            return send_error_internal_error(ses, id);
+    }
+
+    return send_success(ses, id);
+}
+
+static int on_method_price_ex_subscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
     price_unsubscribe(ses);
     size_t params_size = json_array_size(params);
@@ -701,6 +752,11 @@ static int on_method_asset_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
     return send_success(ses, id);
 }
 
+static int on_method_test(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params) {
+
+    return send_success(ses, id);
+}
+
 static int on_message(nw_ses *ses, const char *remote, const char *url, void *message, size_t size)
 {
     struct clt_info *info = ws_ses_privdata(ses);
@@ -870,6 +926,13 @@ static int init_svr(void)
     ERR_RET_LN(add_handler("asset.history",     on_method_asset_history));
     ERR_RET_LN(add_handler("asset.subscribe",   on_method_asset_subscribe));
 
+	//android ios extend methods
+    ERR_RET_LN(add_handler("price-ex.query",       on_method_price_ex_query));
+    ERR_RET_LN(add_handler("price-ex.subscribe",     on_method_price_ex_subscribe));
+
+	//test
+    ERR_RET_LN(add_handler("method.test",   on_method_test));
+
     return 0;
 }
 
@@ -926,6 +989,8 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         ws_send_text(state->ses, message);
         sdsfree(message);
     }
+
+	//question: cache_key?
     if (state->cache_key) {
         struct cache_val val;
         val.data = sdsnewlen(pkg->body, pkg->body_size);

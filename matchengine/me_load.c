@@ -307,9 +307,9 @@ static int load_market_order(json_t *params)
         goto error;
 
     // source
-    if (!json_is_string(json_array_get(params, 7)))
+    if (!json_is_string(json_array_get(params, 5)))
         goto error;
-    const char *source = json_string_value(json_array_get(params, 7));
+    const char *source = json_string_value(json_array_get(params, 5));
     if (strlen(source) > SOURCE_MAX_LEN)
         goto error;
 

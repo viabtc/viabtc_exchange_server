@@ -49,7 +49,8 @@
 
 struct asset {
     char                *name;
-    int                 prec;
+    int                 prec_save;
+    int                 prec_show;
 };
 
 struct market {
@@ -59,6 +60,7 @@ struct market {
     int                 fee_prec;
     int                 stock_prec;
     int                 money_prec;
+    mpd_t               *min_amount;
 };
 
 struct settings {

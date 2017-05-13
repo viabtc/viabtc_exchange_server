@@ -10,7 +10,8 @@ dict_t *dict_balance;
 static dict_t *dict_asset;
 
 struct asset_type {
-    int         prec;
+    int prec_save;
+    int prec_show;
 };
 
 static uint32_t asset_dict_hash_function(const void *key)
@@ -116,7 +117,9 @@ int init_balance()
     ERR_RET(init_dict());
 
     for (size_t i = 0; i < settings.asset_num; ++i) {
-        struct asset_type type = { .prec = settings.assets[i].prec };
+        struct asset_type type;
+        type.prec_save = settings.assets[i].prec_save;
+        type.prec_show = settings.assets[i].prec_show;
         if (dict_add(dict_asset, settings.assets[i].name, &type) == NULL)
             return -__LINE__;
     }
@@ -142,7 +145,13 @@ bool asset_exist(const char *asset)
 int asset_prec(const char *asset)
 {
     struct asset_type *at = get_asset_type(asset);
-    return at ? at->prec : -1;
+    return at ? at->prec_save : -1;
+}
+
+int asset_prec_show(const char *asset)
+{
+    struct asset_type *at = get_asset_type(asset);
+    return at ? at->prec_show: -1;
 }
 
 mpd_t *balance_get(uint32_t user_id, uint32_t type, const char *asset)
@@ -193,7 +202,7 @@ mpd_t *balance_set(uint32_t user_id, uint32_t type, const char *asset, mpd_t *am
     entry = dict_find(dict_balance, &key);
     if (entry) {
         result = entry->val;
-        mpd_rescale(result, amount, -at->prec, &mpd_ctx);
+        mpd_rescale(result, amount, -at->prec_save, &mpd_ctx);
         return result;
     }
 
@@ -201,7 +210,7 @@ mpd_t *balance_set(uint32_t user_id, uint32_t type, const char *asset, mpd_t *am
     if (entry == NULL)
         return NULL;
     result = entry->val;
-    mpd_rescale(result, amount, -at->prec, &mpd_ctx);
+    mpd_rescale(result, amount, -at->prec_save, &mpd_ctx);
 
     return result;
 }
@@ -225,7 +234,7 @@ mpd_t *balance_add(uint32_t user_id, uint32_t type, const char *asset, mpd_t *am
     if (entry) {
         result = entry->val;
         mpd_add(result, result, amount, &mpd_ctx);
-        mpd_rescale(result, result, -at->prec, &mpd_ctx);
+        mpd_rescale(result, result, -at->prec_save, &mpd_ctx);
         return result;
     }
 
@@ -252,7 +261,7 @@ mpd_t *balance_sub(uint32_t user_id, uint32_t type, const char *asset, mpd_t *am
         balance_del(user_id, type, asset);
         return mpd_zero;
     }
-    mpd_rescale(result, result, -at->prec, &mpd_ctx);
+    mpd_rescale(result, result, -at->prec_save, &mpd_ctx);
 
     return result;
 }
@@ -274,7 +283,7 @@ mpd_t *balance_freeze(uint32_t user_id, const char *asset, mpd_t *amount)
     if (balance_add(user_id, BALANCE_TYPE_FREEZE, asset, amount) == 0)
         return NULL;
     mpd_sub(available, available, amount, &mpd_ctx);
-    mpd_rescale(available, available, -at->prec, &mpd_ctx);
+    mpd_rescale(available, available, -at->prec_save, &mpd_ctx);
 
     return available;
 }
@@ -296,7 +305,7 @@ mpd_t *balance_unfreeze(uint32_t user_id, const char *asset, mpd_t *amount)
     if (balance_add(user_id, BALANCE_TYPE_AVAILABLE, asset, amount) == 0)
         return NULL;
     mpd_sub(freeze, freeze, amount, &mpd_ctx);
-    mpd_rescale(freeze, freeze, -at->prec, &mpd_ctx);
+    mpd_rescale(freeze, freeze, -at->prec_save, &mpd_ctx);
 
     return freeze;
 }

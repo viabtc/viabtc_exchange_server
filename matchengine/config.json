@@ -33,13 +33,16 @@
     "assets": [
         {
             "name": "CNY",
-            "prec": 8
+            "prec_save": 8,
+            "prec_show": 2
         }, {
             "name": "BTC",
-            "prec": 12
+            "prec_save": 16,
+            "prec_show": 8
         }, {
             "name": "ETH",
-            "prec": 8
+            "prec_save": 8,
+            "prec_show": 8
         }
     ],
     "markets": [

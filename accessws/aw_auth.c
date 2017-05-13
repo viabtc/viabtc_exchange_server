@@ -86,25 +86,14 @@ static void on_result(struct state_data *state, sds token, json_t *result)
         goto error;
     struct clt_info *info = state->info;
     info->user_id = json_integer_value(json_object_get(data, "user_id"));
-    info->taker_fee = decimal(json_string_value(json_object_get(data, "taker_fee_rate")), 0);
-    info->maker_fee = decimal(json_string_value(json_object_get(data, "maker_fee_rate")), 0);
-    if (info->user_id == 0 || info->taker_fee == NULL || info->maker_fee == NULL) {
-        info->user_id = 0;
-        if (info->taker_fee) {
-            mpd_del(info->taker_fee);
-            info->taker_fee = NULL;
-        }
-        if (info->maker_fee) {
-            mpd_del(info->maker_fee);
-            info->maker_fee = NULL;
-        }
+    if (info->user_id == 0)
         goto error;
-    }
 
     info->auth = true;
     log_info("auth success, token: %s, user_id: %u", token, info->user_id);
     if (state->ses->id == state->ses_id)
         send_success(state->ses, state->request_id);
+
     return;
 
 error:

@@ -21,7 +21,8 @@ static int load_assets(json_t *root, const char *key)
         if (!json_is_object(row))
             return -__LINE__;
         ERR_RET_LN(read_cfg_str(row, "name", &settings.assets[i].name, NULL));
-        ERR_RET_LN(read_cfg_int(row, "prec", &settings.assets[i].prec, true, 0));
+        ERR_RET_LN(read_cfg_int(row, "prec_save", &settings.assets[i].prec_save, true, 0));
+        ERR_RET_LN(read_cfg_int(row, "prec_show", &settings.assets[i].prec_show, false, settings.assets[i].prec_save));
         if (strlen(settings.assets[i].name) > ASSET_NAME_MAX_LEN)
             return -__LINE__;
     }
@@ -44,6 +45,7 @@ static int load_markets(json_t *root, const char *key)
             return -__LINE__;
         ERR_RET_LN(read_cfg_str(row, "name", &settings.markets[i].name, NULL));
         ERR_RET_LN(read_cfg_int(row, "fee_prec", &settings.markets[i].fee_prec, false, 4));
+        ERR_RET_LN(read_cfg_mpd(row, "min_amount", &settings.markets[i].min_amount, "0.01"));
 
         json_t *stock = json_object_get(row, "stock");
         if (!stock || !json_is_object(stock))

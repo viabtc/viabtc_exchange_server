@@ -107,17 +107,31 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *params)
         for (size_t i = 0; i < settings.asset_num; ++i) {
             const char *asset = settings.assets[i].name;
             json_t *unit = json_object();
+            int prec_save = asset_prec(asset);
+            int prec_show = asset_prec_show(asset);
 
             mpd_t *available = balance_get(user_id, BALANCE_TYPE_AVAILABLE, asset);
             if (available) {
-                json_object_set_new_mpd(unit, "available", available);
+                if (prec_save == prec_show) {
+                    mpd_t *show = mpd_qncopy(available);
+                    mpd_rescale(show, show, prec_show, &mpd_ctx);
+                    json_object_set_new_mpd(unit, "available", show);
+                } else {
+                    json_object_set_new_mpd(unit, "available", available);
+                }
             } else {
                 json_object_set_new(unit, "available", json_string("0"));
             }
 
             mpd_t *freeze = balance_get(user_id, BALANCE_TYPE_FREEZE, asset);
             if (freeze) {
-                json_object_set_new_mpd(unit, "freeze", freeze);
+                if (prec_save == prec_show) {
+                    mpd_t *show = mpd_qncopy(freeze);
+                    mpd_rescale(show, show, prec_show, &mpd_ctx);
+                    json_object_set_new_mpd(unit, "freeze", show);
+                } else {
+                    json_object_set_new_mpd(unit, "freeze", freeze);
+                }
             } else {
                 json_object_set_new(unit, "freeze", json_string("0"));
             }
@@ -132,17 +146,31 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *params)
                 return reply_error_invalid_argument(ses, pkg);
             }
             json_t *unit = json_object();
+            int prec_save = asset_prec(asset);
+            int prec_show = asset_prec_show(asset);
 
             mpd_t *available = balance_get(user_id, BALANCE_TYPE_AVAILABLE, asset);
             if (available) {
-                json_object_set_new_mpd(unit, "available", available);
+                if (prec_save == prec_show) {
+                    mpd_t *show = mpd_qncopy(available);
+                    mpd_rescale(show, show, prec_show, &mpd_ctx);
+                    json_object_set_new_mpd(unit, "available", show);
+                } else {
+                    json_object_set_new_mpd(unit, "available", available);
+                }
             } else {
                 json_object_set_new(unit, "available", json_string("0"));
             }
 
             mpd_t *freeze = balance_get(user_id, BALANCE_TYPE_FREEZE, asset);
             if (freeze) {
-                json_object_set_new_mpd(unit, "freeze", freeze);
+                if (prec_save == prec_show) {
+                    mpd_t *show = mpd_qncopy(freeze);
+                    mpd_rescale(show, show, prec_show, &mpd_ctx);
+                    json_object_set_new_mpd(unit, "freeze", show);
+                } else {
+                    json_object_set_new_mpd(unit, "freeze", freeze);
+                }
             } else {
                 json_object_set_new(unit, "freeze", json_string("0"));
             }
@@ -168,7 +196,7 @@ static int on_cmd_balance_update(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     if (!json_is_string(json_array_get(params, 1)))
         return reply_error_invalid_argument(ses, pkg);
     const char *asset = json_string_value(json_array_get(params, 1));
-    int prec = asset_prec(asset);
+    int prec = asset_prec_show(asset);
     if (prec < 0)
         return reply_error_invalid_argument(ses, pkg);
 
@@ -284,6 +312,8 @@ static int on_cmd_order_put_limit(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 
     if (ret == -1) {
         return reply_error(ses, pkg, 10, "balance not enough");
+    } else if (ret == -2) {
+        return reply_error(ses, pkg, 11, "amount too small");
     } else if (ret < 0) {
         log_error("market_put_limit_order fail: %d", ret);
         return reply_error_internal_error(ses, pkg);
@@ -361,6 +391,10 @@ static int on_cmd_order_put_market(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 
     if (ret == -1) {
         return reply_error(ses, pkg, 10, "balance not enough");
+    } else if (ret == -2) {
+        return reply_error(ses, pkg, 11, "amount too small");
+    } else if (ret == -3) {
+        return reply_error(ses, pkg, 12, "no enough trader");
     } else if (ret < 0) {
         log_error("market_put_limit_order fail: %d", ret);
         return reply_error_internal_error(ses, pkg);

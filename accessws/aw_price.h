@@ -10,6 +10,7 @@ int init_price(void);
 
 int price_subscribe(nw_ses *ses, const char *market);
 int price_unsubscribe(nw_ses *ses);
+int price_send_last(nw_ses *ses, const char *market);
 
 # endif
 

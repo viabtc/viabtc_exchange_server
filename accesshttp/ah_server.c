@@ -264,6 +264,7 @@ static int init_methods_handler(void)
     ERR_RET_LN(add_handler("market.deals", marketprice, CMD_MARKET_DEALS));
     ERR_RET_LN(add_handler("market.kline", marketprice, CMD_MARKET_KLINE));
     ERR_RET_LN(add_handler("market.status", marketprice, CMD_MARKET_STATUS));
+    ERR_RET_LN(add_handler("market.status_today", marketprice, CMD_MARKET_STATUS_TODAY));
 
     return 0;
 }

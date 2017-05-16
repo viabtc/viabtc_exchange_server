@@ -7,6 +7,21 @@
 # include "rh_reader.h"
 # include "ut_decimal.h"
 
+static sds get_business_list(MYSQL *conn, const char *business, size_t len)
+{
+    int count;
+    sds *tokens = sdssplitlen(business, len, ",", 1, &count);
+    sds result = sdsnew("(");
+    for (int i = 0; i < count; ++i) {
+        char buf[sdslen(tokens[i]) * 2 + 1];
+        mysql_real_escape_string(conn, buf, tokens[i], sdslen(tokens[i]));
+        result = sdscatprintf(result, "'%s',", buf);
+    }
+    sdsfreesplitres(tokens, count);
+    result[sdslen(result) - 1] = ')';
+    return result;
+}
+
 size_t get_user_balance_history_count(MYSQL *conn, uint32_t user_id, const char *asset, const char *business, uint64_t start_time, uint64_t end_time)
 {
     sds sql = sdsempty();
@@ -20,9 +35,9 @@ size_t get_user_balance_history_count(MYSQL *conn, uint32_t user_id, const char 
     }
     size_t business_len = strlen(business);
     if (business_len > 0) {
-        char _business[2 * business_len + 1];
-        mysql_real_escape_string(conn, _business, business, business_len);
-        sql = sdscatprintf(sql ," AND `business` = '%s'", _business);
+        sds business_list = get_business_list(conn, business, business_len);
+        sql = sdscatprintf(sql, " AND `business` IN %s", business_list);
+        sdsfree(business_list);
     }
 
     if (start_time) {
@@ -68,9 +83,9 @@ json_t *get_user_balance_history(MYSQL *conn, uint32_t user_id,
     }
     size_t business_len = strlen(business);
     if (business_len > 0) {
-        char _business[2 * business_len + 1];
-        mysql_real_escape_string(conn, _business, business, business_len);
-        sql = sdscatprintf(sql ," AND `business` = '%s'", _business);
+        sds business_list = get_business_list(conn, business, business_len);
+        sql = sdscatprintf(sql, " AND `business` IN %s", business_list);
+        sdsfree(business_list);
     }
 
     if (start_time) {

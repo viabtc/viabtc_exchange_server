@@ -15,14 +15,15 @@
 # include "aw_asset.h"
 
 static ws_svr *svr;
+static dict_t *method_map;
+static dict_t *backend_cache;
 static rpc_clt *listener;
+static nw_state *state_context;
+static nw_cache *privdata_cache;
+
 static rpc_clt *matchengine;
 static rpc_clt *marketprice;
 static rpc_clt *readhistory;
-static nw_state *state_context;
-static nw_cache *privdata_cache;
-static dict_t *method_map;
-static dict_t *backend_cache;
 
 struct state_data {
     nw_ses      *ses;

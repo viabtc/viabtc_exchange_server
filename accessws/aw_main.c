@@ -72,6 +72,10 @@ int main(int argc, char *argv[])
     process_title_init(argc, argv);
 
     int ret;
+    ret = init_mpd();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init mpd fail: %d", ret);
+    }
     ret = init_config(argv[1]);
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "load config fail: %d", ret);
@@ -83,10 +87,6 @@ int main(int argc, char *argv[])
     ret = init_log();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init log fail: %d", ret);
-    }
-    ret = init_mpd();
-    if (ret < 0) {
-        error(EXIT_FAILURE, errno, "init mpd fail: %d", ret);
     }
 
     for (int i = 0; i < settings.worker_num; ++i) {

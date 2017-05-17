@@ -6,13 +6,14 @@
 # include "ah_config.h"
 # include "ah_server.h"
 
-static dict_t *methods;
+static http_svr *svr;
 static nw_state *state;
+static dict_t *methods;
+static rpc_clt *listener;
+
 static rpc_clt *matchengine;
 static rpc_clt *marketprice;
 static rpc_clt *readhistory;
-static http_svr *svr;
-static rpc_clt *listener;
 
 struct state_info {
     nw_ses  *ses;
@@ -252,11 +253,11 @@ static int init_methods_handler(void)
     ERR_RET_LN(add_handler("order.put_limit", matchengine, CMD_ORDER_PUT_LIMIT));
     ERR_RET_LN(add_handler("order.put_market", matchengine, CMD_ORDER_PUT_MARKET));
     ERR_RET_LN(add_handler("order.cancel", matchengine, CMD_ORDER_CANCEL));
-    ERR_RET_LN(add_handler("order.deals", readhistory, CMD_ORDER_DEALS));
     ERR_RET_LN(add_handler("order.book", matchengine, CMD_ORDER_BOOK));
     ERR_RET_LN(add_handler("order.depth", matchengine, CMD_ORDER_BOOK_DEPTH));
     ERR_RET_LN(add_handler("order.pending", matchengine, CMD_ORDER_QUERY));
     ERR_RET_LN(add_handler("order.pending_detail", matchengine, CMD_ORDER_DETAIL));
+    ERR_RET_LN(add_handler("order.deals", readhistory, CMD_ORDER_DEALS));
     ERR_RET_LN(add_handler("order.finished", readhistory, CMD_ORDER_HISTORY));
     ERR_RET_LN(add_handler("order.finished_detail", readhistory, CMD_ORDER_DETAIL_FINISHED));
 

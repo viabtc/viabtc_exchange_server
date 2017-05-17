@@ -272,9 +272,7 @@ int nw_clt_close(nw_clt *clt)
 
 void nw_clt_release(nw_clt *clt)
 {
-    if (clt->ses.write_buf) {
-        nw_ses_release(&clt->ses);
-    }
+    nw_ses_release(&clt->ses);
     if (!clt->custom_buf_pool && clt->buf_pool) {
         nw_buf_pool_release(clt->buf_pool);
     }

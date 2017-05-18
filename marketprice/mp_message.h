@@ -17,6 +17,7 @@ int init_message(void);
 bool market_exist(const char *market);
 
 json_t *get_market_status(const char *market, int period);
+json_t *get_market_status_today(const char *market);
 json_t *get_market_kline_sec(const char *market, time_t start, time_t end, int interval);
 json_t *get_market_kline_min(const char *market, time_t start, time_t end, int interval);
 json_t *get_market_kline_hour(const char *market, time_t start, time_t end, int interval);

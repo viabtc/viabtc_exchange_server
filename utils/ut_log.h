@@ -21,7 +21,7 @@
  * 1. catch the SIGSEGV signal with flag SA_RESETHAND, and call dlog_flush_all
  *    in the signal process function to make sure log buffer are write into file.
  *
- * 2. call dlog_check_all in the main loop or in timer, to helog write log to file
+ * 2. call dlog_check_all in the main loop or in timer, to help write log to file
  *    as soon as possible.
  */
 

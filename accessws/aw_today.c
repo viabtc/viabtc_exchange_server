@@ -4,7 +4,7 @@
  */
 
 # include "aw_config.h"
-# include "aw_price.h"
+# include "aw_today.h"
 # include "aw_server.h"
 
 static nw_timer timer;
@@ -18,7 +18,7 @@ struct state_data {
 
 struct market_val {
     dict_t *sessions;
-    mpd_t  *last;
+    json_t *last;
 };
 
 static uint32_t dict_ses_hash_func(const void *key)
@@ -62,7 +62,7 @@ static void dict_market_val_free(void *val)
 {
     struct market_val *obj = val;
     dict_release(obj->sessions);
-    mpd_del(obj->last);
+    json_decref(obj->last);
     free(obj);
 }
 
@@ -76,21 +76,24 @@ static void on_backend_connect(nw_ses *ses, bool result)
     }
 }
 
-static int on_market_last_reply(struct state_data *state, json_t *result)
+static int on_market_status_today_reply(struct state_data *state, json_t *result)
 {
     dict_entry *entry = dict_find(dict_market, state->market);
     if (entry == NULL)
         return -__LINE__;
     struct market_val *obj = entry->val;
 
-    if (!json_is_string(result))
-        return -__LINE__;
-    mpd_t *last = decimal(json_string_value(result), 0);
-    if (last == NULL)
-        return -__LINE__;
+    char *last_str = NULL;
+    if (obj->last) {
+        last_str = json_dumps(obj->last, JSON_SORT_KEYS);
+    }
+    char *curr_str = json_dumps(result, JSON_SORT_KEYS);
 
-    if (mpd_cmp(last, obj->last, &mpd_ctx) != 0) {
-        mpd_copy(obj->last, last, &mpd_ctx);
+    if (obj->last == NULL || strcmp(last_str, curr_str) != 0) {
+        if (obj->last)
+            json_decref(obj->last);
+        obj->last = result;
+        json_incref(result);
 
         json_t *params = json_array();
         json_array_append_new(params, json_string(state->market));
@@ -99,13 +102,15 @@ static int on_market_last_reply(struct state_data *state, json_t *result)
         dict_iterator *iter = dict_get_iterator(obj->sessions);
         dict_entry *entry;
         while ((entry = dict_next(iter)) != NULL) {
-            send_notify(entry->key, "price.update", params);
+            send_notify(entry->key, "today.update", params);
         }
         dict_release_iterator(iter);
         json_decref(params);
     }
 
-    mpd_del(last);
+    free(last_str);
+    free(curr_str);
+
     return 0;
 }
 
@@ -146,10 +151,10 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
 
     int ret;
     switch (pkg->command) {
-    case CMD_MARKET_LAST:
-        ret = on_market_last_reply(state, result);
+    case CMD_MARKET_STATUS_TODAY:
+        ret = on_market_status_today_reply(state, result);
         if (ret < 0) {
-            log_error("on_market_last_reply: %d, reply: %s", ret, reply_str);
+            log_error("on_market_status_today_reply: %d, reply: %s", ret, reply_str);
         }
         break;
     default:
@@ -164,7 +169,7 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
 
 static void on_timeout(nw_state_entry *entry)
 {
-    log_error("query last price timeout, state id: %u", entry->id);
+    log_error("query status today timeout, state id: %u", entry->id);
 }
 
 static void on_timer(nw_timer *timer, void *privdata)
@@ -184,7 +189,7 @@ static void on_timer(nw_timer *timer, void *privdata)
         rpc_pkg pkg;
         memset(&pkg, 0, sizeof(pkg));
         pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
-        pkg.command   = CMD_MARKET_LAST;
+        pkg.command   = CMD_MARKET_STATUS_TODAY;
         pkg.sequence  = state_entry->id;
         pkg.body      = json_dumps(params, 0);
         pkg.body_size = strlen(pkg.body);
@@ -198,7 +203,7 @@ static void on_timer(nw_timer *timer, void *privdata)
     dict_release_iterator(iter);
 }
 
-int init_price(void)
+int init_today(void)
 {
     dict_types dt;
     memset(&dt, 0, sizeof(dt));
@@ -232,13 +237,13 @@ int init_price(void)
     if (state_context == NULL)
         return -__LINE__;
 
-    nw_timer_set(&timer, settings.price_interval, true, on_timer, NULL);
+    nw_timer_set(&timer, settings.today_interval, true, on_timer, NULL);
     nw_timer_start(&timer);
 
     return 0;
 }
 
-int price_subscribe(nw_ses *ses, const char *market)
+int today_subscribe(nw_ses *ses, const char *market)
 {
     dict_entry *entry = dict_find(dict_market, market);
     if (entry == NULL) {
@@ -253,9 +258,6 @@ int price_subscribe(nw_ses *ses, const char *market)
         if (val.sessions == NULL)
             return -__LINE__;
 
-        val.last = mpd_new(&mpd_ctx);
-        mpd_copy(val.last, mpd_zero, &mpd_ctx);
-
         entry = dict_add(dict_market, (char *)market, &val);
         if (entry == NULL)
             return -__LINE__;
@@ -267,7 +269,7 @@ int price_subscribe(nw_ses *ses, const char *market)
     return 0;
 }
 
-int price_unsubscribe(nw_ses *ses)
+int today_unsubscribe(nw_ses *ses)
 {
     dict_iterator *iter = dict_get_iterator(dict_market);
     dict_entry *entry;
@@ -283,19 +285,20 @@ int price_unsubscribe(nw_ses *ses)
     return 0;
 }
 
-int price_send_last(nw_ses *ses, const char *market)
+int today_send_last(nw_ses *ses, const char *market)
 {
     dict_entry *entry = dict_find(dict_market, market);
-    if (entry == NULL)
+    if (entry == NULL) {
         return 0;
+    }
     struct market_val *obj = entry->val;
-    if (mpd_cmp(obj->last, mpd_zero, &mpd_ctx) == 0)
+    if (obj->last == NULL)
         return 0;
 
     json_t *params = json_array();
     json_array_append_new(params, json_string(market));
-    json_array_append_new_mpd(params, obj->last);
-    send_notify(ses, "price.update", params);
+    json_array_append(params, obj->last);
+    send_notify(ses, "today.update", params);
     json_decref(params);
 
     return 0;

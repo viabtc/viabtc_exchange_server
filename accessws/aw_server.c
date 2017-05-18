@@ -9,19 +9,21 @@
 # include "aw_kline.h"
 # include "aw_depth.h"
 # include "aw_price.h"
+# include "aw_today.h"
 # include "aw_deals.h"
 # include "aw_order.h"
 # include "aw_asset.h"
 
 static ws_svr *svr;
+static dict_t *method_map;
+static dict_t *backend_cache;
 static rpc_clt *listener;
+static nw_state *state_context;
+static nw_cache *privdata_cache;
+
 static rpc_clt *matchengine;
 static rpc_clt *marketprice;
 static rpc_clt *readhistory;
-static nw_state *state_context;
-static nw_cache *privdata_cache;
-static dict_t *method_map;
-static dict_t *backend_cache;
 
 struct state_data {
     nw_ses      *ses;
@@ -206,6 +208,12 @@ static int on_method_kline_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
     return send_success(ses, id);
 }
 
+static int on_method_kline_unsubscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    kline_unsubscribe(ses);
+    return send_success(ses, id);
+}
+
 static int on_method_depth_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
     sds key = sdsempty();
@@ -260,6 +268,12 @@ static int on_method_depth_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
     send_success(ses, id);
     depth_send_clean(ses, market, limit, interval);
     return 0;
+}
+
+static int on_method_depth_unsubscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    depth_unsubscribe(ses);
+    return send_success(ses, id);
 }
 
 static int on_method_price_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
@@ -346,6 +360,79 @@ static int on_method_price_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
             return send_error_internal_error(ses, id);
     }
 
+    send_success(ses, id);
+    for (size_t i = 0; i < params_size; ++i) {
+        price_send_last(ses, json_string_value(json_array_get(params, i)));
+    }
+
+    return 0;
+}
+
+static int on_method_price_unsubscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    price_unsubscribe(ses);
+    return send_success(ses, id);
+}
+
+static int on_method_today_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    sds key = sdsempty();
+    char *params_str = json_dumps(params, 0);
+    key = sdscatprintf(key, "%u-%s", CMD_MARKET_STATUS_TODAY, params_str);
+    int ret = process_cache(ses, key);
+    if (ret > 0) {
+        sdsfree(key);
+        free(params_str);
+        return 0;
+    }
+
+    nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
+    struct state_data *state = entry->data;
+    state->ses = ses;
+    state->ses_id = ses->id;
+    state->request_id = id;
+    state->cache_key = key;
+
+    rpc_pkg pkg;
+    memset(&pkg, 0, sizeof(pkg));
+    pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
+    pkg.command   = CMD_MARKET_STATUS_TODAY;
+    pkg.sequence  = entry->id;
+    pkg.req_id    = id;
+    pkg.body      = params_str;
+    pkg.body_size = strlen(pkg.body);
+
+    rpc_clt_send(marketprice, &pkg);
+    log_trace("send request to %s, cmd: %u, sequence: %u, params: %s",
+            nw_sock_human_addr(rpc_clt_peer_addr(marketprice)), pkg.command, pkg.sequence, (char *)pkg.body);
+    free(pkg.body);
+
+    return 0;
+}
+
+static int on_method_today_subscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    today_unsubscribe(ses);
+    size_t params_size = json_array_size(params);
+    for (size_t i = 0; i < params_size; ++i) {
+        const char *market = json_string_value(json_array_get(params, i));
+        if (market == NULL || strlen(market) >= MARKET_NAME_MAX_LEN)
+            return send_error_invalid_argument(ses, id);
+        if (today_subscribe(ses, market) < 0)
+            return send_error_internal_error(ses, id);
+    }
+
+    send_success(ses, id);
+    for (size_t i = 0; i < params_size; ++i) {
+        today_send_last(ses, json_string_value(json_array_get(params, i)));
+    }
+
+    return 0;
+}
+
+static int on_method_today_unsubscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    today_unsubscribe(ses);
     return send_success(ses, id);
 }
 
@@ -418,6 +505,12 @@ static int on_method_deals_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
     }
 
     return 0;
+}
+
+static int on_method_deals_unsubscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    deals_unsubscribe(ses);
+    return send_success(ses, id);
 }
 
 static int on_method_order_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
@@ -520,6 +613,15 @@ static int on_method_order_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
     return send_success(ses, id);
 }
 
+static int on_method_order_unsubscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    if (!info->auth)
+        return send_error_require_auth(ses, id);
+
+    order_unsubscribe(info->user_id, ses);
+    return send_success(ses, id);
+}
+
 static int on_method_asset_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
     if (!info->auth)
@@ -606,8 +708,12 @@ static int on_method_asset_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
     return send_success(ses, id);
 }
 
-static int on_method_test(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params) {
+static int on_method_asset_unsubscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    if (!info->auth)
+        return send_error_require_auth(ses, id);
 
+    asset_unsubscribe(info->user_id, ses);
     return send_success(ses, id);
 }
 
@@ -678,6 +784,7 @@ static void on_close(nw_ses *ses, const char *remote)
     kline_unsubscribe(ses);
     depth_unsubscribe(ses);
     price_unsubscribe(ses);
+    today_unsubscribe(ses);
     deals_unsubscribe(ses);
 
     struct clt_info *info = ws_ses_privdata(ses);
@@ -760,18 +867,27 @@ static int init_svr(void)
     ERR_RET_LN(add_handler("server.auth",       on_method_server_auth));
     ERR_RET_LN(add_handler("kline.query",       on_method_kline_query));
     ERR_RET_LN(add_handler("kline.subscribe",   on_method_kline_subscribe));
+    ERR_RET_LN(add_handler("kline.unsubscribe", on_method_kline_unsubscribe));
     ERR_RET_LN(add_handler("depth.query",       on_method_depth_query));
     ERR_RET_LN(add_handler("depth.subscribe",   on_method_depth_subscribe));
+    ERR_RET_LN(add_handler("depth.unsubscribe", on_method_depth_unsubscribe));
     ERR_RET_LN(add_handler("price.query",       on_method_price_query));
     ERR_RET_LN(add_handler("price.subscribe",   on_method_price_subscribe));
+    ERR_RET_LN(add_handler("price.unsubscribe", on_method_price_unsubscribe));
+    ERR_RET_LN(add_handler("today.query",       on_method_today_query));
+    ERR_RET_LN(add_handler("today.subscribe",   on_method_today_subscribe));
+    ERR_RET_LN(add_handler("today.unsubscribe", on_method_today_unsubscribe));
     ERR_RET_LN(add_handler("deals.query",       on_method_deals_query));
     ERR_RET_LN(add_handler("deals.subscribe",   on_method_deals_subscribe));
+    ERR_RET_LN(add_handler("deals.unsubscribe", on_method_deals_unsubscribe));
     ERR_RET_LN(add_handler("order.history",     on_method_order_history));
     ERR_RET_LN(add_handler("order.query",       on_method_order_query));
     ERR_RET_LN(add_handler("order.subscribe",   on_method_order_subscribe));
+    ERR_RET_LN(add_handler("deals.unsubscribe", on_method_order_unsubscribe));
     ERR_RET_LN(add_handler("asset.query",       on_method_asset_query));
     ERR_RET_LN(add_handler("asset.history",     on_method_asset_history));
     ERR_RET_LN(add_handler("asset.subscribe",   on_method_asset_subscribe));
+    ERR_RET_LN(add_handler("asset.unsubscribe", on_method_asset_unsubscribe));
 
 	//android ios extend methods
     ERR_RET_LN(add_handler("price-ex.query",       on_method_price_ex_query));

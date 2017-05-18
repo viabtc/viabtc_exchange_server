@@ -10,6 +10,7 @@
 # include "aw_kline.h"
 # include "aw_depth.h"
 # include "aw_price.h"
+# include "aw_today.h"
 # include "aw_deals.h"
 # include "aw_order.h"
 # include "aw_asset.h"
@@ -71,6 +72,10 @@ int main(int argc, char *argv[])
     process_title_init(argc, argv);
 
     int ret;
+    ret = init_mpd();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init mpd fail: %d", ret);
+    }
     ret = init_config(argv[1]);
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "load config fail: %d", ret);
@@ -82,10 +87,6 @@ int main(int argc, char *argv[])
     ret = init_log();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init log fail: %d", ret);
-    }
-    ret = init_mpd();
-    if (ret < 0) {
-        error(EXIT_FAILURE, errno, "init mpd fail: %d", ret);
     }
 
     for (int i = 0; i < settings.worker_num; ++i) {
@@ -128,6 +129,10 @@ server:
     ret = init_price();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init price fail: %d", ret);
+    }
+    ret = init_today();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init today fail: %d", ret);
     }
     ret = init_deals();
     if (ret < 0) {

@@ -112,9 +112,9 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 
             mpd_t *available = balance_get(user_id, BALANCE_TYPE_AVAILABLE, asset);
             if (available) {
-                if (prec_save == prec_show) {
+                if (prec_save != prec_show) {
                     mpd_t *show = mpd_qncopy(available);
-                    mpd_rescale(show, show, prec_show, &mpd_ctx);
+                    mpd_rescale(show, show, -prec_show, &mpd_ctx);
                     json_object_set_new_mpd(unit, "available", show);
                 } else {
                     json_object_set_new_mpd(unit, "available", available);
@@ -125,9 +125,9 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 
             mpd_t *freeze = balance_get(user_id, BALANCE_TYPE_FREEZE, asset);
             if (freeze) {
-                if (prec_save == prec_show) {
+                if (prec_save != prec_show) {
                     mpd_t *show = mpd_qncopy(freeze);
-                    mpd_rescale(show, show, prec_show, &mpd_ctx);
+                    mpd_rescale(show, show, -prec_show, &mpd_ctx);
                     json_object_set_new_mpd(unit, "freeze", show);
                 } else {
                     json_object_set_new_mpd(unit, "freeze", freeze);
@@ -151,9 +151,9 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 
             mpd_t *available = balance_get(user_id, BALANCE_TYPE_AVAILABLE, asset);
             if (available) {
-                if (prec_save == prec_show) {
+                if (prec_save != prec_show) {
                     mpd_t *show = mpd_qncopy(available);
-                    mpd_rescale(show, show, prec_show, &mpd_ctx);
+                    mpd_rescale(show, show, -prec_show, &mpd_ctx);
                     json_object_set_new_mpd(unit, "available", show);
                 } else {
                     json_object_set_new_mpd(unit, "available", available);
@@ -164,9 +164,9 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 
             mpd_t *freeze = balance_get(user_id, BALANCE_TYPE_FREEZE, asset);
             if (freeze) {
-                if (prec_save == prec_show) {
+                if (prec_save != prec_show) {
                     mpd_t *show = mpd_qncopy(freeze);
-                    mpd_rescale(show, show, prec_show, &mpd_ctx);
+                    mpd_rescale(show, show, -prec_show, &mpd_ctx);
                     json_object_set_new_mpd(unit, "freeze", show);
                 } else {
                     json_object_set_new_mpd(unit, "freeze", freeze);

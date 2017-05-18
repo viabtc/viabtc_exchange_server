@@ -40,3 +40,8 @@ tags
 
 # Python
 *.pyc
+
+# vim
+*.un
+*.un~
+*~

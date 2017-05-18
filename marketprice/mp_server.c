@@ -198,6 +198,24 @@ static int on_cmd_market_last(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     return reply_result(ses, pkg, result);
 }
 
+static int on_cmd_market_status_today(nw_ses *ses, rpc_pkg *pkg, json_t *params)
+{
+    if (json_array_size(params) != 1)
+        return reply_error_invalid_argument(ses, pkg);
+
+    const char *market = json_string_value(json_array_get(params, 0));
+    if (!market)
+        return reply_error_invalid_argument(ses, pkg);
+    if (!market_exist(market))
+        return reply_error_invalid_argument(ses, pkg);
+
+    json_t *result = get_market_status_today(market);
+    if (result == NULL)
+        return reply_error_internal_error(ses, pkg);
+
+    return reply_result(ses, pkg, result);
+}
+
 static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
 {
     json_t *params = json_loadb(pkg->body, pkg->body_size, 0, NULL);
@@ -234,6 +252,13 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         ret = on_cmd_market_last(ses, pkg, params);
         if (ret < 0) {
             log_error("on_cmd_market_last %s fail: %d", params_str, ret);
+        }
+        break;
+    case CMD_MARKET_STATUS_TODAY:
+        log_debug("from: %s cmd market today status, params: %s", nw_sock_human_addr(&ses->peer_addr), params_str);
+        ret = on_cmd_market_status_today(ses, pkg, params);
+        if (ret < 0) {
+            log_error("on_cmd_market_status_today %s fail: %d", params_str, ret);
         }
         break;
     default:

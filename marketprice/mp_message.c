@@ -878,6 +878,18 @@ bool market_exist(const char *market)
     return false;
 }
 
+static struct kline_info *get_last_kline(dict_t *dict, time_t start, time_t end, int interval)
+{
+    for (; start >= end; start -= interval) {
+        dict_entry *entry = dict_find(dict, &start);
+        if (entry) {
+            return entry->val;
+        }
+    }
+
+    return NULL;
+}
+
 json_t *get_market_status(const char *market, int period)
 {
     struct market_info *info = market_query(market);
@@ -915,6 +927,51 @@ json_t *get_market_status(const char *market, int period)
     return result;
 }
 
+json_t *get_market_status_today(const char *market)
+{
+    struct market_info *info = market_query(market);
+    if (info == NULL)
+        return NULL;
+
+    json_t *result = json_object();
+    time_t now = time(NULL);
+    time_t start = now / 86400 * 86400 + settings.timezone;
+    struct kline_info *klast = get_last_kline(info->day, start - 86400, start - 86400 * 30, 86400);
+    dict_entry *entry = dict_find(info->day, &start);
+    if (entry) {
+        struct kline_info *today = entry->val;
+        json_object_set_new_mpd(result, "open", today->open);
+        json_object_set_new_mpd(result, "last", today->close);
+        json_object_set_new_mpd(result, "high", today->high);
+        json_object_set_new_mpd(result, "low",  today->low);
+    } else if (klast) {
+        json_object_set_new_mpd(result, "open", klast->close);
+        json_object_set_new_mpd(result, "last", klast->close);
+        json_object_set_new_mpd(result, "high", klast->close);
+        json_object_set_new_mpd(result, "low",  klast->close);
+    } else {
+        json_object_set_new(result, "open", json_string("0"));
+        json_object_set_new(result, "last", json_string("0"));
+        json_object_set_new(result, "high", json_string("0"));
+        json_object_set_new(result, "low",  json_string("0"));
+    }
+
+    mpd_t *volume = mpd_qncopy(mpd_zero);
+    for (int i = 0; i < 86400; ++i) {
+        time_t timestamp = now - i;
+        dict_entry *entry = dict_find(info->sec, &timestamp);
+        if (!entry)
+            continue;
+        struct kline_info *info = entry->val;
+        mpd_add(volume, volume, info->volume, &mpd_ctx);
+    }
+
+    json_object_set_new_mpd(result, "volume", volume);
+    mpd_del(volume);
+
+    return result;
+}
+
 static int append_kinfo(json_t *result, time_t timestamp, struct kline_info *kinfo)
 {
     json_t *unit = json_array();
@@ -927,18 +984,6 @@ static int append_kinfo(json_t *result, time_t timestamp, struct kline_info *kin
     json_array_append_new(result, unit);
 
     return 0;
-}
-
-struct kline_info *get_last_kline(dict_t *dict, time_t start, time_t end, int interval)
-{
-    for (; start >= end; start -= interval) {
-        dict_entry *entry = dict_find(dict, &start);
-        if (entry) {
-            return entry->val;
-        }
-    }
-
-    return NULL;
 }
 
 json_t *get_market_kline_sec(const char *market, time_t start, time_t end, int interval)
@@ -1176,7 +1221,7 @@ json_t *get_market_kline_month(const char *market, time_t start, time_t end, int
     int tm_mon  = timeinfo->tm_mon;
     time_t mon_start = get_month_start(tm_year, tm_mon);
 
-    struct kline_info *klast = get_last_kline(info->day, start - 86400, start - 86400 * 30, 86400);
+    struct kline_info *klast = get_last_kline(info->day, mon_start - 86400, start - 86400 * 30, 86400);
     for (; mon_start <= end; ) {
         struct kline_info *kinfo = NULL;
         time_t mon_next = get_next_month(&tm_year, &tm_mon);

@@ -30,7 +30,5 @@
 # define CMD_MARKET_LAST            304
 # define CMD_MARKET_STATUS_TODAY    305
 
-# define CMD_MARKET_LAST_EX         305
-
 # endif
 

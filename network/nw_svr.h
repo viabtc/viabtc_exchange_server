@@ -60,23 +60,23 @@ typedef struct nw_svr_type {
     void (*on_new_connection)(nw_ses *ses);
     /* optional
      *
-     * callen when a connection is close */
+     * called when a connection is close */
     void (*on_connection_close)(nw_ses *ses);
     /* must
      *
-     * called when a full message is recieved, put your business logic in here */
+     * called when a full message received, put your business logic here */
     void (*on_recv_pkg)(nw_ses *ses, void *data, size_t size);
     /* optional
      *
-     * called when a fd is recieved, it not set, default action is close it */
+     * called when a fd is received, if not set, default action is to close it */
     void (*on_recv_fd)(nw_ses *ses, int fd);
     /* optional
      *
-     * called when a error accur, msg is the detail of the error */
+     * called when an error occur, msg is the detail of the error */
     void (*on_error_msg)(nw_ses *ses, const char *msg);
     /* optional
      *
-     * if set, the on_privdata_free also shoud be set.
+     * if set, the on_privdata_free also should be set.
      * the return value will assign to nw_ses privdata
      * called when a new connection is established */
     void *(*on_privdata_alloc)(void *svr);

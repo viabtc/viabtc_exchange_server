@@ -11,6 +11,7 @@ CREATE TABLE `balance_history_example` (
     INDEX `idx_user_asset_business` (`user_id`, `asset`, `business`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+-- split by user_id
 CREATE TABLE `order_history_example` (
     `id`            BIGINT UNSIGNED NOT NULL PRIMARY KEY,
     `create_time`   DOUBLE NOT NULL,
@@ -30,6 +31,7 @@ CREATE TABLE `order_history_example` (
     INDEX `idx_user_market` (`user_id`, `market`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+-- split by id ,aka orer_id
 CREATE TABLE `order_detail_example` (
     `id`            BIGINT UNSIGNED NOT NULL PRIMARY KEY,
     `create_time`   DOUBLE NOT NULL,
@@ -49,6 +51,7 @@ CREATE TABLE `order_detail_example` (
     INDEX `idx_user_market` (`user_id`, `market`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+-- split by order_id
 CREATE TABLE `deal_history_example` (
     `id`            BIGINT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
     `time`          DOUBLE NOT NULL,

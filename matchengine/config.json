@@ -74,7 +74,7 @@
             },
             "money": {
                 "name": "BTC",
-                "prec": 6
+                "prec": 8
             }
         }
     ],

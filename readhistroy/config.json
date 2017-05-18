@@ -20,7 +20,7 @@
     "db_history": {
         "host": "localhost",
         "user": "root",
-        "pass": "root",
+        "pass": "shit",
         "name": "trade_history"
     },
     "worker_num": 10

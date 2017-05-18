@@ -12,7 +12,7 @@
         "bind": [
             "tcp@0.0.0.0:8080"
         ],
-      "max_pkg_size": 102400
+        "max_pkg_size": 102400
     },
     "monitor": {
         "bind": "tcp@0.0.0.0:8081",

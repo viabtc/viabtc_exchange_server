@@ -106,14 +106,17 @@ static void on_connect(nw_ses *ses, bool result)
 {
     nw_clt *clt = (nw_clt *)ses;
     clt->on_connect_called = true;
-    if (clt->type.on_connect) {
-        clt->type.on_connect(ses, result);
-    }
     if (result) {
         clt->connected = true;
         set_socket_option(clt, clt->ses.sockfd);
         nw_sock_host_addr(ses->sockfd, ses->host_addr);
+        if (clt->type.on_connect) {
+            clt->type.on_connect(ses, result);
+        }
     } else {
+        if (clt->type.on_connect) {
+            clt->type.on_connect(ses, result);
+        }
         int ret = 0;
         if (clt->type.on_close) {
             ret = clt->type.on_close(&clt->ses);

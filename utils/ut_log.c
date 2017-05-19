@@ -639,7 +639,7 @@ void dlog_backtrace(dlog_t *log)
         dlog(log, "%2d %s", j, symbols[i]);
     }
     dlog(log, "%s", "===========backtrace=end===========");
-	free(symbols);
+    free(symbols);
 }
 
 # ifdef DLOG_SERVER

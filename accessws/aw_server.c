@@ -167,6 +167,9 @@ static int on_method_kline_query(nw_ses *ses, uint64_t id, struct clt_info *info
         return 0;
     }
 
+    if (!rpc_clt_connected(marketprice))
+        return send_error_internal_error(ses, id);
+
     nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
     struct state_data *state = entry->data;
     state->ses = ses;
@@ -225,6 +228,9 @@ static int on_method_depth_query(nw_ses *ses, uint64_t id, struct clt_info *info
         free(params_str);
         return 0;
     }
+
+    if (!rpc_clt_connected(matchengine))
+        return send_error_internal_error(ses, id);
 
     nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
     struct state_data *state = entry->data;
@@ -288,6 +294,9 @@ static int on_method_price_query(nw_ses *ses, uint64_t id, struct clt_info *info
         return 0;
     }
 
+    if (!rpc_clt_connected(marketprice))
+        return send_error_internal_error(ses, id);
+
     nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
     struct state_data *state = entry->data;
     state->ses = ses;
@@ -349,6 +358,9 @@ static int on_method_today_query(nw_ses *ses, uint64_t id, struct clt_info *info
         free(params_str);
         return 0;
     }
+
+    if (!rpc_clt_connected(marketprice))
+        return send_error_internal_error(ses, id);
 
     nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
     struct state_data *state = entry->data;
@@ -412,6 +424,9 @@ static int on_method_deals_query(nw_ses *ses, uint64_t id, struct clt_info *info
         return 0;
     }
 
+    if (!rpc_clt_connected(marketprice))
+        return send_error_internal_error(ses, id);
+
     nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
     struct state_data *state = entry->data;
     state->ses = ses;
@@ -464,6 +479,9 @@ static int on_method_deals_unsubscribe(nw_ses *ses, uint64_t id, struct clt_info
 
 static int on_method_order_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
+    if (!rpc_clt_connected(matchengine))
+        return send_error_internal_error(ses, id);
+
     if (!info->auth)
         return send_error_require_auth(ses, id);
     if (json_array_size(params) != 3)
@@ -511,6 +529,9 @@ static int on_method_order_query(nw_ses *ses, uint64_t id, struct clt_info *info
 
 static int on_method_order_history(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
+    if (!rpc_clt_connected(readhistory))
+        return send_error_internal_error(ses, id);
+
     if (!info->auth)
         return send_error_require_auth(ses, id);
     if (json_array_size(params) != 5)
@@ -576,6 +597,9 @@ static int on_method_asset_query(nw_ses *ses, uint64_t id, struct clt_info *info
     if (!info->auth)
         return send_error_require_auth(ses, id);
 
+    if (!rpc_clt_connected(matchengine))
+        return send_error_internal_error(ses, id);
+
     json_t *trade_params = json_array();
     json_array_append_new(trade_params, json_integer(info->user_id));
     json_array_extend(trade_params, params);
@@ -606,6 +630,9 @@ static int on_method_asset_query(nw_ses *ses, uint64_t id, struct clt_info *info
 
 static int on_method_asset_history(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
+    if (!rpc_clt_connected(readhistory))
+        return send_error_internal_error(ses, id);
+
     if (!info->auth)
         return send_error_require_auth(ses, id);
     if (json_array_size(params) != 6)
@@ -829,8 +856,8 @@ static int init_svr(void)
     ERR_RET_LN(add_handler("deals.query",       on_method_deals_query));
     ERR_RET_LN(add_handler("deals.subscribe",   on_method_deals_subscribe));
     ERR_RET_LN(add_handler("deals.unsubscribe", on_method_deals_unsubscribe));
-    ERR_RET_LN(add_handler("order.history",     on_method_order_history));
     ERR_RET_LN(add_handler("order.query",       on_method_order_query));
+    ERR_RET_LN(add_handler("order.history",     on_method_order_history));
     ERR_RET_LN(add_handler("order.subscribe",   on_method_order_subscribe));
     ERR_RET_LN(add_handler("deals.unsubscribe", on_method_order_unsubscribe));
     ERR_RET_LN(add_handler("asset.query",       on_method_asset_query));

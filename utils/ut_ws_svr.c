@@ -24,7 +24,9 @@ struct clt_info {
     double      last_activity;
     struct      http_parser parser;
     sds         field;
+    bool        field_set;
     sds         value;
+    bool        value_set;
     bool        upgrade;
     sds         remote;
     sds         url;
@@ -36,6 +38,8 @@ struct clt_info {
 static int on_http_message_begin(http_parser* parser)
 {
     struct clt_info *info = parser->data;
+    if (info->request)
+        http_request_release(info->request);
     info->request = http_request_new();
     if (info->request == NULL) {
         return -__LINE__;
@@ -158,8 +162,6 @@ static int on_http_message_complete(http_parser* parser)
     } else {
         send_hand_shake_reply(info->ses, NULL, ws_key);
     }
-    http_request_release(info->request);
-    info->request = NULL;
 
     return 0;
 
@@ -171,6 +173,8 @@ error:
 static int on_http_url(http_parser* parser, const char* at, size_t length)
 {
     struct clt_info *info = parser->data;
+    if (info->request->url)
+        sdsfree(info->request->url);
     info->request->url = sdsnewlen(at, length);
 
     return 0;
@@ -179,7 +183,12 @@ static int on_http_url(http_parser* parser, const char* at, size_t length)
 static int on_http_header_field(http_parser* parser, const char* at, size_t length)
 {
     struct clt_info *info = parser->data;
-    info->field = sdsnewlen(at, length);
+    info->field_set = true;
+    if (info->field == NULL) {
+        info->field = sdsnewlen(at, length);
+    } else {
+        info->field = sdscpylen(info->field, at, length);
+    }
 
     return 0;
 }
@@ -187,13 +196,17 @@ static int on_http_header_field(http_parser* parser, const char* at, size_t leng
 static int on_http_header_value(http_parser* parser, const char* at, size_t length)
 {
     struct clt_info *info = parser->data;
-    info->value = sdsnewlen(at, length);
-    if (info->field && info->value) {
+    info->value_set = true;
+    if (info->value == NULL) {
+        info->value = sdsnewlen(at, length);
+    } else {
+        info->value = sdscpylen(info->value, at, length);
+    }
+
+    if (info->field_set && info->value_set) {
         http_request_set_header(info->request, info->field, info->value);
-        sdsfree(info->field);
-        sdsfree(info->value);
-        info->field = NULL;
-        info->value = NULL;
+        info->field_set = false;
+        info->value_set = false;
     }
 
     return 0;

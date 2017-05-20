@@ -12,6 +12,8 @@ static dict_t *dict_depth;
 static rpc_clt *matchengine;
 static nw_state *state_context;
 
+# define CLEAN_INTERVAL 60
+
 struct depth_key {
     char market[MARKET_NAME_MAX_LEN];
     char interval[INTERVAL_MAX_LEN];
@@ -21,6 +23,7 @@ struct depth_key {
 struct depth_val {
     dict_t *sessions;
     json_t *last;
+    time_t  last_clean;
 };
 
 struct state_data {
@@ -228,6 +231,7 @@ static int on_market_depth_reply(struct state_data *state, json_t *result)
     struct depth_val *val = entry->val;
     if (val->last == NULL) {
         val->last = result;
+        val->last_clean = time(NULL);
         json_incref(result);
         return broadcast_update(val->sessions, true, result);
     }
@@ -239,7 +243,14 @@ static int on_market_depth_reply(struct state_data *state, json_t *result)
 
     val->last = result;
     json_incref(result);
-    broadcast_update(val->sessions, false, diff);
+
+    time_t now = time(NULL);
+    if (now - val->last_clean >= CLEAN_INTERVAL) {
+        val->last_clean = now;
+        broadcast_update(val->sessions, true, result);
+    } else {
+        broadcast_update(val->sessions, false, diff);
+    }
     json_decref(diff);
 
     return 0;

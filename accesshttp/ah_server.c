@@ -47,6 +47,11 @@ static void reply_bad_request(nw_ses *ses)
     send_http_response_simple(ses, 400, NULL, 0);
 }
 
+static void reply_internal_error(nw_ses *ses)
+{
+    send_http_response_simple(ses, 500, NULL, 0);
+}
+
 static void reply_not_found(nw_ses *ses, int64_t id)
 {
     reply_error(ses, id, 4, "method not found", 404);
@@ -88,6 +93,12 @@ static int on_http_request(nw_ses *ses, http_request_t *request)
         reply_not_found(ses, json_integer_value(id));
     } else {
         struct request_info *req = entry->val;
+        if (!rpc_clt_connected(req->clt)) {
+            reply_internal_error(ses);
+            json_decref(body);
+            return 0;
+        }
+
         nw_state_entry *entry = nw_state_add(state, settings.timeout, 0);
         struct state_info *info = entry->data;
         info->ses = ses;

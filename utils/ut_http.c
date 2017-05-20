@@ -72,10 +72,8 @@ int http_request_set_header(http_request_t *request, char *field, char *value)
     dict_entry *entry = dict_find(request->headers, field);
     if (entry) {
         char *new = realloc(entry->val, strlen(entry->val) + 2 + strlen(value) + 1);
-        strcpy(new, entry->val);
         strcat(new, ", ");
         strcat(new, value);
-        free(entry->val);
         entry->val= new;
         return 0;
     }
@@ -124,10 +122,8 @@ int http_response_set_header(http_response_t *response, char *field, char *value
     dict_entry *entry = dict_find(response->headers, field);
     if (entry) {
         char *new = realloc(entry->val, strlen(entry->val) + 2 + strlen(value) + 1);
-        strcpy(new, entry->val);
         strcat(new, ", ");
         strcat(new, value);
-        free(entry->val);
         entry->val = new;
         return 0;
     }

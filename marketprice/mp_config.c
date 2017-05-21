@@ -35,11 +35,6 @@ static int read_config_from_json(json_t *root)
         printf("load svr config fail: %d\n", ret);
         return -__LINE__;
     }
-    ret = load_cfg_cli_svr(root, "cli", &settings.cli);
-    if (ret < 0) {
-        printf("load cli config fail: %d\n", ret);
-        return -__LINE__;
-    }
     ret = load_cfg_kafka_consumer(root, "deals", &settings.deals);
     if (ret < 0) {
         printf("load kafka deals config fail: %d\n", ret);

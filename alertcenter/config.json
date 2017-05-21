@@ -4,13 +4,13 @@
         "core_limit": 1000000000
     },
     "log": {
-        "path": "/tmp/alertcenter",
+        "path": "/var/log/trade/alertcenter",
         "flag": "fatal,error,warn,info,debug"
     },
     "svr": {
         "bind": [
-            "tcp@0.0.0.0:10000",
-            "udp@0.0.0.0:10000"
+            "tcp@0.0.0.0:4444",
+            "udp@0.0.0.0:4444"
         ],
         "max_pkg_size": 10240
     },

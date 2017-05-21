@@ -41,9 +41,9 @@
 
 struct settings {
     bool                debug;
-
     process_cfg         process;
     log_cfg             log;
+    alert_cfg           alert;
     rpc_svr_cfg         svr;
     mysql_cfg           db_history;
     int                 worker_num;

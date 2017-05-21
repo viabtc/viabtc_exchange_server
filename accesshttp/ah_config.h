@@ -42,6 +42,7 @@
 struct settings {
     process_cfg         process;
     log_cfg             log;
+    alert_cfg           alert;
     http_svr_cfg        svr;
     nw_svr_cfg          monitor;
     rpc_clt_cfg         matchengine;

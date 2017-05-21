@@ -17,6 +17,7 @@
 # include "ut_log.h"
 # include "ut_kafka.h"
 # include "ut_redis.h"
+# include "ut_alert.h"
 # include "ut_decimal.h"
 # include "ut_rpc_clt.h"
 # include "ut_rpc_svr.h"
@@ -54,6 +55,7 @@ typedef struct mysql_cfg {
 int parse_inetv4_addr(const char *str, struct sockaddr_in *addr);
 
 int load_cfg_process(json_t *root, const char *key, process_cfg *cfg);
+int load_cfg_alert(json_t *root, const char *key, alert_cfg *cfg);
 int load_cfg_log(json_t *root, const char *key, log_cfg *cfg);
 int load_cfg_svr(json_t *root, const char *key, nw_svr_cfg *cfg);
 int load_cfg_clt(json_t *root, const char *key, nw_clt_cfg *cfg);

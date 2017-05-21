@@ -8,6 +8,10 @@
         "path": "/var/log/trade/accessws",
         "flag": "fatal,error,warn,info,debug,trace"
     },
+    "alert": {
+        "host": "matchengine",
+        "addr": "127.0.0.1:4444"
+    },
     "svr": {
         "bind": [
             "stream@/tmp/accessws.sock"

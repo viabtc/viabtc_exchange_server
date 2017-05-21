@@ -23,7 +23,7 @@ static nw_timer timer;
 static void on_delivery(rd_kafka_t *rk, const rd_kafka_message_t *rkmessage, void *opaque)
 {
     if (rkmessage->err) {
-        log_error("Message delivery failed: %s", rd_kafka_err2str(rkmessage->err));
+        log_fatal("Message delivery failed: %s", rd_kafka_err2str(rkmessage->err));
     } else {
         log_trace("Message delivered (topic: %s, %zd bytes, partition %"PRId32")",
                 rd_kafka_topic_name(rkmessage->rkt), rkmessage->len, rkmessage->partition);
@@ -42,7 +42,7 @@ static void produce_list(list_t *list, rd_kafka_topic_t *topic)
     while ((node = list_next(iter)) != NULL) {
         int ret = rd_kafka_produce(topic, 0, RD_KAFKA_MSG_F_COPY, node->value, strlen(node->value), NULL, 0, NULL);
         if (ret == -1) {
-            log_error("Failed to produce: %s to topic %s: %s\n", (char *)node->value,
+            log_fatal("Failed to produce: %s to topic %s: %s\n", (char *)node->value,
                     rd_kafka_topic_name(rkt_deals), rd_kafka_err2str(rd_kafka_last_error()));
             if (rd_kafka_last_error() == RD_KAFKA_RESP_ERR__QUEUE_FULL) {
                 break;
@@ -163,7 +163,7 @@ static int push_message(char *message, rd_kafka_topic_t *topic, list_t *list)
 
     int ret = rd_kafka_produce(topic, 0, RD_KAFKA_MSG_F_COPY, message, strlen(message), NULL, 0, NULL);
     if (ret == -1) {
-        log_error("Failed to produce: %s to topic %s: %s\n", message, rd_kafka_topic_name(rkt_deals), rd_kafka_err2str(rd_kafka_last_error()));
+        log_fatal("Failed to produce: %s to topic %s: %s\n", message, rd_kafka_topic_name(rkt_deals), rd_kafka_err2str(rd_kafka_last_error()));
         if (rd_kafka_last_error() == RD_KAFKA_RESP_ERR__QUEUE_FULL) {
             list_add_node_tail(list_deals, message);
             return 0;

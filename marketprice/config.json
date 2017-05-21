@@ -8,6 +8,10 @@
         "path": "/var/log/trade/marketprice",
         "flag": "fatal,error,warn,info,debug,trace"
     },
+    "alert": {
+        "host": "marketprice",
+        "addr": "127.0.0.1:4444"
+    },
     "svr": {
         "bind": [
             "tcp@0.0.0.0:7416",

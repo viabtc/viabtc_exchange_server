@@ -55,7 +55,7 @@ static void list_node_free(void *value)
 
 static void on_timeout(nw_state_entry *entry)
 {
-    log_error("query balance timeout, state id: %u", entry->id);
+    log_fatal("query balance timeout, state id: %u", entry->id);
 }
 
 static void on_backend_connect(nw_ses *ses, bool result)
@@ -108,7 +108,7 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
     json_t *reply = json_loadb(pkg->body, pkg->body_size, 0, NULL);
     if (reply == NULL) {
         sds hex = hexdump(pkg->body, pkg->body_size);
-        log_error("invalid reply from: %s, cmd: %u, reply: \n%s", nw_sock_human_addr(&ses->peer_addr), pkg->command, hex);
+        log_fatal("invalid reply from: %s, cmd: %u, reply: \n%s", nw_sock_human_addr(&ses->peer_addr), pkg->command, hex);
         sdsfree(hex);
         sdsfree(reply_str);
         nw_state_del(state_context, pkg->sequence);
@@ -118,7 +118,7 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
     json_t *error = json_object_get(reply, "error");
     json_t *result = json_object_get(reply, "result");
     if (error == NULL || !json_is_null(error) || result == NULL) {
-        log_error("error reply from: %s, cmd: %u, reply: %s", nw_sock_human_addr(&ses->peer_addr), pkg->command, reply_str);
+        log_fatal("error reply from: %s, cmd: %u, reply: %s", nw_sock_human_addr(&ses->peer_addr), pkg->command, reply_str);
         sdsfree(reply_str);
         json_decref(reply);
         nw_state_del(state_context, pkg->sequence);

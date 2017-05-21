@@ -45,7 +45,7 @@ static void on_job(nw_job_entry *entry, void *privdata)
 
     CURLcode ret = curl_easy_perform(curl);
     if (ret != CURLE_OK) {
-        log_error("curl_easy_perform fail: %s", curl_easy_strerror(ret));
+        log_fatal("curl_easy_perform fail: %s", curl_easy_strerror(ret));
         goto cleanup;
     }
 
@@ -99,7 +99,7 @@ static void on_result(struct state_data *state, sds token, json_t *result)
 error:
     if (result) {
         char *reply = json_dumps(result, 0);
-        log_error("invalid reply: %s", reply);
+        log_fatal("invalid reply: %s", reply);
         free(reply);
     }
     if (state->ses->id == state->ses_id)

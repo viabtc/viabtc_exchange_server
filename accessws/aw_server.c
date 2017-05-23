@@ -725,7 +725,6 @@ static int on_message(nw_ses *ses, const char *remote, const char *url, void *me
         int ret = handler(ses, _id, info, params);
         if (ret < 0) {
             log_error("remote: %"PRIu64":%s, request fail: %d, request: %s", ses->id, remote, ret, _msg);
-            return -__LINE__;
         }
     } else {
         log_error("remote: %"PRIu64":%s, unknown method, request: %s", ses->id, remote, _msg);

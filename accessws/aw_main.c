@@ -97,6 +97,9 @@ int main(int argc, char *argv[])
             error(EXIT_FAILURE, errno, "fork error");
         } else if (pid == 0) {
             process_title_set("%s_worker_%d", __process__, i);
+            if (i != 0) {
+                dlog_set_no_shift(default_dlog);
+            }
             goto server;
         }
     }
@@ -104,6 +107,7 @@ int main(int argc, char *argv[])
     process_title_set("%s_listener", __process__);
     daemon(1, 1);
     process_keepalive();
+    dlog_set_no_shift(default_dlog);
 
     ret = init_listener();
     if (ret < 0) {
@@ -114,7 +118,6 @@ int main(int argc, char *argv[])
 server:
     daemon(1, 1);
     process_keepalive();
-    dlog_set_no_shift(default_dlog);
 
     ret = init_auth();
     if (ret < 0) {

@@ -63,5 +63,5 @@
     },
     "backend_timeout": 1.0,
     "cache_timeout": 10.0,
-    "auth_url": "http://192.168.1.6:9001/internal/exchange/user/auth"
+    "auth_url": "http://192.168.1.6:8000/internal/exchange/user/auth"
 }

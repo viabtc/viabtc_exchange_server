@@ -193,10 +193,10 @@ static int order_put(market_t *m, order_t *order)
         if (skiplist_insert(m->bids, order) == NULL)
             return -__LINE__;
         mpd_t *result = mpd_new(&mpd_ctx);
-        mpd_mul(result, order->price, order->amount, &mpd_ctx);
+        mpd_mul(result, order->price, order->left, &mpd_ctx);
+        mpd_copy(order->freeze, result, &mpd_ctx);
         if (balance_freeze(order->user_id, m->money, result) == NULL)
             return -__LINE__;
-        mpd_copy(order->freeze, result, &mpd_ctx);
         mpd_del(result);
     }
 

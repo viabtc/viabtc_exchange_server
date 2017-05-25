@@ -70,10 +70,6 @@ int main(int argc, char *argv[])
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init process fail: %d", ret);
     }
-    ret = init_mpd();
-    if (ret < 0) {
-        error(EXIT_FAILURE, errno, "init mpd fail: %d", ret);
-    }
     ret = init_log();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init log fail: %d", ret);

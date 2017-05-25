@@ -83,6 +83,19 @@ int load_cfg_log(json_t *root, const char *key, log_cfg *cfg)
     return 0;
 }
 
+int load_cfg_alert(json_t *root, const char *key, alert_cfg *cfg)
+{
+    json_t *node = json_object_get(root, key);
+    if (!node || !json_is_object(node))
+        return -__LINE__;
+    json_t *addr = json_object_get(node, "addr");
+    if (!addr || !json_is_string(addr))
+        return -__LINE__;
+    ERR_RET(parse_inetv4_addr(json_string_value(addr), &cfg->addr));
+    ERR_RET(read_cfg_str(node, "host", &cfg->host, NULL));
+    return 0;
+}
+
 int load_cfg_svr(json_t *root, const char *key, nw_svr_cfg *cfg)
 {
     json_t *node = json_object_get(root, key);

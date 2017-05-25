@@ -51,6 +51,8 @@ static int init_log(void)
     if (default_dlog == NULL)
         return -__LINE__;
     default_dlog_flag = dlog_read_flag(settings.log.flag);
+    if (alert_init(&settings.alert) < 0)
+        return -__LINE__;
 
     return 0;
 }

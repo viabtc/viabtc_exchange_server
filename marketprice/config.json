@@ -8,6 +8,10 @@
         "path": "/var/log/trade/marketprice",
         "flag": "fatal,error,warn,info,debug,trace"
     },
+    "alert": {
+        "host": "marketprice",
+        "addr": "127.0.0.1:4444"
+    },
     "svr": {
         "bind": [
             "tcp@0.0.0.0:7416",
@@ -17,7 +21,6 @@
         "max_pkg_size": 1000000,
         "heartbeat_check": false
     },
-    "cli": "tcp@127.0.0.1:7417",
     "deals": {
         "brokers": "127.0.0.1:9092",
         "topic": "deals",

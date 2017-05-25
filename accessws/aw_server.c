@@ -33,8 +33,8 @@ struct state_data {
 };
 
 struct cache_val {
-    sds         data;
     double      time;
+    json_t      *result;
 };
 
 typedef int (*on_request_method)(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params);
@@ -137,7 +137,7 @@ static int on_method_server_auth(nw_ses *ses, uint64_t id, struct clt_info *info
     return send_auth_request(ses, id, info, params);
 }
 
-static int process_cache(nw_ses *ses, sds key)
+static int process_cache(nw_ses *ses, uint64_t id, sds key)
 {
     dict_entry *entry = dict_find(backend_cache, key);
     if (entry == NULL)
@@ -150,8 +150,7 @@ static int process_cache(nw_ses *ses, sds key)
         return 0;
     }
 
-    log_trace("hit cache");
-    ws_send_text(ses, cache->data);
+    send_result(ses, id, cache->result);
     return 1;
 }
 
@@ -160,7 +159,7 @@ static int on_method_kline_query(nw_ses *ses, uint64_t id, struct clt_info *info
     sds key = sdsempty();
     char *params_str = json_dumps(params, 0);
     key = sdscatprintf(key, "%u-%s", CMD_MARKET_KLINE, params_str);
-    int ret = process_cache(ses, key);
+    int ret = process_cache(ses, id, key);
     if (ret > 0) {
         free(params_str);
         sdsfree(key);
@@ -222,7 +221,7 @@ static int on_method_depth_query(nw_ses *ses, uint64_t id, struct clt_info *info
     sds key = sdsempty();
     char *params_str = json_dumps(params, 0);
     key = sdscatprintf(key, "%u-%s", CMD_ORDER_BOOK_DEPTH, params_str);
-    int ret = process_cache(ses, key);
+    int ret = process_cache(ses, id, key);
     if (ret > 0) {
         sdsfree(key);
         free(params_str);
@@ -287,7 +286,7 @@ static int on_method_price_query(nw_ses *ses, uint64_t id, struct clt_info *info
     sds key = sdsempty();
     char *params_str = json_dumps(params, 0);
     key = sdscatprintf(key, "%u-%s", CMD_MARKET_LAST, params_str);
-    int ret = process_cache(ses, key);
+    int ret = process_cache(ses, id, key);
     if (ret > 0) {
         sdsfree(key);
         free(params_str);
@@ -352,7 +351,7 @@ static int on_method_today_query(nw_ses *ses, uint64_t id, struct clt_info *info
     sds key = sdsempty();
     char *params_str = json_dumps(params, 0);
     key = sdscatprintf(key, "%u-%s", CMD_MARKET_STATUS_TODAY, params_str);
-    int ret = process_cache(ses, key);
+    int ret = process_cache(ses, id, key);
     if (ret > 0) {
         sdsfree(key);
         free(params_str);
@@ -417,10 +416,10 @@ static int on_method_deals_query(nw_ses *ses, uint64_t id, struct clt_info *info
     sds key = sdsempty();
     char *params_str = json_dumps(params, 0);
     key = sdscatprintf(key, "%u-%s", CMD_MARKET_DEALS, params_str);
-    int ret = process_cache(ses, key);
+    int ret = process_cache(ses, id, key);
     if (ret > 0) {
-        free(params_str);
         sdsfree(key);
+        free(params_str);
         return 0;
     }
 
@@ -726,7 +725,6 @@ static int on_message(nw_ses *ses, const char *remote, const char *url, void *me
         int ret = handler(ses, _id, info, params);
         if (ret < 0) {
             log_error("remote: %"PRIu64":%s, request fail: %d, request: %s", ses->id, remote, ret, _msg);
-            return -__LINE__;
         }
     } else {
         log_error("remote: %"PRIu64":%s, unknown method, request: %s", ses->id, remote, _msg);
@@ -871,8 +869,9 @@ static int init_svr(void)
 static void on_timeout(nw_state_entry *entry)
 {
     struct state_data *state = entry->data;
-    if (state->ses->id == state->ses_id)
+    if (state->ses->id == state->ses_id) {
         send_error_service_timeout(state->ses, state->request_id);
+    }
 }
 
 static void on_release(nw_state_entry *entry)
@@ -922,11 +921,21 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         sdsfree(message);
     }
     if (state->cache_key) {
-        struct cache_val val;
-        val.data = sdsnewlen(pkg->body, pkg->body_size);
-        val.time = current_timestamp();
-        dict_replace(backend_cache, state->cache_key, &val);
-        state->cache_key = NULL;
+        json_t *reply = json_loadb(pkg->body, pkg->body_size, 0, NULL);
+        if (reply && json_is_object(reply)) {
+            json_t *result = json_object_get(reply, "result");
+            if (result && !json_is_null(result)) {
+                struct cache_val val;
+                val.time = current_timestamp();
+                val.result = result;
+                json_incref(result);
+                dict_replace(backend_cache, state->cache_key, &val);
+                state->cache_key = NULL;
+            }
+            if (reply) {
+                json_decref(reply);
+            }
+        }
     }
     nw_state_del(state_context, pkg->sequence);
 }
@@ -956,7 +965,7 @@ static void *cache_dict_val_dup(const void *val)
 static void cache_dict_val_free(void *val)
 {
     struct cache_val *obj = val;
-    sdsfree(obj->data);
+    json_decref(obj->result);
     free(val);
 }
 

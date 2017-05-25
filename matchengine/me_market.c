@@ -253,7 +253,7 @@ static int order_finish(bool real, market_t *m, order_t *order)
 
 market_t *market_create(struct market *conf)
 {
-    if (asset_exist(conf->stock) < 0 || asset_exist(conf->money) < 0)
+    if (!asset_exist(conf->stock) || !asset_exist(conf->money))
         return NULL;
     if (conf->stock_prec + conf->money_prec > asset_prec(conf->money))
         return NULL;

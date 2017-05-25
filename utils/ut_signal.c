@@ -34,6 +34,7 @@ static struct signal signals[] = {
     { SIGSEGV, "SIGSEGV", SA_RESETHAND, signal_handler, NULL, },
     { SIGPIPE, "SIGPIPE", 0,            SIG_IGN,        NULL, },
     { SIGCHLD, "SIGCHLD", 0,            SIG_IGN,        NULL, },
+    { SIGINT,  "SIGINT",  0,            SIG_IGN,        NULL, },
     { 0      , NULL,      0,            NULL,           NULL, },
 };
 

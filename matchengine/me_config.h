@@ -65,9 +65,9 @@ struct market {
 
 struct settings {
     bool                debug;
-
     process_cfg         process;
     log_cfg             log;
+    alert_cfg           alert;
     rpc_svr_cfg         svr;
     cli_svr_cfg         cli;
     mysql_cfg           db_log;

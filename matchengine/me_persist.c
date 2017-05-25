@@ -376,7 +376,7 @@ int make_slice(time_t timestamp)
 {
     int pid = fork();
     if (pid < 0) {
-        log_error("fork fail: %d", pid);
+        log_fatal("fork fail: %d", pid);
         return -__LINE__;
     } else if (pid > 0) {
         return 0;
@@ -385,12 +385,12 @@ int make_slice(time_t timestamp)
     int ret;
     ret = dump_to_db(timestamp);
     if (ret < 0) {
-        log_error("dump_to_db fail: %d", ret);
+        log_fatal("dump_to_db fail: %d", ret);
     }
 
     ret = clear_slice(timestamp);
     if (ret < 0) {
-        log_error("clear_slice fail: %d", ret);
+        log_fatal("clear_slice fail: %d", ret);
     }
 
     exit(0);

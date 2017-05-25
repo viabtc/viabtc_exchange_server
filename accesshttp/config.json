@@ -8,6 +8,10 @@
         "path": "/var/log/trade/accesshttp",
         "flag": "fatal,error,warn,info,debug,trace"
     },
+    "alert": {
+        "host": "accesshttp",
+        "addr": "127.0.0.1:4444"
+    },
     "svr": {
         "bind": [
             "tcp@0.0.0.0:8080"

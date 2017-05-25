@@ -663,7 +663,7 @@ static int flush_update(redisContext *context, struct market_info *info)
         log_trace("flush_kline type: %d, timestamp: %ld", key->kline_type, key->timestamp);
         int ret = flush_kline(context, info, key);
         if (ret < 0) {
-            log_error("flush_kline fail: %d, type: %d, timestamp: %ld", ret, key->kline_type, key->timestamp);
+            log_fatal("flush_kline fail: %d, type: %d, timestamp: %ld", ret, key->kline_type, key->timestamp);
         }
         dict_delete(info->update, entry->key);
     }
@@ -743,7 +743,7 @@ static void on_market_timer(nw_timer *timer, void *privdata)
 {
     int ret = flush_market();
     if (ret < 0) {
-        log_error("flush_market fail: %d", ret);
+        log_fatal("flush_market fail: %d", ret);
     }
 }
 
@@ -751,7 +751,7 @@ static void on_deals_timer(nw_timer *timer, void *privdata)
 {
     int ret = flush_deals();
     if (ret < 0) {
-        log_error("flush_market fail: %d", ret);
+        log_fatal("flush_market fail: %d", ret);
     }
 }
 

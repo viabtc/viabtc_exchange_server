@@ -45,7 +45,7 @@ static void on_job(nw_job_entry *entry, void *privdata)
 
     CURLcode ret = curl_easy_perform(curl);
     if (ret != CURLE_OK) {
-        log_error("curl_easy_perform fail: %s", curl_easy_strerror(ret));
+        log_fatal("curl_easy_perform fail: %s", curl_easy_strerror(ret));
         goto cleanup;
     }
 
@@ -64,6 +64,9 @@ cleanup:
 
 static void on_result(struct state_data *state, sds token, json_t *result)
 {
+    if (state->ses->id != state->ses_id)
+        return;
+
     if (result == NULL)
         goto error;
 
@@ -76,8 +79,7 @@ static void on_result(struct state_data *state, sds token, json_t *result)
         if (message == NULL)
             goto error;
         log_error("auth fail, token: %s, code: %d, message: %s", token, error_code, message);
-        if (state->ses->id == state->ses_id)
-            send_error(state->ses, state->request_id, 11, message);
+        send_error(state->ses, state->request_id, 11, message);
         return;
     }
 
@@ -91,19 +93,17 @@ static void on_result(struct state_data *state, sds token, json_t *result)
 
     info->auth = true;
     log_info("auth success, token: %s, user_id: %u", token, info->user_id);
-    if (state->ses->id == state->ses_id)
-        send_success(state->ses, state->request_id);
+    send_success(state->ses, state->request_id);
 
     return;
 
 error:
     if (result) {
         char *reply = json_dumps(result, 0);
-        log_error("invalid reply: %s", reply);
+        log_fatal("invalid reply: %s", reply);
         free(reply);
     }
-    if (state->ses->id == state->ses_id)
-        send_error_internal_error(state->ses, state->request_id);
+    send_error_internal_error(state->ses, state->request_id);
 }
 
 static void on_finish(nw_job_entry *entry)
@@ -125,8 +125,9 @@ static void on_cleanup(nw_job_entry *entry)
 static void on_timeout(nw_state_entry *entry)
 {
     struct state_data *state = entry->data;
-    if (state->ses->id == state->ses_id)
+    if (state->ses->id == state->ses_id) {
         send_error_service_timeout(state->ses, state->request_id);
+    }
 }
 
 int send_auth_request(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)

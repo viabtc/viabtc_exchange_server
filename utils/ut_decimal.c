@@ -14,6 +14,7 @@ mpd_t *mpd_zero;
 int init_mpd(void)
 {
     mpd_ieee_context(&mpd_ctx, MPD_DECIMAL128);
+    mpd_ctx.round = MPD_ROUND_DOWN;
 
     mpd_one = mpd_new(&mpd_ctx);
     mpd_set_string(mpd_one, "1", &mpd_ctx);

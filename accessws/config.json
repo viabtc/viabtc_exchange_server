@@ -8,6 +8,10 @@
         "path": "/var/log/trade/accessws",
         "flag": "fatal,error,warn,info,debug,trace"
     },
+    "alert": {
+        "host": "accessws",
+        "addr": "127.0.0.1:4444"
+    },
     "svr": {
         "bind": [
             "stream@/tmp/accessws.sock"
@@ -19,7 +23,7 @@
         "bind": "tcp@0.0.0.0:8091",
         "max_pkg_size": 1024
     },
-    "worker_num": 2,
+    "worker_num": 1,
     "timeout": 1.0,
     "matchengine": {
         "name": "matchengine",
@@ -59,5 +63,5 @@
     },
     "backend_timeout": 1.0,
     "cache_timeout": 10.0,
-    "auth_url": "http://192.168.1.6:9001/internal/exchange/user/auth"
+    "auth_url": "http://192.168.1.6:8000/internal/exchange/user/auth"
 }

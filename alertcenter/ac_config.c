@@ -1,20 +1,15 @@
 /*
  * Description: 
- *     History: yang@haipo.me, 2017/04/24, create
+ *     History: yang@haipo.me, 2016/04/19, create
  */
 
-# include "rh_config.h"
+# include "ac_config.h"
 
 struct settings settings;
 
-static int read_config_from_json(json_t *root)
+static int do_load_config(json_t *root)
 {
     int ret;
-    ret = read_cfg_bool(root, "debug", &settings.debug, false, false);
-    if (ret < 0) {
-        printf("read debug config fail: %d\n", ret);
-        return -__LINE__;
-    }
     ret = load_cfg_process(root, "process", &settings.process);
     if (ret < 0) {
         printf("load process config fail: %d\n", ret);
@@ -25,28 +20,21 @@ static int read_config_from_json(json_t *root)
         printf("load log config fail: %d\n", ret);
         return -__LINE__;
     }
-    ret = load_cfg_alert(root, "alert", &settings.alert);
-    if (ret < 0) {
-        printf("load alert config fail: %d\n", ret);
-        return -__LINE__;
-    }
-    ret = load_cfg_rpc_svr(root, "svr", &settings.svr);
+    ret = load_cfg_svr(root, "svr", &settings.svr);
     if (ret < 0) {
         printf("load svr config fail: %d\n", ret);
         return -__LINE__;
     }
-    ret = load_cfg_mysql(root, "db_history", &settings.db_history);
+    ret = load_cfg_redis_sentinel(root, "redis", &settings.redis);
     if (ret < 0) {
-        printf("load history db config fail: %d\n", ret);
+        printf("load redis config fail: %d\n", ret);
         return -__LINE__;
     }
-
-    ERR_RET_LN(read_cfg_int(root, "worker_num", &settings.worker_num, false, 10));
 
     return 0;
 }
 
-int init_config(const char *path)
+int load_config(const char *path)
 {
     json_error_t error;
     json_t *root = json_load_file(path, 0, &error);
@@ -59,10 +47,10 @@ int init_config(const char *path)
         return -__LINE__;
     }
 
-    int ret = read_config_from_json(root);
+    int ret = do_load_config(root);
     if (ret < 0) {
         json_decref(root);
-        return ret;
+        return -__LINE__;
     }
     json_decref(root);
 

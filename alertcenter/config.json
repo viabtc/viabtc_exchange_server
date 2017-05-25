@@ -1,0 +1,25 @@
+{
+    "process": {
+        "file_limit": 1000000,
+        "core_limit": 1000000000
+    },
+    "log": {
+        "path": "/var/log/trade/alertcenter",
+        "flag": "fatal,error,warn,info,debug"
+    },
+    "svr": {
+        "bind": [
+            "tcp@0.0.0.0:4444",
+            "udp@0.0.0.0:4444"
+        ],
+        "max_pkg_size": 10240
+    },
+    "redis": {
+        "name": "mymaster",
+        "addr": [
+            "127.0.0.1:26381",
+            "127.0.0.1:26382",
+            "127.0.0.1:26383"
+        ]
+    }
+}

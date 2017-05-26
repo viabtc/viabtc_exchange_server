@@ -186,17 +186,19 @@ static int order_put(market_t *m, order_t *order)
     if (order->side == MARKET_ORDER_SIDE_ASK) {
         if (skiplist_insert(m->asks, order) == NULL)
             return -__LINE__;
+        mpd_copy(order->freeze, order->left, &mpd_ctx);
         if (balance_freeze(order->user_id, m->stock, order->left) == NULL)
             return -__LINE__;
-        mpd_copy(order->freeze, order->left, &mpd_ctx);
     } else {
         if (skiplist_insert(m->bids, order) == NULL)
             return -__LINE__;
         mpd_t *result = mpd_new(&mpd_ctx);
         mpd_mul(result, order->price, order->left, &mpd_ctx);
         mpd_copy(order->freeze, result, &mpd_ctx);
-        if (balance_freeze(order->user_id, m->money, result) == NULL)
+        if (balance_freeze(order->user_id, m->money, result) == NULL) {
+            mpd_del(result);
             return -__LINE__;
+        }
         mpd_del(result);
     }
 

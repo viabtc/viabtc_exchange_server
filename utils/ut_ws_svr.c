@@ -433,11 +433,13 @@ static void on_recv_pkg(nw_ses *ses, void *data, size_t size)
     info->message = sdscatlen(info->message, info->frame.payload, info->frame.payload_len);
     if (info->frame.fin) {
         int ret = svr->type.on_message(ses, info->remote, info->url, info->message, sdslen(info->message));
-        if (ret < 0) {
-            nw_svr_close_clt(svr->raw_svr, ses);
-        } else {
-            sdsfree(info->message);
-            info->message = NULL;
+        if (ses->id != 0) {
+            if (ret < 0) {
+                nw_svr_close_clt(svr->raw_svr, ses);
+            } else {
+                sdsfree(info->message);
+                info->message = NULL;
+            }
         }
     }
 }

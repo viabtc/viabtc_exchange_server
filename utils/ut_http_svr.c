@@ -40,7 +40,7 @@ static int on_message_complete(http_parser* parser)
 
     http_svr *svr = http_svr_from_ses(info->ses);
     int ret = svr->on_request(info->ses, info->request);
-    if (ret < 0) {
+    if (ret < 0 && info->ses->id != 0) {
         nw_svr_close_clt(svr->raw_svr, info->ses);
     }
 

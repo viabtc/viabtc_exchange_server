@@ -32,6 +32,7 @@ static struct signal signals[] = {
     { SIGQUIT, "SIGQUIT", 0,            signal_handler, NULL, },
     { SIGTERM, "SIGTERM", 0,            signal_handler, NULL, },
     { SIGSEGV, "SIGSEGV", SA_RESETHAND, signal_handler, NULL, },
+    { SIGABRT, "SIGABRT", SA_RESETHAND, signal_handler, NULL, },
     { SIGPIPE, "SIGPIPE", 0,            SIG_IGN,        NULL, },
     { SIGCHLD, "SIGCHLD", 0,            SIG_IGN,        NULL, },
     { SIGINT,  "SIGINT",  0,            SIG_IGN,        NULL, },
@@ -89,6 +90,11 @@ static void signal_handler(int signo)
         log_exception("[%d]signal: %d (%s) received, core dumping", getpid(), signo, sig->signame);
         dlog_flush_all();
         raise(SIGSEGV);
+        break;
+    case SIGABRT:
+        log_exception("[%d]signal: %d (%s) received, core dumping", getpid(), signo, sig->signame);
+        dlog_flush_all();
+        raise(SIGABRT);
         break;
     default:
         break;

@@ -153,7 +153,7 @@ server:
     }
     ret = init_message();
     if (ret < 0) {
-        error(EXIT_FAILURE, errno, "init messagefail: %d", ret);
+        error(EXIT_FAILURE, errno, "init message fail: %d", ret);
     }
     ret = init_server();
     if (ret < 0) {

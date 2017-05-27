@@ -916,7 +916,7 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
     struct state_data *state = entry->data;
     if (state->ses->id == state->ses_id) {
         sds message = sdsnewlen(pkg->body, pkg->body_size);
-        log_trace("send response to: %s, size: %zu, message: %s", nw_sock_human_addr(&state->ses->peer_addr), sdslen(message), message);
+        log_trace("send response to: %"PRIu64", size: %zu, message: %s", state->ses->id, sdslen(message), message);
         ws_send_text(state->ses, message);
         sdsfree(message);
     }

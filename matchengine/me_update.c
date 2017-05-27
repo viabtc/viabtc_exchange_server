@@ -30,7 +30,7 @@ static uint32_t update_dict_hash_function(const void *key)
 
 static int update_dict_key_compare(const void *key1, const void *key2)
 {
-    return memcmp(key1, key2, sizeof(struct update_key) - sizeof(double));
+    return memcmp(key1, key2, sizeof(struct update_key));
 }
 
 static void *update_dict_key_dup(const void *key)

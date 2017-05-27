@@ -186,17 +186,19 @@ static int order_put(market_t *m, order_t *order)
     if (order->side == MARKET_ORDER_SIDE_ASK) {
         if (skiplist_insert(m->asks, order) == NULL)
             return -__LINE__;
+        mpd_copy(order->freeze, order->left, &mpd_ctx);
         if (balance_freeze(order->user_id, m->stock, order->left) == NULL)
             return -__LINE__;
-        mpd_copy(order->freeze, order->left, &mpd_ctx);
     } else {
         if (skiplist_insert(m->bids, order) == NULL)
             return -__LINE__;
         mpd_t *result = mpd_new(&mpd_ctx);
-        mpd_mul(result, order->price, order->amount, &mpd_ctx);
-        if (balance_freeze(order->user_id, m->money, result) == NULL)
-            return -__LINE__;
+        mpd_mul(result, order->price, order->left, &mpd_ctx);
         mpd_copy(order->freeze, result, &mpd_ctx);
+        if (balance_freeze(order->user_id, m->money, result) == NULL) {
+            mpd_del(result);
+            return -__LINE__;
+        }
         mpd_del(result);
     }
 
@@ -399,6 +401,10 @@ static int execute_limit_ask_order(bool real, market_t *m, order_t *taker)
         mpd_add(taker->deal_money, taker->deal_money, deal, &mpd_ctx);
         mpd_add(taker->deal_fee, taker->deal_fee, ask_fee, &mpd_ctx);
 
+        balance_sub(taker->user_id, BALANCE_TYPE_AVAILABLE, m->stock, amount);
+        if (real) {
+            append_balance_trade_sub(taker, m->stock, amount, price, amount);
+        }
         balance_add(taker->user_id, BALANCE_TYPE_AVAILABLE, m->money, deal);
         if (real) {
             append_balance_trade_add(taker, m->money, deal, price, amount);
@@ -409,10 +415,6 @@ static int execute_limit_ask_order(bool real, market_t *m, order_t *taker)
                 append_balance_trade_fee(taker, m->money, ask_fee, price, amount);
             }
         }
-        balance_sub(taker->user_id, BALANCE_TYPE_AVAILABLE, m->stock, amount);
-        if (real) {
-            append_balance_trade_sub(taker, m->stock, amount, price, amount);
-        }
 
         mpd_sub(maker->left, maker->left, amount, &mpd_ctx);
         mpd_sub(maker->freeze, maker->freeze, deal, &mpd_ctx);
@@ -420,6 +422,10 @@ static int execute_limit_ask_order(bool real, market_t *m, order_t *taker)
         mpd_add(maker->deal_money, maker->deal_money, deal, &mpd_ctx);
         mpd_add(maker->deal_fee, maker->deal_fee, bid_fee, &mpd_ctx);
 
+        balance_sub(maker->user_id, BALANCE_TYPE_FREEZE, m->money, deal);
+        if (real) {
+            append_balance_trade_sub(maker, m->money, deal, price, amount);
+        }
         balance_add(maker->user_id, BALANCE_TYPE_AVAILABLE, m->stock, amount);
         if (real) {
             append_balance_trade_add(maker, m->stock, amount, price, amount);
@@ -429,10 +435,6 @@ static int execute_limit_ask_order(bool real, market_t *m, order_t *taker)
             if (real) {
                 append_balance_trade_fee(maker, m->stock, bid_fee, price, amount);
             }
-        }
-        balance_sub(maker->user_id, BALANCE_TYPE_FREEZE, m->money, deal);
-        if (real) {
-            append_balance_trade_sub(maker, m->money, deal, price, amount);
         }
 
         if (mpd_cmp(maker->left, mpd_zero, &mpd_ctx) == 0) {
@@ -502,6 +504,10 @@ static int execute_limit_bid_order(bool real, market_t *m, order_t *taker)
         mpd_add(taker->deal_money, taker->deal_money, deal, &mpd_ctx);
         mpd_add(taker->deal_fee, taker->deal_fee, bid_fee, &mpd_ctx);
 
+        balance_sub(taker->user_id, BALANCE_TYPE_AVAILABLE, m->money, deal);
+        if (real) {
+            append_balance_trade_sub(taker, m->money, deal, price, amount);
+        }
         balance_add(taker->user_id, BALANCE_TYPE_AVAILABLE, m->stock, amount);
         if (real) {
             append_balance_trade_add(taker, m->stock, amount, price, amount);
@@ -512,10 +518,6 @@ static int execute_limit_bid_order(bool real, market_t *m, order_t *taker)
                 append_balance_trade_fee(taker, m->stock, bid_fee, price, amount);
             }
         }
-        balance_sub(taker->user_id, BALANCE_TYPE_AVAILABLE, m->money, deal);
-        if (real) {
-            append_balance_trade_sub(taker, m->money, deal, price, amount);
-        }
 
         mpd_sub(maker->left, maker->left, amount, &mpd_ctx);
         mpd_sub(maker->freeze, maker->freeze, amount, &mpd_ctx);
@@ -523,6 +525,10 @@ static int execute_limit_bid_order(bool real, market_t *m, order_t *taker)
         mpd_add(maker->deal_money, maker->deal_money, deal, &mpd_ctx);
         mpd_add(maker->deal_fee, maker->deal_fee, ask_fee, &mpd_ctx);
 
+        balance_sub(maker->user_id, BALANCE_TYPE_FREEZE, m->stock, amount);
+        if (real) {
+            append_balance_trade_sub(maker, m->stock, amount, price, amount);
+        }
         balance_add(maker->user_id, BALANCE_TYPE_AVAILABLE, m->money, deal);
         if (real) {
             append_balance_trade_add(maker, m->money, deal, price, amount);
@@ -532,10 +538,6 @@ static int execute_limit_bid_order(bool real, market_t *m, order_t *taker)
             if (real) {
                 append_balance_trade_fee(maker, m->money, ask_fee, price, amount);
             }
-        }
-        balance_sub(maker->user_id, BALANCE_TYPE_FREEZE, m->stock, amount);
-        if (real) {
-            append_balance_trade_sub(maker, m->stock, amount, price, amount);
         }
 
         if (mpd_cmp(maker->left, mpd_zero, &mpd_ctx) == 0) {
@@ -689,6 +691,10 @@ static int execute_market_ask_order(bool real, market_t *m, order_t *taker)
         mpd_add(taker->deal_money, taker->deal_money, deal, &mpd_ctx);
         mpd_add(taker->deal_fee, taker->deal_fee, ask_fee, &mpd_ctx);
 
+        balance_sub(taker->user_id, BALANCE_TYPE_AVAILABLE, m->stock, amount);
+        if (real) {
+            append_balance_trade_sub(taker, m->stock, amount, price, amount);
+        }
         balance_add(taker->user_id, BALANCE_TYPE_AVAILABLE, m->money, deal);
         if (real) {
             append_balance_trade_add(taker, m->money, deal, price, amount);
@@ -699,10 +705,6 @@ static int execute_market_ask_order(bool real, market_t *m, order_t *taker)
                 append_balance_trade_fee(taker, m->money, ask_fee, price, amount);
             }
         }
-        balance_sub(taker->user_id, BALANCE_TYPE_AVAILABLE, m->stock, amount);
-        if (real) {
-            append_balance_trade_sub(taker, m->stock, amount, price, amount);
-        }
 
         mpd_sub(maker->left, maker->left, amount, &mpd_ctx);
         mpd_sub(maker->freeze, maker->freeze, deal, &mpd_ctx);
@@ -710,6 +712,10 @@ static int execute_market_ask_order(bool real, market_t *m, order_t *taker)
         mpd_add(maker->deal_money, maker->deal_money, deal, &mpd_ctx);
         mpd_add(maker->deal_fee, maker->deal_fee, bid_fee, &mpd_ctx);
 
+        balance_sub(maker->user_id, BALANCE_TYPE_FREEZE, m->money, deal);
+        if (real) {
+            append_balance_trade_sub(maker, m->money, amount, price, amount);
+        }
         balance_add(maker->user_id, BALANCE_TYPE_AVAILABLE, m->stock, amount);
         if (real) {
             append_balance_trade_add(maker, m->stock, amount, price, amount);
@@ -719,10 +725,6 @@ static int execute_market_ask_order(bool real, market_t *m, order_t *taker)
             if (real) {
                 append_balance_trade_fee(maker, m->stock, bid_fee, price, amount);
             }
-        }
-        balance_sub(maker->user_id, BALANCE_TYPE_FREEZE, m->money, deal);
-        if (real) {
-            append_balance_trade_sub(maker, m->money, amount, price, amount);
         }
 
         if (mpd_cmp(maker->left, mpd_zero, &mpd_ctx) == 0) {
@@ -803,6 +805,10 @@ static int execute_market_bid_order(bool real, market_t *m, order_t *taker)
         mpd_add(taker->deal_money, taker->deal_money, deal, &mpd_ctx);
         mpd_add(taker->deal_fee, taker->deal_fee, bid_fee, &mpd_ctx);
 
+        balance_sub(taker->user_id, BALANCE_TYPE_AVAILABLE, m->money, deal);
+        if (real) {
+            append_balance_trade_sub(taker, m->money, deal, price, amount);
+        }
         balance_add(taker->user_id, BALANCE_TYPE_AVAILABLE, m->stock, amount);
         if (real) {
             append_balance_trade_add(taker, m->stock, amount, price, amount);
@@ -813,10 +819,6 @@ static int execute_market_bid_order(bool real, market_t *m, order_t *taker)
                 append_balance_trade_fee(taker, m->stock, bid_fee, price, amount);
             }
         }
-        balance_sub(taker->user_id, BALANCE_TYPE_AVAILABLE, m->money, deal);
-        if (real) {
-            append_balance_trade_sub(taker, m->money, deal, price, amount);
-        }
 
         mpd_sub(maker->left, maker->left, amount, &mpd_ctx);
         mpd_sub(maker->freeze, maker->freeze, amount, &mpd_ctx);
@@ -824,6 +826,10 @@ static int execute_market_bid_order(bool real, market_t *m, order_t *taker)
         mpd_add(maker->deal_money, maker->deal_money, deal, &mpd_ctx);
         mpd_add(maker->deal_fee, maker->deal_fee, ask_fee, &mpd_ctx);
 
+        balance_sub(maker->user_id, BALANCE_TYPE_FREEZE, m->stock, amount);
+        if (real) {
+            append_balance_trade_sub(maker, m->stock, amount, price, amount);
+        }
         balance_add(maker->user_id, BALANCE_TYPE_AVAILABLE, m->money, deal);
         if (real) {
             append_balance_trade_add(maker, m->money, deal, price, amount);
@@ -833,10 +839,6 @@ static int execute_market_bid_order(bool real, market_t *m, order_t *taker)
             if (real) {
                 append_balance_trade_fee(maker, m->money, ask_fee, price, amount);
             }
-        }
-        balance_sub(maker->user_id, BALANCE_TYPE_FREEZE, m->stock, amount);
-        if (real) {
-            append_balance_trade_sub(maker, m->stock, amount, price, amount);
         }
 
         if (mpd_cmp(maker->left, mpd_zero, &mpd_ctx) == 0) {

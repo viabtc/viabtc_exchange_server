@@ -185,7 +185,7 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
 
 static void on_timeout(nw_state_entry *entry)
 {
-    log_fatal("query last price timeout, state id: %u", entry->id);
+    log_fatal("query kline timeout, state id: %u", entry->id);
 }
 
 static void on_timer(nw_timer *timer, void *privdata)

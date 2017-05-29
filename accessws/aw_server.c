@@ -150,7 +150,9 @@ static int process_cache(nw_ses *ses, uint64_t id, sds key)
         return 0;
     }
 
+    json_incref(cache->result);
     send_result(ses, id, cache->result);
+
     return 1;
 }
 
@@ -267,8 +269,12 @@ static int on_method_depth_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
         return send_error_invalid_argument(ses, id);
 
     depth_unsubscribe(ses);
-    if (depth_subscribe(ses, market, limit, interval) < 0)
+    int ret = depth_subscribe(ses, market, limit, interval);
+    if (ret == -1) {
+        return send_error_invalid_argument(ses, id);
+    } else if (ret < 0) {
         return send_error_internal_error(ses, id);
+    }
 
     send_success(ses, id);
     depth_send_clean(ses, market, limit, interval);
@@ -916,7 +922,7 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
     struct state_data *state = entry->data;
     if (state->ses->id == state->ses_id) {
         sds message = sdsnewlen(pkg->body, pkg->body_size);
-        log_trace("send response to: %s, size: %zu, message: %s", nw_sock_human_addr(&state->ses->peer_addr), sdslen(message), message);
+        log_trace("send response to: %"PRIu64", size: %zu, message: %s", state->ses->id, sdslen(message), message);
         ws_send_text(state->ses, message);
         sdsfree(message);
     }

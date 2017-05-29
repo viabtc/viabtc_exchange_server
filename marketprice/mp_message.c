@@ -355,6 +355,17 @@ static void add_update(struct market_info *info, int type, time_t timestamp)
     dict_add(info->update, &key, NULL);
 }
 
+static time_t get_day_start(time_t timestamp)
+{
+    struct tm *timeinfo = localtime(&timestamp);
+    struct tm dtm;
+    memset(&dtm, 0, sizeof(dtm));
+    dtm.tm_year = timeinfo->tm_year;
+    dtm.tm_mon  = timeinfo->tm_mon;
+    dtm.tm_mday = timeinfo->tm_mday;
+    return mktime(&dtm);
+}
+
 static int market_update(const char *market, double timestamp, mpd_t *price, mpd_t *amount, int side, uint64_t id)
 {
     struct market_info *info = market_query(market);
@@ -415,7 +426,7 @@ static int market_update(const char *market, double timestamp, mpd_t *price, mpd
     add_update(info, KLINE_HOUR, time_hour);
 
     // update day
-    time_t time_day = time_sec / 86400 * 86400 + settings.timezone;
+    time_t time_day = get_day_start(time_sec);
     entry = dict_find(info->day, &time_day);
     if (entry) {
         kinfo = entry->val;
@@ -935,7 +946,7 @@ json_t *get_market_status_today(const char *market)
 
     json_t *result = json_object();
     time_t now = time(NULL);
-    time_t start = now / 86400 * 86400 + settings.timezone;
+    time_t start = get_day_start(now);
     struct kline_info *klast = get_last_kline(info->day, start - 86400, start - 86400 * 30, 86400);
     dict_entry *entry = dict_find(info->day, &start);
     if (entry) {
@@ -1072,11 +1083,10 @@ json_t *get_market_kline_hour(const char *market, time_t start, time_t end, int 
     time_t start_min = now / 3600 * 3600 - settings.hour_max * 3600;
     if (start < start_min)
         start = start_min;
-    time_t base = start / 86400 * 86400 - 86400 + settings.timezone;
-    while (base <= start) {
+    time_t base = get_day_start(start);
+    while ((base + interval) <= start)
         base += interval;
-    }
-    start = base - interval;
+    start = base;
 
     struct kline_info *klast = get_last_kline(info->hour, start - 3600, start_min, 3600);
     int step = interval / 3600;
@@ -1112,10 +1122,7 @@ json_t *get_market_kline_day(const char *market, time_t start, time_t end, int i
         return NULL;
 
     json_t *result = json_array();
-    time_t base = start / interval * interval + settings.timezone;
-    if (base > start)
-        base -= interval;
-    start = base;
+    start = (start - settings.timezone) / interval * interval + settings.timezone;
 
     struct kline_info *klast = get_last_kline(info->day, start - 86400, start - 86400 * 30, 86400);
     int step = interval / 86400;
@@ -1151,10 +1158,10 @@ json_t *get_market_kline_week(const char *market, time_t start, time_t end, int 
         return NULL;
 
     json_t *result = json_array();
-    time_t base = start / interval * interval - 3 * 86400 + settings.timezone;
-    while (base <= start)
+    time_t base = (start - settings.timezone) / interval * interval - 3 * 86400 + settings.timezone;
+    while ((base + interval) <= start)
         base += interval;
-    start = base - interval;
+    start = base;
 
     struct kline_info *klast = get_last_kline(info->day, start - 86400, start - 86400 * 30, 86400);
     int step = interval / 86400;

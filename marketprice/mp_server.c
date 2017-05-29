@@ -227,35 +227,35 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
     int ret;
     switch (pkg->command) {
     case CMD_MARKET_STATUS:
-        log_debug("from: %s cmd market status, params: %s", nw_sock_human_addr(&ses->peer_addr), params_str);
+        log_debug("from: %s cmd market status, squence: %u params: %s", nw_sock_human_addr(&ses->peer_addr), pkg->sequence, params_str);
         ret = on_cmd_market_status(ses, pkg, params);
         if (ret < 0) {
             log_error("on_cmd_market_status %s fail: %d", params_str, ret);
         }
         break;
     case CMD_MARKET_KLINE:
-        log_debug("from: %s cmd market kline, params: %s", nw_sock_human_addr(&ses->peer_addr), params_str);
+        log_debug("from: %s cmd market kline, sequence: %u params: %s", nw_sock_human_addr(&ses->peer_addr), pkg->sequence, params_str);
         ret = on_cmd_market_kline(ses, pkg, params);
         if (ret < 0) {
             log_error("on_cmd_market_kline %s fail: %d", params_str, ret);
         }
         break;
     case CMD_MARKET_DEALS:
-        log_debug("from: %s cmd market deals, params: %s", nw_sock_human_addr(&ses->peer_addr), params_str);
+        log_debug("from: %s cmd market deals, sequence: %u params: %s", nw_sock_human_addr(&ses->peer_addr), pkg->sequence, params_str);
         ret = on_cmd_market_deals(ses, pkg, params);
         if (ret < 0) {
             log_error("on_cmd_market_deals %s fail: %d", params_str, ret);
         }
         break;
     case CMD_MARKET_LAST:
-        log_debug("from: %s cmd market last, params: %s", nw_sock_human_addr(&ses->peer_addr), params_str);
+        log_debug("from: %s cmd market last, sequence: %u params: %s", nw_sock_human_addr(&ses->peer_addr), pkg->sequence, params_str);
         ret = on_cmd_market_last(ses, pkg, params);
         if (ret < 0) {
             log_error("on_cmd_market_last %s fail: %d", params_str, ret);
         }
         break;
     case CMD_MARKET_STATUS_TODAY:
-        log_debug("from: %s cmd market today status, params: %s", nw_sock_human_addr(&ses->peer_addr), params_str);
+        log_debug("from: %s cmd market today status, sequence: %u params: %s", nw_sock_human_addr(&ses->peer_addr), pkg->sequence, params_str);
         ret = on_cmd_market_status_today(ses, pkg, params);
         if (ret < 0) {
             log_error("on_cmd_market_status_today %s fail: %d", params_str, ret);

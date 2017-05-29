@@ -44,6 +44,17 @@
 
 # define AW_LISTENER_BIND   "seqpacket@/tmp/accessws_listener.sock"
 
+typedef struct depth_merge_cfg {
+    char    *market;
+    int     count;
+    mpd_t   **limit;
+} depth_merge_cfg;
+
+typedef struct depth_limit_cfg {
+    int     count;
+    int     *limit;
+} depth_limit_cfg;
+
 struct settings {
     process_cfg         process;
     log_cfg             log;
@@ -67,7 +78,9 @@ struct settings {
     double              kline_interval;
     double              depth_interval;
 
-    int                 depth_subscribe_max;
+    int                 depth_market_count;
+    depth_merge_cfg     *depth_market_lists;
+    depth_limit_cfg     depth_limit;
 };
 
 extern struct settings settings;

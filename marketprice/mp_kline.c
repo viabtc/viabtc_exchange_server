@@ -78,19 +78,19 @@ struct kline_info *kline_from_str(char *str)
         goto cleanup;
     }
     const char *close = json_string_value(json_array_get(obj, 1));
-    if (!close || (info->close = decimal(close, 1)) == NULL) {
+    if (!close || (info->close = decimal(close, 0)) == NULL) {
         goto cleanup;
     }
     const char *high = json_string_value(json_array_get(obj, 2));
-    if (!high || (info->high = decimal(high, 2)) == NULL) {
+    if (!high || (info->high = decimal(high, 0)) == NULL) {
         goto cleanup;
     }
     const char *low = json_string_value(json_array_get(obj, 3));
-    if (!low || (info->low = decimal(low, 3)) == NULL) {
+    if (!low || (info->low = decimal(low, 0)) == NULL) {
         goto cleanup;
     }
     const char *volume = json_string_value(json_array_get(obj, 4));
-    if (!volume || (info->volume = decimal(volume, 4)) == NULL) {
+    if (!volume || (info->volume = decimal(volume, 0)) == NULL) {
         goto cleanup;
     }
 

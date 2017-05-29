@@ -322,3 +322,8 @@ bool is_history_block(void)
     return false;
 }
 
+sds history_status(sds reply)
+{
+    return sdscatprintf(reply, "history pending %d\n", job->request_count);
+}
+

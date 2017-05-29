@@ -289,7 +289,7 @@ static int delete_slice(MYSQL *conn, uint64_t id, time_t timestamp)
 
     int ret;
     sds sql = sdsempty();
-    sql = sdscatprintf(sql, "DROP TABLE `slice_order_%ld", timestamp);
+    sql = sdscatprintf(sql, "DROP TABLE `slice_order_%ld`", timestamp);
     log_trace("exec sql: %s", sql);
     ret = mysql_real_query(conn, sql, sdslen(sql));
     if (ret != 0) {
@@ -298,7 +298,7 @@ static int delete_slice(MYSQL *conn, uint64_t id, time_t timestamp)
     }
     sdsclear(sql);
 
-    sql = sdscatprintf(sql, "DROP TABLE `slice_balance_%ld", timestamp);
+    sql = sdscatprintf(sql, "DROP TABLE `slice_balance_%ld`", timestamp);
     log_trace("exec sql: %s", sql);
     ret = mysql_real_query(conn, sql, sdslen(sql));
     if (ret != 0) {

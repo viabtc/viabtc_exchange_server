@@ -329,3 +329,14 @@ char *sstrncpy(char *dest, const char *src, size_t n)
     return strncat(dest, src, n - 1);
 }
 
+time_t get_timezone_offset(void)
+{
+    time_t timestamp = 0;
+    struct tm *timeinfo = localtime(&timestamp);
+    if (timeinfo->tm_mday == 1) {
+        return -timeinfo->tm_hour * 3600;
+    } else {
+        return (24 - timeinfo->tm_hour) * 3600;
+    }
+}
+

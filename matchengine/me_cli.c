@@ -9,8 +9,21 @@
 # include "me_market.h"
 # include "me_trade.h"
 # include "me_persist.h"
+# include "me_operlog.h"
+# include "me_history.h"
+# include "me_message.h"
 
 static cli_svr *svr;
+
+static sds on_cmd_status(const char *cmd, int argc, sds *argv)
+{
+    sds reply = sdsempty();
+    reply = market_status(reply);
+    reply = operlog_status(reply);
+    reply = history_status(reply);
+    reply = message_status(reply);
+    return reply;
+}
 
 static sds on_cmd_balance_list(const char *cmd, int argc, sds *argv)
 {
@@ -169,6 +182,7 @@ int init_cli(void)
         return -__LINE__;
     }
 
+    cli_svr_add_cmd(svr, "status", on_cmd_status);
     cli_svr_add_cmd(svr, "balance", on_cmd_balance);
     cli_svr_add_cmd(svr, "market",  on_cmd_market);
     cli_svr_add_cmd(svr, "makeslice", on_cmd_makeslice);

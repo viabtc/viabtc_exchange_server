@@ -172,3 +172,10 @@ bool is_operlog_block(void)
     return false;
 }
 
+sds operlog_status(sds reply)
+{
+    reply = sdscatprintf(reply, "operlog last ID: %"PRIu64"\n", operlog_id_start);
+    reply = sdscatprintf(reply, "operlog pending: %d\n", job->request_count);
+    return reply;
+}
+

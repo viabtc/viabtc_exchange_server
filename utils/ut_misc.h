@@ -36,6 +36,7 @@ void strclearblank(char *str);
 int urandom(void *buf, size_t size);
 
 char *sstrncpy(char *dest, const char *src, size_t n);
+time_t get_timezone_offset(void);
 
 # undef ERR_RET
 # define ERR_RET(x) do { \

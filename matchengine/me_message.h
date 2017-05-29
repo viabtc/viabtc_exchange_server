@@ -24,6 +24,7 @@ int push_deal_message(double t, const char *market, order_t *ask, order_t *bid, 
         mpd_t *ask_fee, mpd_t *bid_fee, int side, uint64_t id, const char *stock, const char *money);
 
 bool is_message_block(void);
+sds message_status(sds reply);
 
 # endif
 

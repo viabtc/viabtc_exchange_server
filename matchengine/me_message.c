@@ -242,3 +242,11 @@ bool is_message_block(void)
     return false;
 }
 
+sds message_status(sds reply)
+{
+    reply = sdscatprintf(reply, "message deals pending: %lu\n", list_deals->len);
+    reply = sdscatprintf(reply, "message orders pending: %lu\n", list_orders->len);
+    reply = sdscatprintf(reply, "message balances pending: %lu\n", list_balances->len);
+    return reply;
+}
+

@@ -1019,3 +1019,10 @@ int market_get_status(market_t *m, size_t *ask_count, mpd_t *ask_amount, size_t 
     return 0;
 }
 
+sds market_status(sds reply)
+{
+    reply = sdscatprintf(reply, "order last ID: %"PRIu64"\n", order_id_start);
+    reply = sdscatprintf(reply, "deals last ID: %"PRIu64"\n", deals_id_start);
+    return reply;
+}
+

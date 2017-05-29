@@ -18,6 +18,7 @@ int append_order_deal_history(double t, uint64_t ask, int ask_role, uint64_t bid
 int append_user_balance_history(double t, uint32_t user_id, const char *asset, const char *business, mpd_t *change, const char *detail);
 
 bool is_history_block(void);
+sds history_status(sds reply);
 
 # endif
 

@@ -70,5 +70,7 @@ json_t *get_order_info(order_t *order);
 list_t *market_get_order_list(market_t *m, uint32_t user_id);
 order_t *market_get_order(market_t *m, uint64_t id);
 
+sds market_status(sds reply);
+
 # endif
 

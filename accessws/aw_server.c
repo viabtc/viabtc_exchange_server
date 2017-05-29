@@ -150,7 +150,9 @@ static int process_cache(nw_ses *ses, uint64_t id, sds key)
         return 0;
     }
 
+    json_incref(cache->result);
     send_result(ses, id, cache->result);
+
     return 1;
 }
 

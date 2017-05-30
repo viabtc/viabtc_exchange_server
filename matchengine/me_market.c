@@ -351,7 +351,7 @@ static int append_balance_trade_fee(order_t *order, const char *asset, mpd_t *ch
     char *detail_str = json_dumps(detail, 0);
     mpd_t *real_change = mpd_new(&mpd_ctx);
     mpd_copy_negate(real_change, change, &mpd_ctx);
-    int ret = append_user_balance_history(order->update_time, order->user_id, asset, "trade_fee", real_change, detail_str);
+    int ret = append_user_balance_history(order->update_time, order->user_id, asset, "trade", real_change, detail_str);
     mpd_del(real_change);
     free(detail_str);
     json_decref(detail);

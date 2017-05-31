@@ -117,7 +117,6 @@ static int on_cmd_balance_history(MYSQL *conn, json_t *params, struct job_reply 
     if (limit == 0 || limit > QUERY_LIMIT)
         goto invalid_argument;
 
-    size_t total = get_user_balance_history_count(conn, user_id, asset, business, start_time, end_time);
     json_t *records = get_user_balance_history(conn, user_id, asset, business, start_time, end_time, offset, limit);
     if (records == NULL) {
         rsp->code = 2;
@@ -127,7 +126,6 @@ static int on_cmd_balance_history(MYSQL *conn, json_t *params, struct job_reply 
     json_t *result = json_object();
     json_object_set_new(result, "offset", json_integer(offset));
     json_object_set_new(result, "limit", json_integer(limit));
-    json_object_set_new(result, "total", json_integer(total));
     json_object_set_new(result, "records", records);
     rsp->result = result;
 
@@ -160,7 +158,6 @@ static int on_cmd_order_history(MYSQL *conn, json_t *params, struct job_reply *r
     if (limit == 0 || limit > QUERY_LIMIT)
         goto invalid_argument;
 
-    size_t total = get_user_order_finished_count(conn, user_id, market, start_time, end_time);
     json_t *records = get_user_order_finished(conn, user_id, market, start_time, end_time, offset, limit);
     if (records == NULL) {
         rsp->code = 2;
@@ -170,7 +167,6 @@ static int on_cmd_order_history(MYSQL *conn, json_t *params, struct job_reply *r
     json_t *result = json_object();
     json_object_set_new(result, "offset", json_integer(offset));
     json_object_set_new(result, "limit", json_integer(limit));
-    json_object_set_new(result, "total", json_integer(total));
     json_object_set_new(result, "records", records);
     rsp->result = result;
 
@@ -195,7 +191,6 @@ static int on_cmd_order_deals(MYSQL *conn, json_t *params, struct job_reply *rsp
     if (limit == 0 || limit > QUERY_LIMIT)
         goto invalid_argument;
 
-    size_t total = get_order_deal_details_count(conn, order_id);
     json_t *records = get_order_deal_details(conn, order_id, offset, limit);
     if (records == NULL) {
         rsp->code = 2;
@@ -205,7 +200,6 @@ static int on_cmd_order_deals(MYSQL *conn, json_t *params, struct job_reply *rsp
     json_t *result = json_object();
     json_object_set_new(result, "offset", json_integer(offset));
     json_object_set_new(result, "limit", json_integer(limit));
-    json_object_set_new(result, "total", json_integer(total));
     json_object_set_new(result, "records", records);
     rsp->result = result;
 

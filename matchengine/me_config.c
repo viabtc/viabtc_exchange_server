@@ -137,6 +137,8 @@ static int read_config_from_json(json_t *root)
         return -__LINE__;
     }
 
+    ERR_RET_LN(read_cfg_real(root, "cache_timeout", &settings.cache_timeout, false, 0.45));
+
     return 0;
 }
 

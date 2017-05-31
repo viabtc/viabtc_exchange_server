@@ -83,6 +83,7 @@ struct settings {
     int                 slice_interval;
     int                 slice_keeptime;
     int                 history_thread;
+    double              cache_timeout;
 };
 
 extern struct settings settings;

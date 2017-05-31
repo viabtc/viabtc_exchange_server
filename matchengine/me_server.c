@@ -19,6 +19,7 @@ static dict_t *dict_cache;
 struct cache_val {
     double      time;
     char        *result;
+    size_t      size;
 };
 
 static int reply_json(nw_ses *ses, rpc_pkg *pkg, const json_t *json)
@@ -119,7 +120,7 @@ static bool process_cache(nw_ses *ses, rpc_pkg *pkg, sds *cache_key)
     memcpy(&reply, pkg, sizeof(reply));
     reply.pkg_type = RPC_PKG_TYPE_REPLY;
     reply.body = cache->result;
-    reply.body_size = strlen(cache->result);
+    reply.body_size = cache->size;
     rpc_send(ses, &reply);
     log_trace("connection: %s send: %s", nw_sock_human_addr(&ses->peer_addr), cache->result);
 
@@ -136,6 +137,7 @@ static int add_cache(sds cache_key, json_t *result)
     } else {
         cache.result = json_dumps(result, 0);
     }
+    cache.size = strlen(cache.result);
     dict_replace(dict_cache, cache_key, &cache);
 
     return 0;

@@ -315,7 +315,7 @@ static int append_balance_trade_add(order_t *order, const char *asset, mpd_t *ch
     json_object_set_new(detail, "i", json_integer(order->id));
     json_object_set_new_mpd(detail, "p", price);
     json_object_set_new_mpd(detail, "a", amount);
-    char *detail_str = json_dumps(detail, 0);
+    char *detail_str = json_dumps(detail, JSON_SORT_KEYS);
     int ret = append_user_balance_history(order->update_time, order->user_id, asset, "trade", change, detail_str);
     free(detail_str);
     json_decref(detail);
@@ -329,7 +329,7 @@ static int append_balance_trade_sub(order_t *order, const char *asset, mpd_t *ch
     json_object_set_new(detail, "i", json_integer(order->id));
     json_object_set_new_mpd(detail, "p", price);
     json_object_set_new_mpd(detail, "a", amount);
-    char *detail_str = json_dumps(detail, 0);
+    char *detail_str = json_dumps(detail, JSON_SORT_KEYS);
     mpd_t *real_change = mpd_new(&mpd_ctx);
     mpd_copy_negate(real_change, change, &mpd_ctx);
     int ret = append_user_balance_history(order->update_time, order->user_id, asset, "trade", real_change, detail_str);
@@ -348,7 +348,7 @@ static int append_balance_trade_fee(order_t *order, const char *asset, mpd_t *ch
     json_object_set_new_mpd(detail, "p", price);
     json_object_set_new_mpd(detail, "a", amount);
     json_object_set_new_mpd(detail, "f", fee_rate);
-    char *detail_str = json_dumps(detail, 0);
+    char *detail_str = json_dumps(detail, JSON_SORT_KEYS);
     mpd_t *real_change = mpd_new(&mpd_ctx);
     mpd_copy_negate(real_change, change, &mpd_ctx);
     int ret = append_user_balance_history(order->update_time, order->user_id, asset, "trade", real_change, detail_str);

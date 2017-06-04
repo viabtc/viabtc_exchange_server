@@ -564,7 +564,7 @@ static int execute_limit_bid_order(bool real, market_t *m, order_t *taker)
     return 0;
 }
 
-int market_put_limit_order(bool real, market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *price, mpd_t *taker_fee, mpd_t *maker_fee, const char *source)
+int market_put_limit_order(bool real, json_t **result, market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *price, mpd_t *taker_fee, mpd_t *maker_fee, const char *source)
 {
     if (side == MARKET_ORDER_SIDE_ASK) {
         mpd_t *balance = balance_get(user_id, BALANCE_TYPE_AVAILABLE, m->stock);
@@ -637,11 +637,13 @@ int market_put_limit_order(bool real, market_t *m, uint32_t user_id, uint32_t si
                 log_fatal("append_order_history fail: %d, order: %"PRIu64"", ret, order->id);
             }
             push_order_message(ORDER_EVENT_FINISH, order, m);
+            *result = get_order_info(order);
         }
         order_free(order);
     } else {
         if (real) {
             push_order_message(ORDER_EVENT_PUT, order, m);
+            *result = get_order_info(order);
         }
         ret = order_put(m, order);
         if (ret < 0) {
@@ -865,7 +867,7 @@ static int execute_market_bid_order(bool real, market_t *m, order_t *taker)
     return 0;
 }
 
-int market_put_market_order(bool real, market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *taker_fee, const char *source)
+int market_put_market_order(bool real, json_t **result, market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *taker_fee, const char *source)
 {
     if (side == MARKET_ORDER_SIDE_ASK) {
         mpd_t *balance = balance_get(user_id, BALANCE_TYPE_AVAILABLE, m->stock);
@@ -958,16 +960,18 @@ int market_put_market_order(bool real, market_t *m, uint32_t user_id, uint32_t s
             log_fatal("append_order_history fail: %d, order: %"PRIu64"", ret, order->id);
         }
         push_order_message(ORDER_EVENT_FINISH, order, m);
+        *result = get_order_info(order);
     }
 
     order_free(order);
     return 0;
 }
 
-int market_cancel_order(bool real, market_t *m, order_t *order)
+int market_cancel_order(bool real, json_t **result, market_t *m, order_t *order)
 {
     if (real) {
         push_order_message(ORDER_EVENT_FINISH, order, m);
+        *result = get_order_info(order);
     }
     order_finish(real, m, order);
     return 0;

@@ -257,7 +257,7 @@ static int append_order_deal(double t, uint64_t deal_id, uint64_t order_id, uint
     sql = sql_append_mpd(sql, amount, true);
     sql = sql_append_mpd(sql, price, true);
     sql = sql_append_mpd(sql, deal, true);
-    sql = sql_append_mpd(sql, fee, false);
+    sql = sql_append_mpd(sql, fee, true);
     sql = sql_append_mpd(sql, deal_fee, false);
     sql = sdscatprintf(sql, ")");
 

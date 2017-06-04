@@ -326,9 +326,6 @@ int deals_unsubscribe(nw_ses *ses)
     while ((entry = dict_next(iter)) != NULL) {
         struct market_val *obj = entry->val;
         dict_delete(obj->sessions, ses);
-        if (obj->sessions->used == 0) {
-            dict_delete(dict_market, entry->key);
-        }
     }
     dict_release_iterator(iter);
 

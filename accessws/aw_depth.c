@@ -464,9 +464,6 @@ int depth_unsubscribe(nw_ses *ses)
     while ((entry = dict_next(iter)) != NULL) {
         struct depth_val *obj = entry->val;
         dict_delete(obj->sessions, ses);
-        if (obj->sessions->used == 0) {
-            dict_delete(dict_depth, entry->key);
-        }
     }
     dict_release_iterator(iter);
 

@@ -27,6 +27,11 @@ static sds on_cmd_status(const char *cmd, int argc, sds *argv)
 
 static sds on_cmd_balance_list(const char *cmd, int argc, sds *argv)
 {
+    char *asset = NULL;
+    if (argc == 2) {
+        asset = argv[1];
+    }
+
     sds reply = sdsempty();
     reply = sdscatprintf(reply, "%-10s %-10s %-10s %s\n", "user", "asset", "type", "amount");
 
@@ -34,6 +39,8 @@ static sds on_cmd_balance_list(const char *cmd, int argc, sds *argv)
     dict_entry *entry;
     while ((entry = dict_next(iter)) != NULL) {
         struct balance_key *key = entry->key;
+        if (asset && strcmp(key->asset, asset) != 0)
+            continue;
         mpd_t *val = entry->val;
         char *str = mpd_to_sci(val, 0);
         if (key->type == BALANCE_TYPE_AVAILABLE) {

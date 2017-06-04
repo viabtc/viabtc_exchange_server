@@ -285,6 +285,7 @@ mpd_t *balance_freeze(uint32_t user_id, const char *asset, mpd_t *amount)
     mpd_sub(available, available, amount, &mpd_ctx);
     if (mpd_cmp(available, mpd_zero, &mpd_ctx) == 0) {
         balance_del(user_id, BALANCE_TYPE_AVAILABLE, asset);
+        return mpd_zero;
     }
     mpd_rescale(available, available, -at->prec_save, &mpd_ctx);
 
@@ -310,6 +311,7 @@ mpd_t *balance_unfreeze(uint32_t user_id, const char *asset, mpd_t *amount)
     mpd_sub(freeze, freeze, amount, &mpd_ctx);
     if (mpd_cmp(freeze, mpd_zero, &mpd_ctx) == 0) {
         balance_del(user_id, BALANCE_TYPE_FREEZE, asset);
+        return mpd_zero;
     }
     mpd_rescale(freeze, freeze, -at->prec_save, &mpd_ctx);
 

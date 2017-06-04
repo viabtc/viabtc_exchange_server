@@ -27,11 +27,11 @@ CREATE TABLE `order_history_example` (
     `maker_fee`     DECIMAL(30,4) NOT NULL,
     `deal_stock`    DECIMAL(30,8) NOT NULL,
     `deal_money`    DECIMAL(30,16) NOT NULL,
-    `deal_fee`      DECIMAL(30,12) NOT NULL,
+    `deal_fee`      DECIMAL(30,16) NOT NULL,
     INDEX `idx_user_market` (`user_id`, `market`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- split by id ,aka orer_id
+-- split by id, aka orer_id
 CREATE TABLE `order_detail_example` (
     `id`            BIGINT UNSIGNED NOT NULL PRIMARY KEY,
     `create_time`   DOUBLE NOT NULL,
@@ -47,7 +47,7 @@ CREATE TABLE `order_detail_example` (
     `maker_fee`     DECIMAL(30,4) NOT NULL,
     `deal_stock`    DECIMAL(30,8) NOT NULL,
     `deal_money`    DECIMAL(30,16) NOT NULL,
-    `deal_fee`      DECIMAL(30,12) NOT NULL,
+    `deal_fee`      DECIMAL(30,16) NOT NULL,
     INDEX `idx_user_market` (`user_id`, `market`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -55,12 +55,14 @@ CREATE TABLE `order_detail_example` (
 CREATE TABLE `deal_history_example` (
     `id`            BIGINT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
     `time`          DOUBLE NOT NULL,
+    `deal_id`       BIGINT UNSIGNED NOT NULL,
     `order_id`      BIGINT UNSIGNED NOT NULL,
     `deal_order_id` BIGINT UNSIGNED NOT NULL,
     `role`          TINYINT UNSIGNED NOT NULL,
     `amount`        DECIMAL(30,8) NOT NULL,
     `price`         DECIMAL(30,8) NOT NULL,
     `deal`          DECIMAL(30,16) NOT NULL,
-    `fee`           DECIMAL(30,12) NOT NULL,
+    `fee`           DECIMAL(30,16) NOT NULL,
+    `deal_fee`      DECIMAL(30,16) NOT NULL,
     INDEX `idx_order_id` (`order_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

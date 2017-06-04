@@ -238,7 +238,7 @@ static int load_limit_order(json_t *params)
     if (strlen(source) > SOURCE_MAX_LEN)
         goto error;
 
-    int ret = market_put_limit_order(false, market, user_id, side, amount, price, taker_fee, maker_fee, source);
+    int ret = market_put_limit_order(false, NULL, market, user_id, side, amount, price, taker_fee, maker_fee, source);
 
     mpd_del(amount);
     mpd_del(price);
@@ -313,7 +313,7 @@ static int load_market_order(json_t *params)
     if (strlen(source) > SOURCE_MAX_LEN)
         goto error;
 
-    int ret = market_put_market_order(false, market, user_id, side, amount, taker_fee, source);
+    int ret = market_put_market_order(false, NULL, market, user_id, side, amount, taker_fee, source);
 
     mpd_del(amount);
     mpd_del(taker_fee);
@@ -357,7 +357,7 @@ static int load_cancel_order(json_t *params)
         return -__LINE__;
     }
 
-    int ret = market_cancel_order(false, market, order);
+    int ret = market_cancel_order(false, NULL, market, order);
     if (ret < 0) {
         log_error("market_cancel_order id: %"PRIu64", user id: %u, market: %s", order_id, user_id, market_name);
         return -__LINE__;

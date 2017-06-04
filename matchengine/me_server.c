@@ -356,7 +356,8 @@ static int on_cmd_order_put_limit(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     if (strlen(source) >= SOURCE_MAX_LEN)
         goto invalid_argument;
 
-    int ret = market_put_limit_order(true, market, user_id, side, amount, price, taker_fee, maker_fee, source);
+    json_t *result = NULL;
+    int ret = market_put_limit_order(true, &result, market, user_id, side, amount, price, taker_fee, maker_fee, source);
 
     mpd_del(amount);
     mpd_del(price);
@@ -373,7 +374,7 @@ static int on_cmd_order_put_limit(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     }
 
     append_operlog("limit_order", params);
-    return reply_success(ses, pkg);
+    return reply_result(ses, pkg, result);
 
 invalid_argument:
     if (amount)
@@ -437,7 +438,8 @@ static int on_cmd_order_put_market(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     if (strlen(source) >= SOURCE_MAX_LEN)
         goto invalid_argument;
 
-    int ret = market_put_market_order(true, market, user_id, side, amount, taker_fee, source);
+    json_t *result = NULL;
+    int ret = market_put_market_order(true, &result, market, user_id, side, amount, taker_fee, source);
 
     mpd_del(amount);
     mpd_del(taker_fee);
@@ -454,7 +456,7 @@ static int on_cmd_order_put_market(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     }
 
     append_operlog("market_order", params);
-    return reply_success(ses, pkg);
+    return reply_result(ses, pkg, result);
 
 invalid_argument:
     if (amount)
@@ -557,14 +559,15 @@ static int on_cmd_order_cancel(nw_ses *ses, rpc_pkg *pkg, json_t *params)
         return reply_error(ses, pkg, 11, "user not match");
     }
 
-    int ret = market_cancel_order(true, market, order);
+    json_t *result = NULL;
+    int ret = market_cancel_order(true, &result, market, order);
     if (ret < 0) {
         log_fatal("cancel order: %"PRIu64" fail: %d", order->id, ret);
         return reply_error_internal_error(ses, pkg);
     }
 
     append_operlog("cancel_order", params);
-    return reply_success(ses, pkg);
+    return reply_result(ses, pkg, result);
 }
 
 static int on_cmd_order_book(nw_ses *ses, rpc_pkg *pkg, json_t *params)

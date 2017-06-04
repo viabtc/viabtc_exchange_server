@@ -238,7 +238,7 @@ static int append_order_detail(order_t *order)
     return 0;
 }
 
-static int append_order_deal(double t, uint64_t order_id, uint64_t deal_order_id, int role, mpd_t *amount, mpd_t *price, mpd_t *deal, mpd_t *fee)
+static int append_order_deal(double t, uint64_t deal_id, uint64_t order_id, uint64_t deal_order_id, int role, mpd_t *amount, mpd_t *price, mpd_t *deal, mpd_t *fee, mpd_t *deal_fee)
 {
     struct dict_sql_key key;
     key.hash = order_id % HISTORY_HASH_NUM;
@@ -248,16 +248,17 @@ static int append_order_deal(double t, uint64_t order_id, uint64_t deal_order_id
         return -__LINE__;
 
     if (sdslen(sql) == 0) {
-        sql = sdscatprintf(sql, "INSERT INTO `deal_history_%u` (`id`, `time`, `order_id`, `deal_order_id`, `role`, `amount`, `price`, `deal`, `fee`) VALUES ", key.hash);
+        sql = sdscatprintf(sql, "INSERT INTO `deal_history_%u` (`id`, `time`, `deal_id`, `order_id`, `deal_order_id`, `role`, `amount`, `price`, `deal`, `fee`, `deal_fee`) VALUES ", key.hash);
     } else {
         sql = sdscatprintf(sql, ", ");
     }
 
-    sql = sdscatprintf(sql, "(NULL, %f, %"PRIu64", %"PRIu64", %d, ", t, order_id, deal_order_id, role);
+    sql = sdscatprintf(sql, "(NULL, %f, %"PRIu64", %"PRIu64", %"PRIu64", %d, ", t, deal_id, order_id, deal_order_id, role);
     sql = sql_append_mpd(sql, amount, true);
     sql = sql_append_mpd(sql, price, true);
     sql = sql_append_mpd(sql, deal, true);
     sql = sql_append_mpd(sql, fee, false);
+    sql = sql_append_mpd(sql, deal_fee, false);
     sql = sdscatprintf(sql, ")");
 
     set_sql(&key, sql);
@@ -299,10 +300,10 @@ int append_order_history(order_t *order)
     return 0;
 }
 
-int append_order_deal_history(double t, uint64_t ask, int ask_role, uint64_t bid, int bid_role, mpd_t *amount, mpd_t *price, mpd_t *deal, mpd_t *ask_fee, mpd_t *bid_fee)
+int append_order_deal_history(double t, uint64_t deal_id, uint64_t ask, int ask_role, uint64_t bid, int bid_role, mpd_t *amount, mpd_t *price, mpd_t *deal, mpd_t *ask_fee, mpd_t *bid_fee)
 {
-    append_order_deal(t, ask, bid, ask_role, amount, price, deal, ask_fee);
-    append_order_deal(t, bid, ask, bid_role, amount, price, deal, bid_fee);
+    append_order_deal(t, deal_id, ask, bid, ask_role, amount, price, deal, ask_fee, bid_fee);
+    append_order_deal(t, deal_id, bid, ask, bid_role, amount, price, deal, bid_fee, ask_fee);
     return 0;
 }
 

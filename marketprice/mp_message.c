@@ -908,7 +908,7 @@ json_t *get_market_status(const char *market, int period)
         return NULL;
 
     struct kline_info *kinfo = NULL;
-    time_t now   = time(NULL);
+    time_t now = time(NULL);
     time_t start = now - period;
     time_t start_min = start / 60 * 60 + 60;
 
@@ -931,6 +931,7 @@ json_t *get_market_status(const char *market, int period)
         if (kinfo == NULL) {
             kinfo = kline_info_new(sinfo->open);
         }
+        kline_info_merge(kinfo, sinfo);
     }
 
     if (kinfo == NULL)

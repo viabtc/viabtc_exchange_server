@@ -18,8 +18,7 @@ static dict_t *dict_cache;
 
 struct cache_val {
     double      time;
-    char        *result;
-    size_t      size;
+    json_t      *result;
 };
 
 static int reply_json(nw_ses *ses, rpc_pkg *pkg, const json_t *json)
@@ -116,13 +115,8 @@ static bool process_cache(nw_ses *ses, rpc_pkg *pkg, sds *cache_key)
         return false;
     }
 
-    rpc_pkg reply;
-    memcpy(&reply, pkg, sizeof(reply));
-    reply.pkg_type = RPC_PKG_TYPE_REPLY;
-    reply.body = cache->result;
-    reply.body_size = cache->size;
-    rpc_send(ses, &reply);
-    log_trace("connection: %s send: %s", nw_sock_human_addr(&ses->peer_addr), cache->result);
+    json_incref(cache->result);
+    reply_result(ses, pkg, cache->result);
 
     sdsfree(key);
     return true;
@@ -132,12 +126,8 @@ static int add_cache(sds cache_key, json_t *result)
 {
     struct cache_val cache;
     cache.time = current_timestamp();
-    if (settings.debug) {
-        cache.result = json_dumps(result, JSON_INDENT(4));
-    } else {
-        cache.result = json_dumps(result, 0);
-    }
-    cache.size = strlen(cache.result);
+    json_incref(result);
+    cache.result = result;
     dict_replace(dict_cache, cache_key, &cache);
 
     return 0;
@@ -1009,7 +999,7 @@ static void *cache_dict_val_dup(const void *val)
 static void cache_dict_val_free(void *val)
 {
     struct cache_val *obj = val;
-    free(obj->result);
+    json_decref(obj->result);
     free(val);
 }
 

@@ -8,6 +8,13 @@
 # include "mp_message.h"
 
 static rpc_svr *svr;
+static dict_t *dict_cache;
+
+struct cache_val {
+    double      time;
+    char        *result;
+    size_t      size;
+};
 
 static int reply_json(nw_ses *ses, rpc_pkg *pkg, const json_t *json)
 {
@@ -72,6 +79,52 @@ static int reply_result(nw_ses *ses, rpc_pkg *pkg, json_t *result)
     return ret;
 }
 
+static bool process_cache(nw_ses *ses, rpc_pkg *pkg, sds *cache_key)
+{
+    sds key = sdsempty();
+    key = sdscatprintf(key, "%u", pkg->command);
+    key = sdscatlen(key, pkg->body, pkg->body_size);
+    dict_entry *entry = dict_find(dict_cache, key);
+    if (entry == NULL) {
+        *cache_key = key;
+        return false;
+    }
+
+    struct cache_val *cache = entry->val;
+    double now = current_timestamp();
+    if ((now - cache->time) > settings.cache_timeout) {
+        dict_delete(dict_cache, key);
+        *cache_key = key;
+        return false;
+    }
+
+    rpc_pkg reply;
+    memcpy(&reply, pkg, sizeof(reply));
+    reply.pkg_type = RPC_PKG_TYPE_REPLY;
+    reply.body = cache->result;
+    reply.body_size = cache->size;
+    rpc_send(ses, &reply);
+    log_trace("connection: %s send: %s", nw_sock_human_addr(&ses->peer_addr), cache->result);
+
+    sdsfree(key);
+    return true;
+}
+
+static int add_cache(sds cache_key, json_t *result)
+{
+    struct cache_val cache;
+    cache.time = current_timestamp();
+    if (settings.debug) {
+        cache.result = json_dumps(result, JSON_INDENT(4));
+    } else {
+        cache.result = json_dumps(result, 0);
+    }
+    cache.size = strlen(cache.result);
+    dict_replace(dict_cache, cache_key, &cache);
+
+    return 0;
+}
+
 static int on_cmd_market_status(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 {
     if (json_array_size(params) != 2)
@@ -87,10 +140,17 @@ static int on_cmd_market_status(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     if (period <= 0 || period > settings.sec_max)
         return reply_error_invalid_argument(ses, pkg);
 
-    json_t *result = get_market_status(market, period);
-    if (result == NULL)
-        return reply_error_internal_error(ses, pkg);
+    sds cache_key = NULL;
+    if (process_cache(ses, pkg, &cache_key))
+        return 0;
 
+    json_t *result = get_market_status(market, period);
+    if (result == NULL) {
+        sdsfree(cache_key);
+        return reply_error_internal_error(ses, pkg);
+    }
+
+    add_cache(cache_key, result);
     return reply_result(ses, pkg, result);
 }
 
@@ -120,6 +180,10 @@ static int on_cmd_market_kline(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     if (interval <= 0)
         return reply_error_invalid_argument(ses, pkg);
 
+    sds cache_key = NULL;
+    if (process_cache(ses, pkg, &cache_key))
+        return 0;
+
     json_t *result = NULL;
     if (interval < 60) {
         if (60 % interval != 0)
@@ -145,8 +209,12 @@ static int on_cmd_market_kline(nw_ses *ses, rpc_pkg *pkg, json_t *params)
         return reply_error_invalid_argument(ses, pkg);
     }
 
-    if (result == NULL)
+    if (result == NULL) {
+        sdsfree(cache_key);
         return reply_error_internal_error(ses, pkg);
+    }
+
+    add_cache(cache_key, result);
     return reply_result(ses, pkg, result);
 }
 
@@ -209,10 +277,17 @@ static int on_cmd_market_status_today(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     if (!market_exist(market))
         return reply_error_invalid_argument(ses, pkg);
 
-    json_t *result = get_market_status_today(market);
-    if (result == NULL)
-        return reply_error_internal_error(ses, pkg);
+    sds cache_key = NULL;
+    if (process_cache(ses, pkg, &cache_key))
+        return 0;
 
+    json_t *result = get_market_status_today(market);
+    if (result == NULL) {
+        sdsfree(cache_key);
+        return reply_error_internal_error(ses, pkg);
+    }
+
+    add_cache(cache_key, result);
     return reply_result(ses, pkg, result);
 }
 
@@ -293,6 +368,35 @@ static void svr_on_connection_close(nw_ses *ses)
     log_trace("connection: %s close", nw_sock_human_addr(&ses->peer_addr));
 }
 
+static uint32_t cache_dict_hash_function(const void *key)
+{
+    return dict_generic_hash_function(key, sdslen((sds)key));
+}
+
+static int cache_dict_key_compare(const void *key1, const void *key2)
+{
+    return sdscmp((sds)key1, (sds)key2);
+}
+
+static void cache_dict_key_free(void *key)
+{
+    sdsfree(key);
+}
+
+static void *cache_dict_val_dup(const void *val)
+{
+    struct cache_val *obj = malloc(sizeof(struct cache_val));
+    memcpy(obj, val, sizeof(struct cache_val));
+    return obj;
+}
+
+static void cache_dict_val_free(void *val)
+{
+    struct cache_val *obj = val;
+    free(obj->result);
+    free(val);
+}
+
 int init_server(void)
 {
     rpc_svr_type type;
@@ -305,6 +409,18 @@ int init_server(void)
     if (svr == NULL)
         return -__LINE__;
     if (rpc_svr_start(svr) < 0)
+        return -__LINE__;
+
+    dict_types dt;
+    memset(&dt, 0, sizeof(dt));
+    dt.hash_function  = cache_dict_hash_function;
+    dt.key_compare    = cache_dict_key_compare;
+    dt.key_destructor = cache_dict_key_free;
+    dt.val_dup        = cache_dict_val_dup;
+    dt.val_destructor = cache_dict_val_free;
+
+    dict_cache = dict_create(&dt, 64);
+    if (dict_cache == NULL)
         return -__LINE__;
 
     return 0;

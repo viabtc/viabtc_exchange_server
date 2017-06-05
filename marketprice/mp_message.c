@@ -908,9 +908,11 @@ json_t *get_market_status(const char *market, int period)
         return NULL;
 
     struct kline_info *kinfo = NULL;
-    time_t start = time(NULL) - period;
-    for (int i = 0; i < period; ++i) {
-        time_t timestamp = start + i;
+    time_t now   = time(NULL);
+    time_t start = now - period;
+    time_t start_min = start / 60 * 60 + 60;
+
+    for (time_t timestamp = start; timestamp < start_min; timestamp++) {
         dict_entry *entry = dict_find(info->sec, &timestamp);
         if (!entry)
             continue;
@@ -919,6 +921,16 @@ json_t *get_market_status(const char *market, int period)
             kinfo = kline_info_new(sinfo->open);
         }
         kline_info_merge(kinfo, sinfo);
+    }
+
+    for (time_t timestamp = start_min; timestamp < now; timestamp += 60) {
+        dict_entry *entry = dict_find(info->min, &timestamp);
+        if (!entry)
+            continue;
+        struct kline_info *sinfo = entry->val;
+        if (kinfo == NULL) {
+            kinfo = kline_info_new(sinfo->open);
+        }
     }
 
     if (kinfo == NULL)
@@ -968,9 +980,19 @@ json_t *get_market_status_today(const char *market)
     }
 
     mpd_t *volume = mpd_qncopy(mpd_zero);
-    for (int i = 0; i < 86400; ++i) {
-        time_t timestamp = now - i;
+    time_t start_24h = now - 86400;
+    time_t start_min = start_24h / 60 * 60 + 60;
+
+    for (time_t timestamp = start_24h; timestamp < start_min; timestamp++) {
         dict_entry *entry = dict_find(info->sec, &timestamp);
+        if (!entry)
+            continue;
+        struct kline_info *info = entry->val;
+        mpd_add(volume, volume, info->volume, &mpd_ctx);
+    }
+
+    for (time_t timestamp = start_min; timestamp < now; timestamp += 60) {
+        dict_entry *entry = dict_find(info->min, &timestamp);
         if (!entry)
             continue;
         struct kline_info *info = entry->val;

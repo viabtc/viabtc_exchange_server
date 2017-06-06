@@ -167,6 +167,7 @@ static void dict_val_free(void *val)
 
 static void on_state_timeout(nw_state_entry *entry)
 {
+    log_error("state id: %u timeout", entry->id);
     struct state_info *info = entry->data;
     if (info->ses->id == info->ses_id) {
         reply_time_out(info->ses, info->request_id);

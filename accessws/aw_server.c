@@ -882,6 +882,7 @@ static int init_svr(void)
 
 static void on_timeout(nw_state_entry *entry)
 {
+    log_error("state id: %u timeout", entry->id);
     struct state_data *state = entry->data;
     if (state->ses->id == state->ses_id) {
         send_error_service_timeout(state->ses, state->request_id);

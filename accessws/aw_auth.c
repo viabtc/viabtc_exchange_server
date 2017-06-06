@@ -7,6 +7,8 @@
 
 # include "aw_config.h"
 # include "aw_server.h"
+# include "aw_asset.h"
+# include "aw_order.h"
 # include "aw_auth.h"
 
 static nw_job *job_context;
@@ -66,7 +68,6 @@ static void on_result(struct state_data *state, sds token, json_t *result)
 {
     if (state->ses->id != state->ses_id)
         return;
-
     if (result == NULL)
         goto error;
 
@@ -87,11 +88,17 @@ static void on_result(struct state_data *state, sds token, json_t *result)
     if (data == NULL)
         goto error;
     struct clt_info *info = state->info;
-    info->user_id = json_integer_value(json_object_get(data, "user_id"));
-    if (info->user_id == 0)
+    uint32_t user_id = json_integer_value(json_object_get(data, "user_id"));
+    if (user_id == 0)
         goto error;
 
+    if (info->auth && info->user_id != user_id) {
+        asset_unsubscribe(info->user_id, state->ses);
+        order_unsubscribe(info->user_id, state->ses);
+    }
+
     info->auth = true;
+    info->user_id = user_id;
     log_info("auth success, token: %s, user_id: %u", token, info->user_id);
     send_success(state->ses, state->request_id);
 
@@ -132,8 +139,6 @@ static void on_timeout(nw_state_entry *entry)
 
 int send_auth_request(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
-    if (info->auth)
-        return send_error(ses, id, 10, "authenticated");
     if (json_array_size(params) != 2)
         return send_error_invalid_argument(ses, id);
     const char *token = json_string_value(json_array_get(params, 0));

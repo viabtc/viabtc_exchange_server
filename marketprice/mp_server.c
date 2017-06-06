@@ -69,7 +69,7 @@ static int reply_result(nw_ses *ses, rpc_pkg *pkg, json_t *result)
 {
     json_t *reply = json_object();
     json_object_set_new(reply, "error", json_null());
-    json_object_set_new(reply, "result", result);
+    json_object_set    (reply, "result", result);
     json_object_set_new(reply, "id", json_integer(pkg->req_id));
 
     int ret = reply_json(ses, pkg, reply);
@@ -97,9 +97,7 @@ static bool process_cache(nw_ses *ses, rpc_pkg *pkg, sds *cache_key)
         return false;
     }
 
-    json_incref(cache->result);
     reply_result(ses, pkg, cache->result);
-
     sdsfree(key);
     return true;
 }
@@ -108,8 +106,8 @@ static int add_cache(sds cache_key, json_t *result)
 {
     struct cache_val cache;
     cache.time = current_timestamp();
-    json_incref(result);
     cache.result = result;
+    json_incref(result);
     dict_replace(dict_cache, cache_key, &cache);
 
     return 0;
@@ -141,7 +139,9 @@ static int on_cmd_market_status(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     }
 
     add_cache(cache_key, result);
-    return reply_result(ses, pkg, result);
+    int ret = reply_result(ses, pkg, result);
+    json_decref(result);
+    return ret;
 }
 
 static int on_cmd_market_kline(nw_ses *ses, rpc_pkg *pkg, json_t *params)
@@ -205,7 +205,9 @@ static int on_cmd_market_kline(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     }
 
     add_cache(cache_key, result);
-    return reply_result(ses, pkg, result);
+    int ret = reply_result(ses, pkg, result);
+    json_decref(result);
+    return ret;
 }
 
 static int on_cmd_market_deals(nw_ses *ses, rpc_pkg *pkg, json_t *params)
@@ -231,7 +233,9 @@ static int on_cmd_market_deals(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     if (result == NULL)
         return reply_error_internal_error(ses, pkg);
 
-    return reply_result(ses, pkg, result);
+    int ret = reply_result(ses, pkg, result);
+    json_decref(result);
+    return ret;
 }
 
 static int on_cmd_market_last(nw_ses *ses, rpc_pkg *pkg, json_t *params)
@@ -253,7 +257,9 @@ static int on_cmd_market_last(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     json_t *result = json_string(last_str);
     free(last_str);
 
-    return reply_result(ses, pkg, result);
+    int ret = reply_result(ses, pkg, result);
+    json_decref(result);
+    return ret;
 }
 
 static int on_cmd_market_status_today(nw_ses *ses, rpc_pkg *pkg, json_t *params)
@@ -278,7 +284,9 @@ static int on_cmd_market_status_today(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     }
 
     add_cache(cache_key, result);
-    return reply_result(ses, pkg, result);
+    int ret = reply_result(ses, pkg, result);
+    json_decref(result);
+    return ret;
 }
 
 static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)

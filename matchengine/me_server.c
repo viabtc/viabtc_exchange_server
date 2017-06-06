@@ -80,7 +80,7 @@ static int reply_result(nw_ses *ses, rpc_pkg *pkg, json_t *result)
 {
     json_t *reply = json_object();
     json_object_set_new(reply, "error", json_null());
-    json_object_set_new(reply, "result", result);
+    json_object_set    (reply, "result", result);
     json_object_set_new(reply, "id", json_integer(pkg->req_id));
 
     int ret = reply_json(ses, pkg, reply);
@@ -93,7 +93,11 @@ static int reply_success(nw_ses *ses, rpc_pkg *pkg)
 {
     json_t *result = json_object();
     json_object_set_new(result, "status", json_string("success"));
-    return reply_result(ses, pkg, result);
+
+    int ret = reply_result(ses, pkg, result);
+    json_decref(result);
+
+    return ret;
 }
 
 static bool process_cache(nw_ses *ses, rpc_pkg *pkg, sds *cache_key)
@@ -115,9 +119,7 @@ static bool process_cache(nw_ses *ses, rpc_pkg *pkg, sds *cache_key)
         return false;
     }
 
-    json_incref(cache->result);
     reply_result(ses, pkg, cache->result);
-
     sdsfree(key);
     return true;
 }
@@ -126,8 +128,8 @@ static int add_cache(sds cache_key, json_t *result)
 {
     struct cache_val cache;
     cache.time = current_timestamp();
-    json_incref(result);
     cache.result = result;
+    json_incref(result);
     dict_replace(dict_cache, cache_key, &cache);
 
     return 0;
@@ -222,7 +224,9 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *params)
         }
     }
 
-    return reply_result(ses, pkg, result);
+    int ret = reply_result(ses, pkg, result);
+    json_decref(result);
+    return ret;
 }
 
 static int on_cmd_balance_update(nw_ses *ses, rpc_pkg *pkg, json_t *params)
@@ -364,7 +368,9 @@ static int on_cmd_order_put_limit(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     }
 
     append_operlog("limit_order", params);
-    return reply_result(ses, pkg, result);
+    ret = reply_result(ses, pkg, result);
+    json_decref(result);
+    return ret;
 
 invalid_argument:
     if (amount)
@@ -446,7 +452,9 @@ static int on_cmd_order_put_market(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     }
 
     append_operlog("market_order", params);
-    return reply_result(ses, pkg, result);
+    ret = reply_result(ses, pkg, result);
+    json_decref(result);
+    return ret;
 
 invalid_argument:
     if (amount)
@@ -515,7 +523,9 @@ static int on_cmd_order_query(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     }
 
     json_object_set_new(result, "records", orders);
-    return reply_result(ses, pkg, result);
+    int ret = reply_result(ses, pkg, result);
+    json_decref(result);
+    return ret;
 }
 
 static int on_cmd_order_cancel(nw_ses *ses, rpc_pkg *pkg, json_t *params)
@@ -557,7 +567,9 @@ static int on_cmd_order_cancel(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     }
 
     append_operlog("cancel_order", params);
-    return reply_result(ses, pkg, result);
+    ret =  reply_result(ses, pkg, result);
+    json_decref(result);
+    return ret;
 }
 
 static int on_cmd_order_book(nw_ses *ses, rpc_pkg *pkg, json_t *params)
@@ -625,7 +637,9 @@ static int on_cmd_order_book(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     }
 
     json_object_set_new(result, "orders", orders);
-    return reply_result(ses, pkg, result);
+    int ret = reply_result(ses, pkg, result);
+    json_decref(result);
+    return ret;
 }
 
 static json_t *get_depth(market_t *market, size_t limit)
@@ -815,7 +829,9 @@ static int on_cmd_order_book_depth(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     }
 
     add_cache(cache_key, result);
-    return reply_result(ses, pkg, result);
+    int ret = reply_result(ses, pkg, result);
+    json_decref(result);
+    return ret;
 }
 
 static int on_cmd_order_detail(nw_ses *ses, rpc_pkg *pkg, json_t *params)
@@ -837,11 +853,16 @@ static int on_cmd_order_detail(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     uint64_t order_id = json_integer_value(json_array_get(params, 1));
 
     order_t *order = market_get_order(market, order_id);
+    json_t *result = NULL;
     if (order == NULL) {
-        return reply_result(ses, pkg, json_null());
+        result = json_null();
+    } else {
+        result = get_order_info(order);
     }
 
-    return reply_result(ses, pkg, get_order_info(order));
+    int ret = reply_result(ses, pkg, result);
+    json_decref(result);
+    return ret;
 }
 
 static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)

@@ -80,7 +80,7 @@ static int reply_result(nw_ses *ses, rpc_pkg *pkg, json_t *result)
 {
     json_t *reply = json_object();
     json_object_set_new(reply, "error", json_null());
-    json_object_set_new(reply, "result", result);
+    json_object_set    (reply, "result", result);
     json_object_set_new(reply, "id", json_integer(pkg->req_id));
 
     int ret = reply_json(ses, pkg, reply);

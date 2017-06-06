@@ -6,7 +6,8 @@
     },
     "log": {
         "path": "/var/log/trade/readhistory",
-        "flag": "fatal,error,warn,info,debug,trace"
+        "flag": "fatal,error,warn,info,debug,trace",
+        "num": 10
     },
     "alert": {
         "host": "readhistory",

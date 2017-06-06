@@ -101,7 +101,7 @@ int send_result(nw_ses *ses, uint64_t id, json_t *result)
 {
     json_t *reply = json_object();
     json_object_set_new(reply, "error", json_null());
-    json_object_set_new(reply, "result", result);
+    json_object_set    (reply, "result", result);
     json_object_set_new(reply, "id", json_integer(id));
 
     int ret = send_json(ses, reply);
@@ -114,22 +114,32 @@ int send_success(nw_ses *ses, uint64_t id)
 {
     json_t *result = json_object();
     json_object_set_new(result, "status", json_string("success"));
-    return send_result(ses, id, result);
+
+    int ret = send_result(ses, id, result);
+    json_decref(result);
+
+    return ret;
 }
 
 int send_notify(nw_ses *ses, const char *method, json_t *params)
 {
     json_t *notify = json_object();
     json_object_set_new(notify, "method", json_string(method));
-    json_object_set_new(notify, "params", params);
+    json_object_set    (notify, "params", params);
     json_object_set_new(notify, "id", json_null());
 
-    return send_json(ses, notify);
+    int ret = send_json(ses, notify);
+    json_decref(notify);
+
+    return ret;
 }
 
 static int on_method_server_time(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
-    return send_result(ses, id, json_integer(time(NULL)));
+    json_t *result = json_integer(time(NULL));
+    int ret = send_result(ses, id, result);
+    json_decref(result);
+    return ret;
 }
 
 static int on_method_server_auth(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
@@ -150,9 +160,7 @@ static int process_cache(nw_ses *ses, uint64_t id, sds key)
         return 0;
     }
 
-    json_incref(cache->result);
     send_result(ses, id, cache->result);
-
     return 1;
 }
 

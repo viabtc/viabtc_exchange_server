@@ -49,7 +49,6 @@ static void produce_list(list_t *list, rd_kafka_topic_t *topic)
             }
         }
         list_del(list, node);
-        rd_kafka_poll(rk, 0);
     }
     list_release_iterator(iter);
 }
@@ -168,10 +167,10 @@ static int push_message(char *message, rd_kafka_topic_t *topic, list_t *list)
             list_add_node_tail(list_deals, message);
             return 0;
         }
+        free(message);
         return -__LINE__;
     }
     free(message);
-    rd_kafka_poll(rk, 0);
 
     return 0;
 }

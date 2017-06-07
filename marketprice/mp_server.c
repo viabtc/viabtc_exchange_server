@@ -178,26 +178,35 @@ static int on_cmd_market_kline(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 
     json_t *result = NULL;
     if (interval < 60) {
-        if (60 % interval != 0)
+        if (60 % interval != 0) {
+            sdsfree(cache_key);
             return reply_error_invalid_argument(ses, pkg);
+        }
         result = get_market_kline_sec(market, start, end, interval);
     } else if (interval < 3600) {
-        if (interval % 60 != 0 || 3600 % interval != 0)
+        if (interval % 60 != 0 || 3600 % interval != 0) {
+            sdsfree(cache_key);
             return reply_error_invalid_argument(ses, pkg);
+        }
         result = get_market_kline_min(market, start, end, interval);
     } else if (interval < 86400) {
-        if (interval % 3600 != 0 || 86400 % interval != 0)
+        if (interval % 3600 != 0 || 86400 % interval != 0) {
+            sdsfree(cache_key);
             return reply_error_invalid_argument(ses, pkg);
+        }
         result = get_market_kline_hour(market, start, end, interval);
     } else if (interval < 86400 * 7) {
-        if (interval % 86400 != 0)
+        if (interval % 86400 != 0) {
+            sdsfree(cache_key);
             return reply_error_invalid_argument(ses, pkg);
+        }
         result = get_market_kline_day(market, start, end, interval);
     } else if (interval == 86400 * 7) {
         result = get_market_kline_week(market, start, end, interval);
     } else if (interval == 86400 * 30) {
         result = get_market_kline_month(market, start, end, interval);
     } else {
+        sdsfree(cache_key);
         return reply_error_invalid_argument(ses, pkg);
     }
 

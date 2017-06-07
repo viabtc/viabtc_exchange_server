@@ -251,11 +251,17 @@ static int on_cmd_market_deals(MYSQL *conn, json_t *params, struct job_reply *rs
     if (limit == 0 || limit > QUERY_LIMIT)
         goto invalid_argument;
 
-    rsp->result = get_market_user_deals(conn, user_id, market, offset, limit);
-    if (rsp->result == NULL) {
+    json_t *records = get_market_user_deals(conn, user_id, market, offset, limit);
+    if (records == NULL) {
         rsp->code = 2;
         rsp->message = sdsnew("internal error");
     }
+
+    json_t *result = json_object();
+    json_object_set_new(result, "offset", json_integer(offset));
+    json_object_set_new(result, "limit", json_integer(limit));
+    json_object_set_new(result, "records", records);
+    rsp->result = result;
 
     return 0;
 

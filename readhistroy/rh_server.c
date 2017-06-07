@@ -235,6 +235,37 @@ invalid_argument:
     return 0;
 }
 
+static int on_cmd_market_deals(MYSQL *conn, json_t *params, struct job_reply *rsp)
+{
+    if (json_array_size(params) != 4)
+        goto invalid_argument;
+
+    uint32_t user_id = json_integer_value(json_array_get(params, 0));
+    if (user_id == 0)
+        goto invalid_argument;
+    const char *market = json_string_value(json_array_get(params, 1));
+    if (market == NULL)
+        goto invalid_argument;
+    size_t offset = json_integer_value(json_array_get(params, 2));
+    size_t limit  = json_integer_value(json_array_get(params, 3));
+    if (limit == 0 || limit > QUERY_LIMIT)
+        goto invalid_argument;
+
+    rsp->result = get_market_user_deals(conn, user_id, market, offset, limit);
+    if (rsp->result == NULL) {
+        rsp->code = 2;
+        rsp->message = sdsnew("internal error");
+    }
+
+    return 0;
+
+invalid_argument:
+    rsp->code = 1;
+    rsp->message = sdsnew("invalid argument");
+
+    return 0;
+}
+
 static void on_job(nw_job_entry *entry, void *privdata)
 {
     MYSQL *conn = privdata;
@@ -270,6 +301,12 @@ static void on_job(nw_job_entry *entry, void *privdata)
         ret = on_cmd_order_detail_finished(conn, req->params, rsp);
         if (ret < 0) {
             log_error("on_cmd_order_detail_finished fail: %d", ret);
+        }
+        break;
+    case CMD_MARKET_USER_DEALS:
+        ret = on_cmd_market_deals(conn, req->params, rsp);
+        if (ret < 0) {
+            log_error("on_cmd_market_deals fail: %d", ret);
         }
         break;
     default:

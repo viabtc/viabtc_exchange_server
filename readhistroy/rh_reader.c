@@ -150,7 +150,7 @@ json_t *get_user_order_finished(MYSQL *conn, uint32_t user_id,
 json_t *get_order_deal_details(MYSQL *conn, uint64_t order_id, size_t offset, size_t limit)
 {
     sds sql = sdsempty();
-    sql = sdscatprintf(sql, "SELECT `time`, `deal_order_id`, `role`, `amount`, `price`, `deal`, `fee` "
+    sql = sdscatprintf(sql, "SELECT `time`, `user_id`, `deal_id`, `role`, `price`, `amount`, `deal`, `fee` "
             "FROM `deal_history_%u` where `order_id` = %"PRIu64" ORDER BY `id` DESC", (uint32_t)(order_id % HISTORY_HASH_NUM), order_id);
     if (offset) {
         sql = sdscatprintf(sql, " LIMIT %zu, %zu", offset, limit);
@@ -175,14 +175,17 @@ json_t *get_order_deal_details(MYSQL *conn, uint64_t order_id, size_t offset, si
         MYSQL_ROW row = mysql_fetch_row(result);
         double timestamp = strtod(row[0], NULL);
         json_object_set_new(record, "time", json_real(timestamp));
-        uint64_t deal_order_id = strtoull(row[1], NULL, 0);
-        json_object_set_new(record, "deal_order_id", json_integer(deal_order_id));
-        int role = atoi(row[2]);
+        uint32_t user_id = strtoul(row[1], NULL, 0);
+        json_object_set_new(record, "user", json_integer(user_id));
+        uint64_t deal_id = strtoull(row[2], NULL, 0);
+        json_object_set_new(record, "id", json_integer(deal_id));
+        int role = atoi(row[3]);
         json_object_set_new(record, "role", json_integer(role));
-        json_object_set_new(record, "amount", json_string(rstripzero(row[3])));
+
         json_object_set_new(record, "price", json_string(rstripzero(row[4])));
-        json_object_set_new(record, "deal", json_string(rstripzero(row[5])));
-        json_object_set_new(record, "fee", json_string(rstripzero(row[6])));
+        json_object_set_new(record, "amount", json_string(rstripzero(row[5])));
+        json_object_set_new(record, "deal", json_string(rstripzero(row[6])));
+        json_object_set_new(record, "fee", json_string(rstripzero(row[7])));
 
         json_array_append_new(records, record);
     }
@@ -238,5 +241,58 @@ json_t *get_finished_order_detail(MYSQL *conn, uint64_t order_id)
     mysql_free_result(result);
 
     return detail;
+}
+
+json_t *get_market_user_deals(MYSQL *conn, uint32_t user_id, const char *market, size_t offset, size_t limit)
+{
+    size_t market_len = strlen(market);
+    char _market[2 * market_len + 1];
+    mysql_real_escape_string(conn, _market, market, market_len);
+
+    sds sql = sdsempty();
+    sql = sdscatprintf(sql, "SELECT `time`, `user_id`, `deal_id`, `side`, `role`, `price`, `amount`, `deal`, `fee` "
+            "FROM `user_deal_history_%u` where `user_id` = %u AND `market` = '%s' ORDER BY `id` DESC", user_id % HISTORY_HASH_NUM, user_id, _market);
+    if (offset) {
+        sql = sdscatprintf(sql, " LIMIT %zu, %zu", offset, limit);
+    } else {
+        sql = sdscatprintf(sql, " LIMIT %zu", limit);
+    }
+
+    log_trace("exec sql: %s", sql);
+    int ret = mysql_real_query(conn, sql, sdslen(sql));
+    if (ret != 0) {
+        log_fatal("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+        sdsfree(sql);
+        return NULL;
+    }
+    sdsfree(sql);
+
+    MYSQL_RES *result = mysql_store_result(conn);
+    size_t num_rows = mysql_num_rows(result);
+    json_t *records = json_array();
+    for (size_t i = 0; i < num_rows; ++i) {
+        json_t *record = json_object();
+        MYSQL_ROW row = mysql_fetch_row(result);
+        double timestamp = strtod(row[0], NULL);
+        json_object_set_new(record, "time", json_real(timestamp));
+        uint32_t user_id = strtoul(row[1], NULL, 0);
+        json_object_set_new(record, "user", json_integer(user_id));
+        uint64_t deal_id = strtoull(row[2], NULL, 0);
+        json_object_set_new(record, "id", json_integer(deal_id));
+        int side = atoi(row[3]);
+        json_object_set_new(record, "side", json_integer(side));
+        int role = atoi(row[4]);
+        json_object_set_new(record, "role", json_integer(role));
+
+        json_object_set_new(record, "price", json_string(rstripzero(row[5])));
+        json_object_set_new(record, "amount", json_string(rstripzero(row[6])));
+        json_object_set_new(record, "deal", json_string(rstripzero(row[7])));
+        json_object_set_new(record, "fee", json_string(rstripzero(row[8])));
+
+        json_array_append_new(records, record);
+    }
+    mysql_free_result(result);
+
+    return records;
 }
 

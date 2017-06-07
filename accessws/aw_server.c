@@ -945,7 +945,6 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
                 val.result = result;
                 json_incref(result);
                 dict_replace(backend_cache, state->cache_key, &val);
-                state->cache_key = NULL;
             }
             if (reply) {
                 json_decref(reply);
@@ -963,6 +962,11 @@ static uint32_t cache_dict_hash_function(const void *key)
 static int cache_dict_key_compare(const void *key1, const void *key2)
 {
     return sdscmp((sds)key1, (sds)key2);
+}
+
+static void *cache_dict_key_dup(const void *key)
+{
+    return sdsdup((const sds)key);
 }
 
 static void cache_dict_key_free(void *key)
@@ -1013,6 +1017,7 @@ static int init_backend(void)
     memset(&dt, 0, sizeof(dt));
     dt.hash_function  = cache_dict_hash_function;
     dt.key_compare    = cache_dict_key_compare;
+    dt.key_dup        = cache_dict_key_dup;
     dt.key_destructor = cache_dict_key_free;
     dt.val_dup        = cache_dict_val_dup;
     dt.val_destructor = cache_dict_val_free;

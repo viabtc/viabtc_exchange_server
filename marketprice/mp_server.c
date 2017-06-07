@@ -139,6 +139,8 @@ static int on_cmd_market_status(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     }
 
     add_cache(cache_key, result);
+    sdsfree(cache_key);
+
     int ret = reply_result(ses, pkg, result);
     json_decref(result);
     return ret;
@@ -205,6 +207,8 @@ static int on_cmd_market_kline(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     }
 
     add_cache(cache_key, result);
+    sdsfree(cache_key);
+
     int ret = reply_result(ses, pkg, result);
     json_decref(result);
     return ret;
@@ -284,6 +288,8 @@ static int on_cmd_market_status_today(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     }
 
     add_cache(cache_key, result);
+    sdsfree(cache_key);
+
     int ret = reply_result(ses, pkg, result);
     json_decref(result);
     return ret;
@@ -376,6 +382,11 @@ static int cache_dict_key_compare(const void *key1, const void *key2)
     return sdscmp((sds)key1, (sds)key2);
 }
 
+static void *cache_dict_key_dup(const void *key)
+{
+    return sdsdup((const sds)key);
+}
+
 static void cache_dict_key_free(void *key)
 {
     sdsfree(key);
@@ -413,6 +424,7 @@ int init_server(void)
     memset(&dt, 0, sizeof(dt));
     dt.hash_function  = cache_dict_hash_function;
     dt.key_compare    = cache_dict_key_compare;
+    dt.key_dup        = cache_dict_key_dup;
     dt.key_destructor = cache_dict_key_free;
     dt.val_dup        = cache_dict_val_dup;
     dt.val_destructor = cache_dict_val_free;

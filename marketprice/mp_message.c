@@ -1030,7 +1030,8 @@ json_t *get_market_kline_sec(const char *market, time_t start, time_t end, int i
     time_t now = time(NULL);
     if (start < now - settings.sec_max)
         start = now - settings.sec_max;
-    struct kline_info *klast = get_last_kline(info->sec, start - 1, now - settings.sec_max, 1);
+    struct kline_info *kbefor = get_last_kline(info->sec, start - 1, now - settings.sec_max, 1);
+    struct kline_info *klast = kbefor;
     for (; start <= end; start += interval) {
         struct kline_info *kinfo = NULL;
         for (int i = 0; i < interval; ++i) {
@@ -1050,8 +1051,12 @@ json_t *get_market_kline_sec(const char *market, time_t start, time_t end, int i
             kinfo = kline_info_new(klast->close);
         }
         append_kinfo(result, start, kinfo);
+        if (klast && klast != kbefor)
+            kline_info_free(klast);
         klast = kinfo;
     }
+    if (klast && klast != kbefor)
+        kline_info_free(klast);
 
     return result;
 }
@@ -1068,7 +1073,8 @@ json_t *get_market_kline_min(const char *market, time_t start, time_t end, int i
     if (start < start_min)
         start = start_min;
     start = start / interval * interval;
-    struct kline_info *klast = get_last_kline(info->min, start - 60, start_min, 60);
+    struct kline_info *kbefor = get_last_kline(info->min, start - 60, start_min, 60);
+    struct kline_info *klast = kbefor;
     int step = interval / 60;
     for (; start <= end; start += interval) {
         struct kline_info *kinfo = NULL;
@@ -1089,8 +1095,12 @@ json_t *get_market_kline_min(const char *market, time_t start, time_t end, int i
             kinfo = kline_info_new(klast->close);
         }
         append_kinfo(result, start, kinfo);
+        if (klast && klast != kbefor)
+            kline_info_free(klast);
         klast = kinfo;
     }
+    if (klast && klast != kbefor)
+        kline_info_free(klast);
 
     return result;
 }
@@ -1111,7 +1121,8 @@ json_t *get_market_kline_hour(const char *market, time_t start, time_t end, int 
         base += interval;
     start = base;
 
-    struct kline_info *klast = get_last_kline(info->hour, start - 3600, start_min, 3600);
+    struct kline_info *kbefor = get_last_kline(info->hour, start - 3600, start_min, 3600);
+    struct kline_info *klast = kbefor;
     int step = interval / 3600;
     for (; start <= end; start += interval) {
         struct kline_info *kinfo = NULL;
@@ -1132,8 +1143,12 @@ json_t *get_market_kline_hour(const char *market, time_t start, time_t end, int 
             kinfo = kline_info_new(klast->close);
         }
         append_kinfo(result, start, kinfo);
+        if (klast && klast != kbefor)
+            kline_info_free(klast);
         klast = kinfo;
     }
+    if (klast && klast != kbefor)
+        kline_info_free(klast);
 
     return result;
 }
@@ -1147,7 +1162,8 @@ json_t *get_market_kline_day(const char *market, time_t start, time_t end, int i
     json_t *result = json_array();
     start = (start - settings.timezone) / interval * interval + settings.timezone;
 
-    struct kline_info *klast = get_last_kline(info->day, start - 86400, start - 86400 * 30, 86400);
+    struct kline_info *kbefor = get_last_kline(info->day, start - 86400, start - 86400 * 30, 86400);
+    struct kline_info *klast = kbefor;
     int step = interval / 86400;
     for (; start <= end; start += interval) {
         struct kline_info *kinfo = NULL;
@@ -1168,8 +1184,12 @@ json_t *get_market_kline_day(const char *market, time_t start, time_t end, int i
             kinfo = kline_info_new(klast->close);
         }
         append_kinfo(result, start, kinfo);
+        if (klast && klast != kbefor)
+            kline_info_free(klast);
         klast = kinfo;
     }
+    if (klast && klast != kbefor)
+        kline_info_free(klast);
 
     return result;
 }
@@ -1186,7 +1206,8 @@ json_t *get_market_kline_week(const char *market, time_t start, time_t end, int 
         base += interval;
     start = base;
 
-    struct kline_info *klast = get_last_kline(info->day, start - 86400, start - 86400 * 30, 86400);
+    struct kline_info *kbefor = get_last_kline(info->day, start - 86400, start - 86400 * 30, 86400);
+    struct kline_info *klast = kbefor;
     int step = interval / 86400;
     for (; start <= end; start += interval) {
         struct kline_info *kinfo = NULL;
@@ -1207,8 +1228,12 @@ json_t *get_market_kline_week(const char *market, time_t start, time_t end, int 
             kinfo = kline_info_new(klast->close);
         }
         append_kinfo(result, start, kinfo);
+        if (klast && klast != kbefor)
+            kline_info_free(klast);
         klast = kinfo;
     }
+    if (klast && klast != kbefor)
+        kline_info_free(klast);
 
     return result;
 }
@@ -1251,7 +1276,8 @@ json_t *get_market_kline_month(const char *market, time_t start, time_t end, int
     int tm_mon  = timeinfo->tm_mon;
     time_t mon_start = get_month_start(tm_year, tm_mon);
 
-    struct kline_info *klast = get_last_kline(info->day, mon_start - 86400, start - 86400 * 30, 86400);
+    struct kline_info *kbefor = get_last_kline(info->day, mon_start - 86400, start - 86400 * 30, 86400);
+    struct kline_info *klast = kbefor;
     for (; mon_start <= end; ) {
         struct kline_info *kinfo = NULL;
         time_t mon_next = get_next_month(&tm_year, &tm_mon);
@@ -1272,9 +1298,13 @@ json_t *get_market_kline_month(const char *market, time_t start, time_t end, int
             kinfo = kline_info_new(klast->close);
         }
         append_kinfo(result, mon_start, kinfo);
-        klast = kinfo;
         mon_start = mon_next;
+        if (klast && klast != kbefor)
+            kline_info_free(klast);
+        klast = kinfo;
     }
+    if (klast && klast != kbefor)
+        kline_info_free(klast);
 
     return result;
 }

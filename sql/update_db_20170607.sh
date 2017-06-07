@@ -5,11 +5,11 @@ MYSQL_USER="root"
 MYSQL_PASS="shit"
 MYSQL_DB="trade_history"
 
-#for i in `seq 0 99`
-#do
-#    echo "update table deal_history_$i"
-#    mysql -h$MYSQL_HOST -u$MYSQL_USER -p$MYSQL_PASS $MYSQL_DB -e "ALTER TABLE deal_history_$i ADD COLUMN user_id INT UNSIGNED NOT NULL DEFAULT 0 AFTER time;"
-#done
+for i in `seq 0 99`
+do
+    echo "update table deal_history_$i"
+    mysql -h$MYSQL_HOST -u$MYSQL_USER -p$MYSQL_PASS $MYSQL_DB -e "ALTER TABLE deal_history_$i ADD COLUMN user_id INT UNSIGNED NOT NULL DEFAULT 0 AFTER time;"
+done
 
 CREATE_SQL='CREATE TABLE `user_deal_history_example` (
     `id`            BIGINT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,

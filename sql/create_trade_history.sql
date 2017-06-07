@@ -60,8 +60,8 @@ CREATE TABLE `deal_history_example` (
     `order_id`      BIGINT UNSIGNED NOT NULL,
     `deal_order_id` BIGINT UNSIGNED NOT NULL,
     `role`          TINYINT UNSIGNED NOT NULL,
-    `amount`        DECIMAL(30,8) NOT NULL,
     `price`         DECIMAL(30,8) NOT NULL,
+    `amount`        DECIMAL(30,8) NOT NULL,
     `deal`          DECIMAL(30,16) NOT NULL,
     `fee`           DECIMAL(30,16) NOT NULL,
     `deal_fee`      DECIMAL(30,16) NOT NULL,
@@ -73,14 +73,16 @@ CREATE TABLE `user_deal_history_example` (
     `id`            BIGINT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
     `time`          DOUBLE NOT NULL,
     `user_id`       INT UNSIGNED NOT NULL,
+    `market`        VARCHAR(30) NOT NULL,
     `deal_id`       BIGINT UNSIGNED NOT NULL,
     `order_id`      BIGINT UNSIGNED NOT NULL,
     `deal_order_id` BIGINT UNSIGNED NOT NULL,
+    `side`          TINYINT UNSIGNED NOT NULL,
     `role`          TINYINT UNSIGNED NOT NULL,
-    `amount`        DECIMAL(30,8) NOT NULL,
     `price`         DECIMAL(30,8) NOT NULL,
+    `amount`        DECIMAL(30,8) NOT NULL,
     `deal`          DECIMAL(30,16) NOT NULL,
     `fee`           DECIMAL(30,16) NOT NULL,
     `deal_fee`      DECIMAL(30,16) NOT NULL,
-    INDEX `idx_user_id` (`user_id`)
+    INDEX `idx_user_market` (`user_id`, `market`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

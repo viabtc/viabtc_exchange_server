@@ -15,6 +15,7 @@ static nw_timer timer;
 enum {
     HISTORY_USER_BALANCE,
     HISTORY_USER_ORDER,
+    HISTORY_USER_DEAL,
     HISTORY_ORDER_DETAIL,
     HISTORY_ORDER_DEAL,
 };
@@ -238,7 +239,7 @@ static int append_order_detail(order_t *order)
     return 0;
 }
 
-static int append_order_deal(double t, uint64_t deal_id, uint64_t order_id, uint64_t deal_order_id, int role, mpd_t *amount, mpd_t *price, mpd_t *deal, mpd_t *fee, mpd_t *deal_fee)
+static int append_order_deal(double t, uint32_t user_id, uint64_t deal_id, uint64_t order_id, uint64_t deal_order_id, int role, mpd_t *amount, mpd_t *price, mpd_t *deal, mpd_t *fee, mpd_t *deal_fee)
 {
     struct dict_sql_key key;
     key.hash = order_id % HISTORY_HASH_NUM;
@@ -248,12 +249,40 @@ static int append_order_deal(double t, uint64_t deal_id, uint64_t order_id, uint
         return -__LINE__;
 
     if (sdslen(sql) == 0) {
-        sql = sdscatprintf(sql, "INSERT INTO `deal_history_%u` (`id`, `time`, `deal_id`, `order_id`, `deal_order_id`, `role`, `amount`, `price`, `deal`, `fee`, `deal_fee`) VALUES ", key.hash);
+        sql = sdscatprintf(sql, "INSERT INTO `deal_history_%u` (`id`, `time`, `user_id`, `deal_id`, `order_id`, `deal_order_id`, `role`, `amount`, `price`, `deal`, `fee`, `deal_fee`) VALUES ", key.hash);
     } else {
         sql = sdscatprintf(sql, ", ");
     }
 
-    sql = sdscatprintf(sql, "(NULL, %f, %"PRIu64", %"PRIu64", %"PRIu64", %d, ", t, deal_id, order_id, deal_order_id, role);
+    sql = sdscatprintf(sql, "(NULL, %f, %u, %"PRIu64", %"PRIu64", %"PRIu64", %d, ", t, user_id, deal_id, order_id, deal_order_id, role);
+    sql = sql_append_mpd(sql, amount, true);
+    sql = sql_append_mpd(sql, price, true);
+    sql = sql_append_mpd(sql, deal, true);
+    sql = sql_append_mpd(sql, fee, true);
+    sql = sql_append_mpd(sql, deal_fee, false);
+    sql = sdscatprintf(sql, ")");
+
+    set_sql(&key, sql);
+
+    return 0;
+}
+
+static int append_user_deal(double t, uint32_t user_id, const char *market, uint64_t deal_id, uint64_t order_id, uint64_t deal_order_id, int side, int role, mpd_t *amount, mpd_t *price, mpd_t *deal, mpd_t *fee, mpd_t *deal_fee)
+{
+    struct dict_sql_key key;
+    key.hash = user_id % HISTORY_HASH_NUM;
+    key.type = HISTORY_USER_DEAL;
+    sds sql = get_sql(&key);
+    if (sql == NULL)
+        return -__LINE__;
+
+    if (sdslen(sql) == 0) {
+        sql = sdscatprintf(sql, "INSERT INTO `user_deal_history_%u` (`id`, `time`, `user_id`, `market`, `deal_id`, `order_id`, `deal_order_id`, `side`, `role`, `amount`, `price`, `deal`, `fee`, `deal_fee`) VALUES ", key.hash);
+    } else {
+        sql = sdscatprintf(sql, ", ");
+    }
+
+    sql = sdscatprintf(sql, "(NULL, %f, %u, '%s', %"PRIu64", %"PRIu64", %"PRIu64", %d, %d, ", t, user_id, market, deal_id, order_id, deal_order_id, side, role);
     sql = sql_append_mpd(sql, amount, true);
     sql = sql_append_mpd(sql, price, true);
     sql = sql_append_mpd(sql, deal, true);
@@ -297,13 +326,18 @@ int append_order_history(order_t *order)
 {
     append_user_order(order);
     append_order_detail(order);
+
     return 0;
 }
 
-int append_order_deal_history(double t, uint64_t deal_id, uint64_t ask, int ask_role, uint64_t bid, int bid_role, mpd_t *amount, mpd_t *price, mpd_t *deal, mpd_t *ask_fee, mpd_t *bid_fee)
+int append_order_deal_history(double t, uint64_t deal_id, order_t *ask, int ask_role, order_t *bid, int bid_role, mpd_t *amount, mpd_t *price, mpd_t *deal, mpd_t *ask_fee, mpd_t *bid_fee)
 {
-    append_order_deal(t, deal_id, ask, bid, ask_role, amount, price, deal, ask_fee, bid_fee);
-    append_order_deal(t, deal_id, bid, ask, bid_role, amount, price, deal, bid_fee, ask_fee);
+    append_order_deal(t, ask->user_id, deal_id, ask->id, bid->id, ask_role, amount, price, deal, ask_fee, bid_fee);
+    append_order_deal(t, bid->user_id, deal_id, bid->id, ask->id, bid_role, amount, price, deal, bid_fee, ask_fee);
+
+    append_user_deal(t, ask->user_id, ask->market, deal_id, ask->id, bid->id, ask->side, ask_role, amount, price, deal, ask_fee, bid_fee);
+    append_user_deal(t, bid->user_id, ask->market, deal_id, bid->id, ask->id, bid->side, bid_role, amount, price, deal, bid_fee, ask_fee);
+
     return 0;
 }
 
@@ -312,6 +346,7 @@ int append_user_balance_history(double t, uint32_t user_id, const char *asset, c
     mpd_t *balance = balance_total(user_id, asset);
     append_user_balance(t, user_id, asset, business, change, balance, detail);
     mpd_del(balance);
+
     return 0;
 }
 

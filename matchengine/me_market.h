@@ -67,8 +67,8 @@ int market_cancel_order(bool real, json_t **result, market_t *m, order_t *order)
 int market_put_order(market_t *m, order_t *order);
 
 json_t *get_order_info(order_t *order);
-list_t *market_get_order_list(market_t *m, uint32_t user_id);
 order_t *market_get_order(market_t *m, uint64_t id);
+skiplist_t *market_get_order_list(market_t *m, uint32_t user_id);
 
 sds market_status(sds reply);
 

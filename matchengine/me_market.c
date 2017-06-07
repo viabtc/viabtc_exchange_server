@@ -80,7 +80,7 @@ static void dict_order_key_free(void *key)
     free(key);
 }
 
-static int order_compare(const void *value1, const void *value2)
+static int order_match_compare(const void *value1, const void *value2)
 {
     const order_t *order1 = value1;
     const order_t *order2 = value2;
@@ -105,14 +105,15 @@ static int order_compare(const void *value1, const void *value2)
     return order1->id > order2->id ? 1 : -1;
 }
 
-static int order_equality(const void *value1, const void *value2)
+static int order_id_compare(const void *value1, const void *value2)
 {
     const order_t *order1 = value1;
     const order_t *order2 = value2;
     if (order1->id == order2->id) {
         return 0;
     }
-    return 1;
+
+    return order1->id > order2->id ? -1 : 1;
 }
 
 static void order_free(order_t *order)
@@ -167,17 +168,17 @@ static int order_put(market_t *m, order_t *order)
     struct dict_user_key user_key = { .user_id = order->user_id };
     dict_entry *entry = dict_find(m->users, &user_key);
     if (entry) {
-        list_t *order_list = entry->val;
-        if (list_add_node_head(order_list, order) == NULL)
+        skiplist_t *order_list = entry->val;
+        if (skiplist_insert(order_list, order) == NULL)
             return -__LINE__;
     } else {
-        list_type type;
+        skiplist_type type;
         memset(&type, 0, sizeof(type));
-        type.compare = order_equality;
-        list_t *order_list = list_create(&type);
+        type.compare = order_id_compare;
+        skiplist_t *order_list = skiplist_create(&type);
         if (order_list == NULL)
             return -__LINE__;
-        if (list_add_node_head(order_list, order) == NULL)
+        if (skiplist_insert(order_list, order) == NULL)
             return -__LINE__;
         if (dict_add(m->users, &user_key, order_list) == NULL)
             return -__LINE__;
@@ -235,10 +236,10 @@ static int order_finish(bool real, market_t *m, order_t *order)
     struct dict_user_key user_key = { .user_id = order->user_id };
     dict_entry *entry = dict_find(m->users, &user_key);
     if (entry) {
-        list_t *order_list = entry->val;
-        list_node *node = list_find(order_list, order);
+        skiplist_t *order_list = entry->val;
+        skiplist_node *node = skiplist_find(order_list, order);
         if (node) {
-            list_del(order_list, node);
+            skiplist_delete(order_list, node);
         }
     }
 
@@ -298,7 +299,7 @@ market_t *market_create(struct market *conf)
 
     skiplist_type lt;
     memset(&lt, 0, sizeof(lt));
-    lt.compare          = order_compare;
+    lt.compare          = order_match_compare;
 
     m->asks = skiplist_create(&lt);
     m->bids = skiplist_create(&lt);
@@ -992,7 +993,7 @@ order_t *market_get_order(market_t *m, uint64_t order_id)
     return NULL;
 }
 
-list_t *market_get_order_list(market_t *m, uint32_t user_id)
+skiplist_t *market_get_order_list(market_t *m, uint32_t user_id)
 {
     struct dict_user_key key = { .user_id = user_id };
     dict_entry *entry = dict_find(m->users, &key);

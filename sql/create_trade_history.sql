@@ -55,6 +55,7 @@ CREATE TABLE `order_detail_example` (
 CREATE TABLE `deal_history_example` (
     `id`            BIGINT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
     `time`          DOUBLE NOT NULL,
+    `user_id`       INT UNSIGNED NOT NULL,
     `deal_id`       BIGINT UNSIGNED NOT NULL,
     `order_id`      BIGINT UNSIGNED NOT NULL,
     `deal_order_id` BIGINT UNSIGNED NOT NULL,
@@ -65,4 +66,21 @@ CREATE TABLE `deal_history_example` (
     `fee`           DECIMAL(30,16) NOT NULL,
     `deal_fee`      DECIMAL(30,16) NOT NULL,
     INDEX `idx_order_id` (`order_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- split by user_id
+CREATE TABLE `user_deal_history_example` (
+    `id`            BIGINT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    `time`          DOUBLE NOT NULL,
+    `user_id`       INT UNSIGNED NOT NULL,
+    `deal_id`       BIGINT UNSIGNED NOT NULL,
+    `order_id`      BIGINT UNSIGNED NOT NULL,
+    `deal_order_id` BIGINT UNSIGNED NOT NULL,
+    `role`          TINYINT UNSIGNED NOT NULL,
+    `amount`        DECIMAL(30,8) NOT NULL,
+    `price`         DECIMAL(30,8) NOT NULL,
+    `deal`          DECIMAL(30,16) NOT NULL,
+    `fee`           DECIMAL(30,16) NOT NULL,
+    `deal_fee`      DECIMAL(30,16) NOT NULL,
+    INDEX `idx_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

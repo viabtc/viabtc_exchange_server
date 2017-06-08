@@ -80,6 +80,11 @@ static void dict_time_key_free(void *key)
     free(key);
 }
 
+static void dict_kline_val_free(void *val)
+{
+    kline_info_free(val);
+}
+
 static uint32_t dict_update_key_hash_func(const void *key)
 {
     return dict_generic_hash_function(key, sizeof(struct update_key));
@@ -252,6 +257,7 @@ static struct market_info *create_market(const char *market)
     dt.key_compare = dict_time_key_compare;
     dt.key_dup = dict_time_key_dup;
     dt.key_destructor = dict_time_key_free;
+    dt.val_destructor = dict_kline_val_free;
 
     info->sec = dict_create(&dt, 1024);
     info->min = dict_create(&dt, 1024);

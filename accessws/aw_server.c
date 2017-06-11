@@ -167,18 +167,18 @@ static int process_cache(nw_ses *ses, uint64_t id, sds key)
 
 static int on_method_kline_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
+    if (!rpc_clt_connected(marketprice))
+        return send_error_internal_error(ses, id);
+
     sds key = sdsempty();
     char *params_str = json_dumps(params, 0);
     key = sdscatprintf(key, "%u-%s", CMD_MARKET_KLINE, params_str);
     int ret = process_cache(ses, id, key);
     if (ret > 0) {
-        free(params_str);
         sdsfree(key);
+        free(params_str);
         return 0;
     }
-
-    if (!rpc_clt_connected(marketprice))
-        return send_error_internal_error(ses, id);
 
     nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
     struct state_data *state = entry->data;
@@ -229,6 +229,9 @@ static int on_method_kline_unsubscribe(nw_ses *ses, uint64_t id, struct clt_info
 
 static int on_method_depth_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
+    if (!rpc_clt_connected(matchengine))
+        return send_error_internal_error(ses, id);
+
     sds key = sdsempty();
     char *params_str = json_dumps(params, 0);
     key = sdscatprintf(key, "%u-%s", CMD_ORDER_BOOK_DEPTH, params_str);
@@ -238,9 +241,6 @@ static int on_method_depth_query(nw_ses *ses, uint64_t id, struct clt_info *info
         free(params_str);
         return 0;
     }
-
-    if (!rpc_clt_connected(matchengine))
-        return send_error_internal_error(ses, id);
 
     nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
     struct state_data *state = entry->data;
@@ -298,6 +298,9 @@ static int on_method_depth_unsubscribe(nw_ses *ses, uint64_t id, struct clt_info
 
 static int on_method_price_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
+    if (!rpc_clt_connected(marketprice))
+        return send_error_internal_error(ses, id);
+
     sds key = sdsempty();
     char *params_str = json_dumps(params, 0);
     key = sdscatprintf(key, "%u-%s", CMD_MARKET_LAST, params_str);
@@ -307,9 +310,6 @@ static int on_method_price_query(nw_ses *ses, uint64_t id, struct clt_info *info
         free(params_str);
         return 0;
     }
-
-    if (!rpc_clt_connected(marketprice))
-        return send_error_internal_error(ses, id);
 
     nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
     struct state_data *state = entry->data;
@@ -363,6 +363,9 @@ static int on_method_price_unsubscribe(nw_ses *ses, uint64_t id, struct clt_info
 
 static int on_method_today_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
+    if (!rpc_clt_connected(marketprice))
+        return send_error_internal_error(ses, id);
+
     sds key = sdsempty();
     char *params_str = json_dumps(params, 0);
     key = sdscatprintf(key, "%u-%s", CMD_MARKET_STATUS_TODAY, params_str);
@@ -372,9 +375,6 @@ static int on_method_today_query(nw_ses *ses, uint64_t id, struct clt_info *info
         free(params_str);
         return 0;
     }
-
-    if (!rpc_clt_connected(marketprice))
-        return send_error_internal_error(ses, id);
 
     nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
     struct state_data *state = entry->data;
@@ -428,6 +428,9 @@ static int on_method_today_unsubscribe(nw_ses *ses, uint64_t id, struct clt_info
 
 static int on_method_deals_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
+    if (!rpc_clt_connected(marketprice))
+        return send_error_internal_error(ses, id);
+
     sds key = sdsempty();
     char *params_str = json_dumps(params, 0);
     key = sdscatprintf(key, "%u-%s", CMD_MARKET_DEALS, params_str);
@@ -437,9 +440,6 @@ static int on_method_deals_query(nw_ses *ses, uint64_t id, struct clt_info *info
         free(params_str);
         return 0;
     }
-
-    if (!rpc_clt_connected(marketprice))
-        return send_error_internal_error(ses, id);
 
     nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
     struct state_data *state = entry->data;
@@ -947,9 +947,9 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
                 json_incref(result);
                 dict_replace(backend_cache, state->cache_key, &val);
             }
-            if (reply) {
-                json_decref(reply);
-            }
+        }
+        if (reply) {
+            json_decref(reply);
         }
     }
     nw_state_del(state_context, pkg->sequence);

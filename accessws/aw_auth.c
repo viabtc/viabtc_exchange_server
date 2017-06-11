@@ -55,7 +55,6 @@ static void on_job(nw_job_entry *entry, void *privdata)
     if (result == NULL)
         goto cleanup;
     entry->reply = result;
-    return;
 
 cleanup:
     curl_easy_cleanup(curl);

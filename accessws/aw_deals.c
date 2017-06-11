@@ -65,6 +65,7 @@ static void dict_market_val_free(void *val)
 {
     struct market_val *obj = val;
     dict_release(obj->sessions);
+    list_release(obj->deals);
     free(obj);
 }
 
@@ -301,17 +302,17 @@ int deals_send_full(nw_ses *ses, const char *market)
     if (obj->deals->len == 0)
         return 0;
 
-    json_t *result = json_array();
+    json_t *deals = json_array();
     list_iter *iter = list_get_iterator(obj->deals, LIST_START_HEAD);
     list_node *node;
     while ((node = list_next(iter)) != NULL) {
-        json_array_append(result, node->value);
+        json_array_append(deals, node->value);
     }
     list_release_iterator(iter);
 
     json_t *params = json_array();
     json_array_append_new(params, json_string(market));
-    json_array_append(params, result);
+    json_array_append_new(params, deals);
 
     send_notify(ses, "deals.update", params);
     json_decref(params);

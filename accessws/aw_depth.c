@@ -241,6 +241,7 @@ static int on_market_depth_reply(struct state_data *state, json_t *result)
         return 0;
     }
 
+    json_decref(val->last);
     val->last = result;
     json_incref(result);
 

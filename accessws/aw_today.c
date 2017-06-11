@@ -62,7 +62,8 @@ static void dict_market_val_free(void *val)
 {
     struct market_val *obj = val;
     dict_release(obj->sessions);
-    json_decref(obj->last);
+    if (obj->last)
+        json_decref(obj->last);
     free(obj);
 }
 

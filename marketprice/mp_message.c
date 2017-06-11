@@ -39,7 +39,6 @@ static dict_t *dict_market;
 static double   last_flush;
 static int64_t  last_offset;
 static nw_timer market_timer;
-static nw_timer deals_timer;
 static nw_timer clear_timer;
 static nw_timer redis_timer;
 
@@ -533,7 +532,7 @@ cleanup:
     json_decref(obj);
 }
 
-static int flush_deals_list(redisContext *context, const char *market, list_t *list)
+static int flush_deals(redisContext *context, const char *market, list_t *list)
 {
     int argc = 2 + list->len;
     const char **argv = malloc(sizeof(char *) * argc);
@@ -575,32 +574,6 @@ static int flush_deals_list(redisContext *context, const char *market, list_t *l
     }
 
     list_clear(list);
-    return 0;
-}
-
-static int flush_deals(void)
-{
-    redisContext *context = redis_sentinel_connect_master(redis);
-    if (context == NULL)
-        return -__LINE__;
-
-    int ret;
-    dict_iterator *iter = dict_get_iterator(dict_market);
-    dict_entry *entry;
-    while ((entry = dict_next(iter)) != NULL) {
-        struct market_info *info = entry->val;
-        if (info->deals->len == 0)
-            continue;
-        ret = flush_deals_list(context, info->name, info->deals);
-        if (ret < 0) {
-            redisFree(context);
-            dict_release_iterator(iter);
-            return ret;
-        }
-    }
-    dict_release_iterator(iter);
-
-    redisFree(context);
     return 0;
 }
 
@@ -714,6 +687,14 @@ static int flush_market(void)
             dict_release_iterator(iter);
             return ret;
         }
+        if (info->deals->len == 0)
+            continue;
+        ret = flush_deals(context, info->name, info->deals);
+        if (ret < 0) {
+            redisFree(context);
+            dict_release_iterator(iter);
+            return ret;
+        }
     }
     dict_release_iterator(iter);
 
@@ -759,14 +740,6 @@ static void clear_kline(void)
 static void on_market_timer(nw_timer *timer, void *privdata)
 {
     int ret = flush_market();
-    if (ret < 0) {
-        log_fatal("flush_market fail: %d", ret);
-    }
-}
-
-static void on_deals_timer(nw_timer *timer, void *privdata)
-{
-    int ret = flush_deals();
     if (ret < 0) {
         log_fatal("flush_market fail: %d", ret);
     }
@@ -874,9 +847,6 @@ int init_message(void)
 
     nw_timer_set(&market_timer, 10, true, on_market_timer, NULL);
     nw_timer_start(&market_timer);
-
-    nw_timer_set(&deals_timer, 0.1, true, on_deals_timer, NULL);
-    nw_timer_start(&deals_timer);
 
     nw_timer_set(&clear_timer, 3600, true, on_clear_timer, NULL);
     nw_timer_start(&clear_timer);

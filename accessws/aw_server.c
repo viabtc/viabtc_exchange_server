@@ -135,6 +135,14 @@ int send_notify(nw_ses *ses, const char *method, json_t *params)
     return ret;
 }
 
+static int on_method_server_ping(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    json_t *result = json_string("pong");
+    int ret = send_result(ses, id, result);
+    json_decref(result);
+    return ret;
+}
+
 static int on_method_server_time(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
     json_t *result = json_integer(time(NULL));
@@ -852,6 +860,7 @@ static int init_svr(void)
     if (method_map == NULL)
         return -__LINE__;
 
+    ERR_RET_LN(add_handler("server.ping",       on_method_server_ping));
     ERR_RET_LN(add_handler("server.time",       on_method_server_time));
     ERR_RET_LN(add_handler("server.auth",       on_method_server_auth));
     ERR_RET_LN(add_handler("kline.query",       on_method_kline_query));

@@ -118,7 +118,7 @@ static void on_backend_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
     json_t *error = json_object_get(reply, "error");
     json_t *result = json_object_get(reply, "result");
     if (error == NULL || !json_is_null(error) || result == NULL) {
-        log_fatal("error reply from: %s, cmd: %u, reply: %s", nw_sock_human_addr(&ses->peer_addr), pkg->command, reply_str);
+        log_error("error reply from: %s, cmd: %u, reply: %s", nw_sock_human_addr(&ses->peer_addr), pkg->command, reply_str);
         sdsfree(reply_str);
         json_decref(reply);
         nw_state_del(state_context, pkg->sequence);

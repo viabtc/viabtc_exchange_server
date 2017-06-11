@@ -20,6 +20,7 @@ static dict_t *backend_cache;
 static rpc_clt *listener;
 static nw_state *state_context;
 static nw_cache *privdata_cache;
+static nw_timer cache_timer;
 
 static rpc_clt *matchengine;
 static rpc_clt *marketprice;
@@ -988,6 +989,11 @@ static void cache_dict_val_free(void *val)
     free(val);
 }
 
+static void on_cache_timer(nw_timer *timer, void *privdata)
+{
+    dict_clear(backend_cache);
+}
+
 static int init_backend(void)
 {
     rpc_clt_type ct;
@@ -1025,6 +1031,9 @@ static int init_backend(void)
     backend_cache = dict_create(&dt, 64);
     if (backend_cache == NULL)
         return -__LINE__;
+
+    nw_timer_set(&cache_timer, 60, true, on_cache_timer, NULL);
+    nw_timer_start(&cache_timer);
 
     return 0;
 }

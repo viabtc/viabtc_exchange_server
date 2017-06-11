@@ -9,6 +9,7 @@
 
 static rpc_svr *svr;
 static dict_t *dict_cache;
+static nw_timer cache_timer;
 
 struct cache_val {
     double      time;
@@ -415,6 +416,11 @@ static void cache_dict_val_free(void *val)
     free(val);
 }
 
+static void on_cache_timer(nw_timer *timer, void *privdata)
+{
+    dict_clear(dict_cache);
+}
+
 int init_server(void)
 {
     rpc_svr_type type;
@@ -441,6 +447,9 @@ int init_server(void)
     dict_cache = dict_create(&dt, 64);
     if (dict_cache == NULL)
         return -__LINE__;
+
+    nw_timer_set(&cache_timer, 60, true, on_cache_timer, NULL);
+    nw_timer_start(&cache_timer);
 
     return 0;
 }

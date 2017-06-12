@@ -2,7 +2,7 @@ CREATE TABLE `balance_history_example` (
     `id`            BIGINT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
     `time`          DOUBLE NOT NULL,
     `user_id`       INT UNSIGNED NOT NULL,
-    `asset`         VARCHAR(10) NOT NULL,
+    `asset`         VARCHAR(30) NOT NULL,
     `business`      VARCHAR(30) NOT NULL,
     `change`        DECIMAL(30,8) NOT NULL,
     `balance`       DECIMAL(30,16) NOT NULL,

@@ -46,6 +46,14 @@
             "prec_show": 8
         }, {
             "name": "ETH",
+            "prec_save": 16,
+            "prec_show": 8
+        }, {
+            "name": "148",
+            "prec_save": 8,
+            "prec_show": 8
+        }, {
+            "name": "BTC_FROZEN1",
             "prec_save": 8,
             "prec_show": 8
         }

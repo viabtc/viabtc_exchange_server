@@ -36,9 +36,9 @@
 # include "ut_rpc_cmd.h"
 # include "ut_skiplist.h"
 
-# define ASSET_NAME_MAX_LEN     7
-# define BUSINESS_NAME_MAX_LEN  15
-# define SOURCE_MAX_LEN         31
+# define ASSET_NAME_MAX_LEN     16
+# define BUSINESS_NAME_MAX_LEN  30
+# define SOURCE_MAX_LEN         30
 
 # define ORDER_BOOK_MAX_LEN     100
 # define ORDER_LIST_MAX_LEN     100

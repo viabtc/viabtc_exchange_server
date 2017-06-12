@@ -1006,6 +1006,7 @@ json_t *get_market_kline_sec(const char *market, time_t start, time_t end, int i
     time_t now = time(NULL);
     if (start < now - settings.sec_max)
         start = now - settings.sec_max;
+    start = start / interval * interval;
     struct kline_info *kbefor = get_last_kline(info->sec, start - 1, now - settings.sec_max, 1);
     struct kline_info *klast = kbefor;
     for (; start <= end; start += interval) {

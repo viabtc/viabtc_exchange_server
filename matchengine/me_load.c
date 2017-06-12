@@ -426,7 +426,7 @@ int load_operlog(MYSQL *conn, const char *table, uint64_t *start_id)
             ret = load_oper(detail);
             if (ret < 0) {
                 json_decref(detail);
-                log_error("load_oper: %s fail: %d", row[1], ret);
+                log_error("load_oper: %"PRIu64":%s fail: %d", id, row[1], ret);
                 mysql_free_result(result);
                 return -__LINE__;
             }

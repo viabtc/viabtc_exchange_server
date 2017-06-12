@@ -37,9 +37,9 @@
 # include "ut_rpc_cmd.h"
 # include "ut_ws_svr.h"
 
-# define ASSET_NAME_MAX_LEN     8
+# define ASSET_NAME_MAX_LEN     16
 # define MARKET_NAME_MAX_LEN    16
-# define SOURCE_MAX_LEN         31
+# define SOURCE_MAX_LEN         32
 # define INTERVAL_MAX_LEN       10
 
 # define AW_LISTENER_BIND   "seqpacket@/tmp/accessws_listener.sock"

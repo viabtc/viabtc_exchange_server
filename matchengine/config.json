@@ -49,6 +49,10 @@
             "prec_save": 16,
             "prec_show": 8
         }, {
+            "name": "ZEC",
+            "prec_save": 8,
+            "prec_show": 8
+        }, {
             "name": "148",
             "prec_save": 8,
             "prec_show": 8
@@ -80,13 +84,23 @@
                 "prec": 2
             }
         }, {
-            "name": "ETHBTC",
+            "name": "ZECCNY",
             "stock": {
-                "name": "ETH",
+                "name": "ZEC",
                 "prec": 4
             },
             "money": {
-                "name": "BTC",
+                "name": "CNY",
+                "prec": 2
+            }
+        }, {
+            "name": "ETHCNY",
+            "stock": {
+                "name": "148",
+                "prec": 4
+            },
+            "money": {
+                "name": "ETH",
                 "prec": 8
             }
         }

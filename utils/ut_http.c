@@ -306,6 +306,9 @@ const char *http_get_remote_ip(nw_ses *ses, http_request_t *request)
     const char *cf_connecting_ip = http_request_get_header(request, "CF-Connecting-IP");
     if (cf_connecting_ip)
         return cf_connecting_ip;
+    const char *x_proxy_ip = http_request_get_header(request, "X-Proxy-IP");
+    if (x_proxy_ip)
+        return x_proxy_ip;
     const char *x_real_ip = http_request_get_header(request, "X-Real-IP");
     if (x_real_ip)
         return x_real_ip;

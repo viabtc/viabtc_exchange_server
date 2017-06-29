@@ -38,7 +38,7 @@
     "assets": [
         {
             "name": "CNY",
-            "prec_save": 8,
+            "prec_save": 10,
             "prec_show": 2
         }, {
             "name": "BTC",
@@ -50,6 +50,10 @@
             "prec_show": 8
         }, {
             "name": "ZEC",
+            "prec_save": 8,
+            "prec_show": 8
+        }, {
+            "name": "LTC",
             "prec_save": 8,
             "prec_show": 8
         }, {
@@ -87,6 +91,16 @@
             "name": "ZECCNY",
             "stock": {
                 "name": "ZEC",
+                "prec": 4
+            },
+            "money": {
+                "name": "CNY",
+                "prec": 2
+            }
+        }, {
+            "name": "LTCCNY",
+            "stock": {
+                "name": "LTC",
                 "prec": 4
             },
             "money": {

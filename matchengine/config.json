@@ -38,7 +38,7 @@
     "assets": [
         {
             "name": "CNY",
-            "prec_save": 10,
+            "prec_save": 16,
             "prec_show": 2
         }, {
             "name": "BTC",
@@ -57,11 +57,19 @@
             "prec_save": 8,
             "prec_show": 8
         }, {
+            "name": "BCC",
+            "prec_save": 8,
+            "prec_show": 8
+        }, {
             "name": "148",
             "prec_save": 8,
             "prec_show": 8
         }, {
             "name": "BTC_FROZEN1",
+            "prec_save": 8,
+            "prec_show": 8
+        }, {
+            "name": "BTC_FROZEN2",
             "prec_save": 8,
             "prec_show": 8
         }
@@ -106,6 +114,26 @@
             "money": {
                 "name": "CNY",
                 "prec": 2
+            }
+        }, {
+            "name": "BCCCNY",
+            "stock": {
+                "name": "BCC",
+                "prec": 4
+            },
+            "money": {
+                "name": "CNY",
+                "prec": 2
+            }
+        }, {
+            "name": "BCCBTC",
+            "stock": {
+                "name": "BCC",
+                "prec": 4
+            },
+            "money": {
+                "name": "BTC",
+                "prec": 8
             }
         }, {
             "name": "148ETH",

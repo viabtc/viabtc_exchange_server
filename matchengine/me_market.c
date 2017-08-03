@@ -718,7 +718,7 @@ static int execute_market_ask_order(bool real, market_t *m, order_t *taker)
 
         balance_sub(maker->user_id, BALANCE_TYPE_FREEZE, m->money, deal);
         if (real) {
-            append_balance_trade_sub(maker, m->money, amount, price, amount);
+            append_balance_trade_sub(maker, m->money, deal, price, amount);
         }
         balance_add(maker->user_id, BALANCE_TYPE_AVAILABLE, m->stock, amount);
         if (real) {

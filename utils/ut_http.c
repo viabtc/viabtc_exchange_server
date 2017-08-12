@@ -8,6 +8,7 @@
 # include <time.h>
 
 # include "ut_http.h"
+# include "ut_misc.h"
 
 static uint32_t dict_header_hash_func(const void *key)
 {
@@ -303,9 +304,19 @@ void http_response_release(http_response_t *response)
 
 const char *http_get_remote_ip(nw_ses *ses, http_request_t *request)
 {
-    const char *cf_connecting_ip = http_request_get_header(request, "CF-Connecting-IP");
-    if (cf_connecting_ip)
-        return cf_connecting_ip;
+    static char ip[NW_SOCK_IP_SIZE];
+    const char *x_connecting_ip = http_request_get_header(request, "X-Connecting-IP");
+    if (x_connecting_ip)
+        return x_connecting_ip;
+    const char *x_forward_for = http_request_get_header(request, "X-Forwarded-For");
+    if (x_forward_for) {
+        sstrncpy(ip, x_forward_for, sizeof(ip));
+        char *dot = strchr(ip, ',');
+        if (dot) {
+            *dot = '0';
+        }
+        return ip;
+    }
     const char *x_proxy_ip = http_request_get_header(request, "X-Proxy-IP");
     if (x_proxy_ip)
         return x_proxy_ip;
@@ -313,7 +324,7 @@ const char *http_get_remote_ip(nw_ses *ses, http_request_t *request)
     if (x_real_ip)
         return x_real_ip;
 
-    static char ip[NW_SOCK_IP_SIZE];
+
     nw_sock_ip_s(&ses->peer_addr, ip);
     return ip;
 }

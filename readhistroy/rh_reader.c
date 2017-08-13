@@ -216,6 +216,7 @@ json_t *get_finished_order_detail(MYSQL *conn, uint64_t order_id)
     MYSQL_RES *result = mysql_store_result(conn);
     size_t num_rows = mysql_num_rows(result);
     if (num_rows == 0) {
+        mysql_free_result(result);
         return json_null();
     }
 

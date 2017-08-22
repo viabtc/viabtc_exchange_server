@@ -381,7 +381,7 @@ invalid_argument:
     if (taker_fee)
         mpd_del(taker_fee);
     if (maker_fee)
-        mpd_del(taker_fee);
+        mpd_del(maker_fee);
 
     return reply_error_invalid_argument(ses, pkg);
 }

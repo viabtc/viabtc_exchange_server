@@ -205,11 +205,12 @@ static json_t *get_depth_diff(json_t *first, json_t *second, uint32_t limit)
     return diff;
 }
 
-static int broadcast_update(dict_t *sessions, bool clean, json_t *result)
+static int broadcast_update(const char *market, dict_t *sessions, bool clean, json_t *result)
 {
     json_t *params = json_array();
     json_array_append_new(params, json_boolean(clean));
     json_array_append(params, result);
+    json_array_append_new(params, json_string(market));
 
     dict_iterator *iter = dict_get_iterator(sessions);
     dict_entry *entry;
@@ -233,7 +234,7 @@ static int on_market_depth_reply(struct state_data *state, json_t *result)
         val->last = result;
         val->last_clean = time(NULL);
         json_incref(result);
-        return broadcast_update(val->sessions, true, result);
+        return broadcast_update(state->key.market, val->sessions, true, result);
     }
 
     json_t *diff = get_depth_diff(val->last, result, key->limit);
@@ -248,9 +249,9 @@ static int on_market_depth_reply(struct state_data *state, json_t *result)
     time_t now = time(NULL);
     if (now - val->last_clean >= CLEAN_INTERVAL) {
         val->last_clean = now;
-        broadcast_update(val->sessions, true, result);
+        broadcast_update(state->key.market, val->sessions, true, result);
     } else {
-        broadcast_update(val->sessions, false, diff);
+        broadcast_update(state->key.market, val->sessions, false, diff);
     }
     json_decref(diff);
 

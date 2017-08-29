@@ -321,8 +321,13 @@ static void on_timer(nw_timer *timer, void *privdata)
     dict_iterator *iter = dict_get_iterator(dict_depth);
     dict_entry *entry;
     while ((entry = dict_next(iter)) != NULL) {
-        struct depth_key *key = entry->key;
+        const struct depth_val *obj = entry->val;
+        if (dict_size(obj->sessions) == 0) {
+            dict_delete(dict_depth, entry->key);
+            continue;
+        }
 
+        struct depth_key *key = entry->key;
         json_t *params = json_array();
         json_array_append_new(params, json_string(key->market));
         json_array_append_new(params, json_integer(key->limit));

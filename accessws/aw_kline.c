@@ -193,8 +193,13 @@ static void on_timer(nw_timer *timer, void *privdata)
     dict_iterator *iter = dict_get_iterator(dict_kline);
     dict_entry *entry;
     while ((entry = dict_next(iter)) != NULL) {
-        const struct kline_key *key = entry->key;
+        const struct kline_val *obj = entry->val;
+        if (dict_size(obj->sessions) == 0) {
+            dict_delete(dict_kline, entry->key);
+            continue;
+        }
 
+        const struct kline_key *key = entry->key;
         time_t now = time(NULL);
         json_t *params = json_array();
         json_array_append_new(params, json_string(key->market));

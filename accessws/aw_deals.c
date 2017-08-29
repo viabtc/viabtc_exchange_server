@@ -190,9 +190,13 @@ static void on_timer(nw_timer *timer, void *privdata)
     dict_iterator *iter = dict_get_iterator(dict_market);
     dict_entry *entry;
     while ((entry = dict_next(iter)) != NULL) {
-        const char *market = entry->key;
         const struct market_val *obj = entry->val;
+        if (dict_size(obj->sessions) == 0) {
+            dict_delete(dict_market, entry->key);
+            continue;
+        }
 
+        const char *market = entry->key;
         json_t *params = json_array();
         json_array_append_new(params, json_string(market));
         json_array_append_new(params, json_integer(DEALS_QUERY_LIMIT));

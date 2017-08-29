@@ -957,6 +957,7 @@ json_t *get_market_status_today(const char *market)
     }
 
     mpd_t *volume = mpd_qncopy(mpd_zero);
+    mpd_t *deal = mpd_qncopy(mpd_zero);
     time_t start_24h = now - 86400;
     time_t start_min = start_24h / 60 * 60 + 60;
 
@@ -966,6 +967,7 @@ json_t *get_market_status_today(const char *market)
             continue;
         struct kline_info *info = entry->val;
         mpd_add(volume, volume, info->volume, &mpd_ctx);
+        mpd_add(deal, deal, info->deal, &mpd_ctx);
     }
 
     for (time_t timestamp = start_min; timestamp < now; timestamp += 60) {
@@ -974,10 +976,13 @@ json_t *get_market_status_today(const char *market)
             continue;
         struct kline_info *info = entry->val;
         mpd_add(volume, volume, info->volume, &mpd_ctx);
+        mpd_add(deal, deal, info->deal, &mpd_ctx);
     }
 
     json_object_set_new_mpd(result, "volume", volume);
+    json_object_set_new_mpd(result, "deal", deal);
     mpd_del(volume);
+    mpd_del(deal);
 
     return result;
 }
@@ -991,6 +996,7 @@ static int append_kinfo(json_t *result, time_t timestamp, struct kline_info *kin
     json_array_append_new_mpd(unit, kinfo->high);
     json_array_append_new_mpd(unit, kinfo->low);
     json_array_append_new_mpd(unit, kinfo->volume);
+    json_array_append_new_mpd(unit, kinfo->deal);
     json_array_append_new(unit, json_string(market));
     json_array_append_new(result, unit);
 

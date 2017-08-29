@@ -12,29 +12,35 @@ struct kline_info *kline_info_new(mpd_t *open)
     if (info == NULL)
         return NULL;
 
-    info->open  = mpd_qncopy(open);
-    info->close = mpd_qncopy(open);
-    info->high  = mpd_qncopy(open);
-    info->low   = mpd_qncopy(open);
-    info->volume = mpd_qncopy(mpd_zero);
+    info->open      = mpd_qncopy(open);
+    info->close     = mpd_qncopy(open);
+    info->high      = mpd_qncopy(open);
+    info->low       = mpd_qncopy(open);
+    info->volume    = mpd_qncopy(mpd_zero);
+    info->deal      = mpd_qncopy(mpd_zero);
 
     return info;
 }
 
 void kline_info_update(struct kline_info *info, mpd_t *price, mpd_t *amount)
 {
+    mpd_t *deal = mpd_new(&mpd_ctx);
+    mpd_mul(deal, price, amount, &mpd_ctx);
     mpd_copy(info->close, price, &mpd_ctx);
     mpd_add(info->volume, info->volume, amount, &mpd_ctx);
+    mpd_add(info->deal, info->deal, deal, &mpd_ctx);
     if (mpd_cmp(price, info->high, &mpd_ctx) > 0)
         mpd_copy(info->high, price, &mpd_ctx);
     if (mpd_cmp(price, info->low, &mpd_ctx) < 0)
         mpd_copy(info->low, price, &mpd_ctx);
+    mpd_del(deal);
 }
 
 void kline_info_merge(struct kline_info *info, struct kline_info *update)
 {
     mpd_copy(info->close, update->close, &mpd_ctx);
     mpd_add(info->volume, info->volume, update->volume, &mpd_ctx);
+    mpd_add(info->deal, info->deal, update->deal, &mpd_ctx);
     if (mpd_cmp(update->high, info->high, &mpd_ctx) > 0)
         mpd_copy(info->high, update->high, &mpd_ctx);
     if (mpd_cmp(update->low, info->low, &mpd_ctx) < 0)
@@ -53,6 +59,8 @@ void kline_info_free(struct kline_info *info)
         mpd_del(info->low);
     if (info->volume)
         mpd_del(info->volume);
+    if (info->deal)
+        mpd_del(info->deal);
     free(info);
 }
 
@@ -62,7 +70,7 @@ struct kline_info *kline_from_str(char *str)
     if (obj == NULL) {
         return NULL;
     }
-    if (!json_is_array(obj) || json_array_size(obj) != 5) {
+    if (!json_is_array(obj) || json_array_size(obj) < 5) {
         json_decref(obj);
         return NULL;
     }
@@ -94,6 +102,15 @@ struct kline_info *kline_from_str(char *str)
         goto cleanup;
     }
 
+    if (json_array_size(obj) >= 6) {
+        const char *deal = json_string_value(json_array_get(obj, 5));
+        if (!deal || (info->deal = decimal(deal, 0)) == NULL) {
+            goto cleanup;
+        }
+    } else {
+        info->deal = mpd_qncopy(mpd_zero);
+    }
+
     json_decref(obj);
     return info;
 
@@ -111,6 +128,7 @@ char *kline_to_str(struct kline_info *info)
     json_array_append_new_mpd(obj, info->high);
     json_array_append_new_mpd(obj, info->low);
     json_array_append_new_mpd(obj, info->volume);
+    json_array_append_new_mpd(obj, info->deal);
     char *str = json_dumps(obj, 0);
     json_decref(obj);
     return str;

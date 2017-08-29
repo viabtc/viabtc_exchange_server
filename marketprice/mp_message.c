@@ -982,7 +982,7 @@ json_t *get_market_status_today(const char *market)
     return result;
 }
 
-static int append_kinfo(json_t *result, time_t timestamp, struct kline_info *kinfo)
+static int append_kinfo(json_t *result, time_t timestamp, struct kline_info *kinfo, const char *market)
 {
     json_t *unit = json_array();
     json_array_append_new(unit, json_integer(timestamp));
@@ -991,6 +991,7 @@ static int append_kinfo(json_t *result, time_t timestamp, struct kline_info *kin
     json_array_append_new_mpd(unit, kinfo->high);
     json_array_append_new_mpd(unit, kinfo->low);
     json_array_append_new_mpd(unit, kinfo->volume);
+    json_array_append_new(unit, json_string(market));
     json_array_append_new(result, unit);
 
     return 0;
@@ -1027,7 +1028,7 @@ json_t *get_market_kline_sec(const char *market, time_t start, time_t end, int i
             }
             kinfo = kline_info_new(klast->close);
         }
-        append_kinfo(result, start, kinfo);
+        append_kinfo(result, start, kinfo, market);
         if (klast && klast != kbefor)
             kline_info_free(klast);
         klast = kinfo;
@@ -1071,7 +1072,7 @@ json_t *get_market_kline_min(const char *market, time_t start, time_t end, int i
             }
             kinfo = kline_info_new(klast->close);
         }
-        append_kinfo(result, start, kinfo);
+        append_kinfo(result, start, kinfo, market);
         if (klast && klast != kbefor)
             kline_info_free(klast);
         klast = kinfo;
@@ -1119,7 +1120,7 @@ json_t *get_market_kline_hour(const char *market, time_t start, time_t end, int 
             }
             kinfo = kline_info_new(klast->close);
         }
-        append_kinfo(result, start, kinfo);
+        append_kinfo(result, start, kinfo, market);
         if (klast && klast != kbefor)
             kline_info_free(klast);
         klast = kinfo;
@@ -1160,7 +1161,7 @@ json_t *get_market_kline_day(const char *market, time_t start, time_t end, int i
             }
             kinfo = kline_info_new(klast->close);
         }
-        append_kinfo(result, start, kinfo);
+        append_kinfo(result, start, kinfo, market);
         if (klast && klast != kbefor)
             kline_info_free(klast);
         klast = kinfo;
@@ -1204,7 +1205,7 @@ json_t *get_market_kline_week(const char *market, time_t start, time_t end, int 
             }
             kinfo = kline_info_new(klast->close);
         }
-        append_kinfo(result, start, kinfo);
+        append_kinfo(result, start, kinfo, market);
         if (klast && klast != kbefor)
             kline_info_free(klast);
         klast = kinfo;
@@ -1274,7 +1275,7 @@ json_t *get_market_kline_month(const char *market, time_t start, time_t end, int
             }
             kinfo = kline_info_new(klast->close);
         }
-        append_kinfo(result, mon_start, kinfo);
+        append_kinfo(result, mon_start, kinfo, market);
         mon_start = mon_next;
         if (klast && klast != kbefor)
             kline_info_free(klast);

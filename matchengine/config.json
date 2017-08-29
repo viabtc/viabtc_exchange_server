@@ -39,7 +39,7 @@
         {
             "name": "CNY",
             "prec_save": 16,
-            "prec_show": 2
+            "prec_show": 4
         }, {
             "name": "BTC",
             "prec_save": 16,

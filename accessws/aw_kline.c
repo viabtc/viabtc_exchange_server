@@ -306,9 +306,6 @@ int kline_unsubscribe(nw_ses *ses)
     while ((entry = dict_next(iter)) != NULL) {
         struct kline_val *obj = entry->val;
         dict_delete(obj->sessions, ses);
-        if (dict_size(obj->sessions) == 0) {
-            dict_delete(dict_kline, entry->key);
-        }
     }
     dict_release_iterator(iter);
 

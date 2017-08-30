@@ -494,6 +494,7 @@ int depth_send_clean(nw_ses *ses, const char *market, uint32_t limit, const char
         json_t *params = json_array();
         json_array_append_new(params, json_boolean(true));
         json_array_append(params, obj->last);
+        json_array_append(params, json_string(market));
         send_notify(ses, "depth.update", params);
         json_decref(params);
     }

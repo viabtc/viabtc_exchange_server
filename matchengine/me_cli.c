@@ -97,9 +97,6 @@ static sds on_cmd_balance_summary(const char *cmd, int argc, sds *argv)
     mpd_t *available = mpd_new(&mpd_ctx);
     mpd_t *freeze = mpd_new(&mpd_ctx);
     for (size_t i = 0; i < settings.asset_num; ++i) {
-        mpd_copy(total, mpd_zero, &mpd_ctx);
-        mpd_copy(available, mpd_zero, &mpd_ctx);
-        mpd_copy(freeze, mpd_zero, &mpd_ctx);
         balance_status(settings.assets[i].name, total, &available_count, available, &freeze_count, freeze);
         char *total_str = mpd_to_sci(total, 0);
         char *available_str = mpd_to_sci(available, 0);
@@ -145,8 +142,6 @@ static sds on_cmd_market_summary(const char *cmd, int argc, sds *argv)
     mpd_t *ask_amount = mpd_new(&mpd_ctx);
     mpd_t *bid_amount = mpd_new(&mpd_ctx);
     for (size_t i = 0; i < settings.market_num; ++i) {
-        mpd_copy(ask_amount, mpd_zero, &mpd_ctx);
-        mpd_copy(bid_amount, mpd_zero, &mpd_ctx);
         market_t *market = get_market(settings.markets[i].name);
         market_get_status(market, &ask_count, ask_amount, &bid_count, bid_amount);
         char *ask_amount_str = mpd_to_sci(ask_amount, 0);

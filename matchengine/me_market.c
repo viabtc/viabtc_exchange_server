@@ -1009,6 +1009,8 @@ int market_get_status(market_t *m, size_t *ask_count, mpd_t *ask_amount, size_t 
 {
     *ask_count = m->asks->len;
     *bid_count = m->bids->len;
+    mpd_copy(ask_amount, mpd_zero, &mpd_ctx);
+    mpd_copy(bid_amount, mpd_zero, &mpd_ctx);
 
     skiplist_node *node;
     skiplist_iter *iter = skiplist_get_iterator(m->asks);

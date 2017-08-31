@@ -162,6 +162,7 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *params)
                     mpd_t *show = mpd_qncopy(available);
                     mpd_rescale(show, show, -prec_show, &mpd_ctx);
                     json_object_set_new_mpd(unit, "available", show);
+                    mpd_del(show);
                 } else {
                     json_object_set_new_mpd(unit, "available", available);
                 }
@@ -175,6 +176,7 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *params)
                     mpd_t *show = mpd_qncopy(freeze);
                     mpd_rescale(show, show, -prec_show, &mpd_ctx);
                     json_object_set_new_mpd(unit, "freeze", show);
+                    mpd_del(show);
                 } else {
                     json_object_set_new_mpd(unit, "freeze", freeze);
                 }
@@ -201,6 +203,7 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *params)
                     mpd_t *show = mpd_qncopy(available);
                     mpd_rescale(show, show, -prec_show, &mpd_ctx);
                     json_object_set_new_mpd(unit, "available", show);
+                    mpd_del(show);
                 } else {
                     json_object_set_new_mpd(unit, "available", available);
                 }
@@ -214,6 +217,7 @@ static int on_cmd_balance_query(nw_ses *ses, rpc_pkg *pkg, json_t *params)
                     mpd_t *show = mpd_qncopy(freeze);
                     mpd_rescale(show, show, -prec_show, &mpd_ctx);
                     json_object_set_new_mpd(unit, "freeze", show);
+                    mpd_del(show);
                 } else {
                     json_object_set_new_mpd(unit, "freeze", freeze);
                 }
@@ -568,7 +572,7 @@ static int on_cmd_order_cancel(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     }
 
     append_operlog("cancel_order", params);
-    ret =  reply_result(ses, pkg, result);
+    ret = reply_result(ses, pkg, result);
     json_decref(result);
     return ret;
 }
@@ -634,8 +638,8 @@ static int on_cmd_order_book(nw_ses *ses, rpc_pkg *pkg, json_t *params)
             order_t *order = node->value;
             json_array_append_new(orders, get_order_info(order));
         }
-        skiplist_release_iterator(iter);
     }
+    skiplist_release_iterator(iter);
 
     json_object_set_new(result, "orders", orders);
     int ret = reply_result(ses, pkg, result);

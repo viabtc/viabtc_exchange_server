@@ -61,15 +61,7 @@
             "prec_save": 8,
             "prec_show": 8
         }, {
-            "name": "148",
-            "prec_save": 8,
-            "prec_show": 8
-        }, {
-            "name": "BTC_FROZEN1",
-            "prec_save": 8,
-            "prec_show": 8
-        }, {
-            "name": "BTC_FROZEN2",
+            "name": "DASH",
             "prec_save": 8,
             "prec_show": 8
         }
@@ -136,14 +128,14 @@
                 "prec": 8
             }
         }, {
-            "name": "148ETH",
+            "name": "DASHCNY",
             "stock": {
-                "name": "148",
+                "name": "DASH",
                 "prec": 4
             },
             "money": {
-                "name": "ETH",
-                "prec": 8
+                "name": "CNY",
+                "prec": 2
             }
         }
     ],

@@ -50,7 +50,7 @@ static void dict_user_key_free(void *key)
 
 static void dict_user_val_free(void *key)
 {
-    list_release(key);
+    skiplist_release(key);
 }
 
 static uint32_t dict_order_hash_function(const void *key)
@@ -617,6 +617,7 @@ int market_put_limit_order(bool real, json_t **result, market_t *m, uint32_t use
     mpd_copy(order->taker_fee, taker_fee, &mpd_ctx);
     mpd_copy(order->maker_fee, maker_fee, &mpd_ctx);
     mpd_copy(order->left, amount, &mpd_ctx);
+    mpd_copy(order->freeze, mpd_zero, &mpd_ctx);
     mpd_copy(order->deal_stock, mpd_zero, &mpd_ctx);
     mpd_copy(order->deal_money, mpd_zero, &mpd_ctx);
     mpd_copy(order->deal_fee, mpd_zero, &mpd_ctx);
@@ -941,6 +942,7 @@ int market_put_market_order(bool real, json_t **result, market_t *m, uint32_t us
     mpd_copy(order->taker_fee, taker_fee, &mpd_ctx);
     mpd_copy(order->maker_fee, mpd_zero, &mpd_ctx);
     mpd_copy(order->left, amount, &mpd_ctx);
+    mpd_copy(order->freeze, mpd_zero, &mpd_ctx);
     mpd_copy(order->deal_stock, mpd_zero, &mpd_ctx);
     mpd_copy(order->deal_money, mpd_zero, &mpd_ctx);
     mpd_copy(order->deal_fee, mpd_zero, &mpd_ctx);

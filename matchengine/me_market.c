@@ -879,7 +879,7 @@ int market_put_market_order(bool real, json_t **result, market_t *m, uint32_t us
             return -1;
         }
 
-        skiplist_iter *iter = skiplist_get_iterator(m->asks);
+        skiplist_iter *iter = skiplist_get_iterator(m->bids);
         skiplist_node *node = skiplist_next(iter);
         if (node == NULL) {
             skiplist_release_iterator(iter);

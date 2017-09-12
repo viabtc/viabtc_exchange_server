@@ -45,19 +45,19 @@
             "prec_save": 16,
             "prec_show": 8
         }, {
-            "name": "ETH",
+            "name": "BCC",
             "prec_save": 16,
-            "prec_show": 8
-        }, {
-            "name": "ZEC",
-            "prec_save": 8,
             "prec_show": 8
         }, {
             "name": "LTC",
             "prec_save": 8,
             "prec_show": 8
         }, {
-            "name": "BCC",
+            "name": "ETH",
+            "prec_save": 8,
+            "prec_show": 8
+        }, {
+            "name": "ZEC",
             "prec_save": 8,
             "prec_show": 8
         }, {
@@ -118,6 +118,16 @@
                 "prec": 2
             }
         }, {
+            "name": "DASHCNY",
+            "stock": {
+                "name": "DASH",
+                "prec": 4
+            },
+            "money": {
+                "name": "CNY",
+                "prec": 2
+            }
+        }, {
             "name": "BCCBTC",
             "stock": {
                 "name": "BCC",
@@ -128,14 +138,74 @@
                 "prec": 8
             }
         }, {
-            "name": "DASHCNY",
+            "name": "LTCBTC",
             "stock": {
-                "name": "DASH",
+                "name": "LTC",
                 "prec": 4
             },
             "money": {
-                "name": "CNY",
-                "prec": 2
+                "name": "BTC",
+                "prec": 8
+            }
+        }, {
+            "name": "ETHBTC",
+            "stock": {
+                "name": "ETH",
+                "prec": 4
+            },
+            "money": {
+                "name": "BTC",
+                "prec": 8
+            }
+        }, {
+            "name": "ZECBTC",
+            "stock": {
+                "name": "ZEC",
+                "prec": 4
+            },
+            "money": {
+                "name": "BTC",
+                "prec": 8
+            }
+        }, {
+            "name": "BTCBCC",
+            "stock": {
+                "name": "BTC",
+                "prec": 4
+            },
+            "money": {
+                "name": "BCC",
+                "prec": 8
+            }
+        }, {
+            "name": "LTCBCC",
+            "stock": {
+                "name": "LTC",
+                "prec": 4
+            },
+            "money": {
+                "name": "BCC",
+                "prec": 8
+            }
+        }, {
+            "name": "ETHBCC",
+            "stock": {
+                "name": "ETH",
+                "prec": 4
+            },
+            "money": {
+                "name": "BCC",
+                "prec": 8
+            }
+        }, {
+            "name": "ZECBCC",
+            "stock": {
+                "name": "ZEC",
+                "prec": 4
+            },
+            "money": {
+                "name": "BCC",
+                "prec": 8
             }
         }
     ],

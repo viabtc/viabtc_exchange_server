@@ -140,7 +140,7 @@ invalid_argument:
 
 static int on_cmd_order_history(MYSQL *conn, json_t *params, struct job_reply *rsp)
 {
-    if (json_array_size(params) != 6)
+    if (json_array_size(params) < 6)
         goto invalid_argument;
 
     uint32_t user_id = json_integer_value(json_array_get(params, 0));
@@ -157,8 +157,14 @@ static int on_cmd_order_history(MYSQL *conn, json_t *params, struct job_reply *r
     size_t limit  = json_integer_value(json_array_get(params, 5));
     if (limit == 0 || limit > QUERY_LIMIT)
         goto invalid_argument;
+    int side = 0;
+    if (json_array_size(params) >= 7) {
+        side = json_integer_value(json_array_get(params, 6));
+        if (side != 0 && side != MARKET_ORDER_SIDE_ASK && side != MARKET_ORDER_SIDE_BID)
+            goto invalid_argument;
+    }
 
-    json_t *records = get_user_order_finished(conn, user_id, market, start_time, end_time, offset, limit);
+    json_t *records = get_user_order_finished(conn, user_id, market, side, start_time, end_time, offset, limit);
     if (records == NULL) {
         rsp->code = 2;
         rsp->message = sdsnew("internal error");

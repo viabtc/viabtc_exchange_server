@@ -79,7 +79,7 @@ json_t *get_user_balance_history(MYSQL *conn, uint32_t user_id,
 }
 
 json_t *get_user_order_finished(MYSQL *conn, uint32_t user_id,
-        const char *market, uint64_t start_time, uint64_t end_time, size_t offset, size_t limit)
+        const char *market, int side, uint64_t start_time, uint64_t end_time, size_t offset, size_t limit)
 {
     size_t market_len = strlen(market);
     char _market[2 * market_len + 1];
@@ -89,6 +89,9 @@ json_t *get_user_order_finished(MYSQL *conn, uint32_t user_id,
     sql = sdscatprintf(sql, "SELECT `id`, `create_time`, `finish_time`, `user_id`, `market`, `source`, `t`, `side`, `price`, `amount`, "
             "`taker_fee`, `maker_fee`, `deal_stock`, `deal_money`, `deal_fee` FROM `order_history_%u` WHERE `user_id` = %u "
             "AND `market` = '%s'", user_id % HISTORY_HASH_NUM, user_id, _market);
+    if (side) {
+        sql = sdscatprintf(sql, " AND `side` = %d", side);
+    }
     if (start_time) {
         sql = sdscatprintf(sql, " AND `create_time` >= %"PRIu64, start_time);
     }

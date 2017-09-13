@@ -8,12 +8,10 @@
 
 # include "rh_config.h"
 
-# define HISTORY_HASH_NUM   100
-
 json_t *get_user_balance_history(MYSQL *conn, uint32_t user_id,
         const char *asset, const char *business, uint64_t start_time, uint64_t end_time, size_t offset, size_t limit);
 json_t *get_user_order_finished(MYSQL *conn, uint32_t user_id,
-        const char *market, uint64_t start_time, uint64_t end_time, size_t offset, size_t limit);
+        const char *market, int side, uint64_t start_time, uint64_t end_time, size_t offset, size_t limit);
 json_t *get_order_deal_details(MYSQL *conn, uint64_t order_id, size_t offset, size_t limit);
 json_t *get_finished_order_detail(MYSQL *conn, uint64_t order_id);
 json_t *get_market_user_deals(MYSQL *conn, uint32_t user_id, const char *market, size_t offset, size_t limit);

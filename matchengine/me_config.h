@@ -29,6 +29,7 @@
 # include "ut_list.h"
 # include "ut_mysql.h"
 # include "ut_signal.h"
+# include "ut_define.h"
 # include "ut_config.h"
 # include "ut_decimal.h"
 # include "ut_rpc_clt.h"

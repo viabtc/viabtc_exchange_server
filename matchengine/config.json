@@ -76,7 +76,19 @@
             "money": {
                 "name": "CNY",
                 "prec": 2
-            }
+            },
+            "min_amount": "0.001"
+        }, {
+            "name": "BCCCNY",
+            "stock": {
+                "name": "BCC",
+                "prec": 4
+            },
+            "money": {
+                "name": "CNY",
+                "prec": 2
+            },
+            "min_amount": "0.001"
         }, {
             "name": "ETHCNY",
             "stock": {
@@ -108,16 +120,6 @@
                 "prec": 2
             }
         }, {
-            "name": "BCCCNY",
-            "stock": {
-                "name": "BCC",
-                "prec": 4
-            },
-            "money": {
-                "name": "CNY",
-                "prec": 2
-            }
-        }, {
             "name": "DASHCNY",
             "stock": {
                 "name": "DASH",
@@ -136,7 +138,8 @@
             "money": {
                 "name": "BTC",
                 "prec": 8
-            }
+            },
+            "min_amount": "0.001"
         }, {
             "name": "LTCBTC",
             "stock": {
@@ -176,7 +179,8 @@
             "money": {
                 "name": "BCC",
                 "prec": 8
-            }
+            },
+            "min_amount": "0.001"
         }, {
             "name": "LTCBCC",
             "stock": {

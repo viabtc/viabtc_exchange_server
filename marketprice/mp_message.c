@@ -453,7 +453,7 @@ static int market_update(const char *market, double timestamp, mpd_t *price, mpd
     json_object_set_new(deal, "time", json_real(timestamp));
     json_object_set_new_mpd(deal, "price", price);
     json_object_set_new_mpd(deal, "amount", amount);
-    if (side == MARKET_SIDE_SELL) {
+    if (side == MARKET_ORDER_SIDE_ASK) {
         json_object_set_new(deal, "type", json_string("sell"));
     } else {
         json_object_set_new(deal, "type", json_string("buy"));
@@ -503,7 +503,7 @@ static void on_deals_message(sds message, int64_t offset)
         goto cleanup;
     }
     int side = json_integer_value(json_array_get(obj, 10));
-    if (side != MARKET_SIDE_SELL && side != MARKET_SIDE_BUY) {
+    if (side != MARKET_ORDER_SIDE_ASK && side != MARKET_ORDER_SIDE_BID) {
         goto cleanup;
     }
     uint64_t id = json_integer_value(json_array_get(obj, 11));

@@ -11,15 +11,6 @@
 extern uint64_t order_id_start;
 extern uint64_t deals_id_start;
 
-# define MARKET_ORDER_TYPE_LIMIT    1
-# define MARKET_ORDER_TYPE_MARKET   2
-
-# define MARKET_ORDER_SIDE_ASK      1
-# define MARKET_ORDER_SIDE_BID      2
-
-# define MARKET_ROLE_MAKER          1
-# define MARKET_ROLE_TAKER          2
-
 typedef struct order_t {
     uint64_t        id;
     uint32_t        type;

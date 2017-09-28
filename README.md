@@ -80,3 +80,13 @@ matchengine
 ## API
 
 There are [HTTP Protocl](https://github.com/viabtc/viabtc_exchange_server/wiki/HTTP-Protocol) and [Websocket Protocl](https://github.com/viabtc/viabtc_exchange_server/wiki/WebSocket-Protocol) documents. But it is in Chinese, I may translate it into English in the future.
+
+## Donation
+
+* BTC: 14x3GrEoMLituT6vF2wcEbqMAxCvt2724s
+* BCC: 1364ZurPv8uTgnFr1uqowJDFF15aNFemkf
+* ETH: 0xA2913166AE0689C07fCB5C423559239bB2814b6D
+
+## Pay service
+
+If you need help in  and deploy this system, I can give a paid support.

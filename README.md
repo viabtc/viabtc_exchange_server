@@ -24,7 +24,7 @@ This project is the server part in this picture.
 
 * utils: some basic library. Include log, config parse, some data structure, http/websocket/rpc server implementation.
 
-**modules**
+**Modules**
 
 * matchengine: the most important part, it reord user balance, execute user order. It is a in memory database, save oper log in MySQL, redo the oper log when start. It also write user history into MySQL, push balance and order and deal message to kafka.
 

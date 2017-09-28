@@ -32,11 +32,11 @@ This project is the server part in this picture.
 
 * readhistory: read history data from MySQL.
 
-* accesshttp: support a simple HTTP interface and hide complication for upper layer.
+* accesshttp: support a simple HTTP interface and hide complexity for upper layer.
 
-* accwssws: a websocket server, support user data and market data query and push. To support WSS, you need nginx.
+* accwssws: a websocket server, support user data and market data query and push. You need nginx in front to support wss.
 
-* alertcenter: a simple server write FATAL level log to redis list, so we can send alert emails though email.
+* alertcenter: a simple server write FATAL level log to redis list, so we can send alert emails.
 
 ## Compile and Install
 
@@ -56,13 +56,13 @@ Compile network and utils first. The rest all are independent.
 
 **Deploy**
 
-The matchengine and marketprice and alertcenter is a signal instance, the readhistory and accesshttp and accwssws can have multi instance work with loadbalnce.
+The matchengine and marketprice and alertcenter is a signal instance, the readhistory and accesshttp and accwssws can have multi instance work with loadbalance.
 
 Every instance better not install on same machine.
 
-Every process runing in deamon and start with a watchdog process, if it crash, it will autoly restart in 1s. 
+Every process runing in deamon and start with a watchdog process, if crash, it will autoly restart in 1s. 
 
-The best practice of deploy the model is in following directory structure:
+The best practice of deploy the instance is in following directory structure:
 
 ```
 matchengine

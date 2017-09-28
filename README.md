@@ -89,4 +89,4 @@ There are [HTTP Protocl](https://github.com/viabtc/viabtc_exchange_server/wiki/H
 
 ## Pay service
 
-If you need help in  and deploy this system, I can give a paid support.
+If you need help in deploy this system, I can give a paid support.

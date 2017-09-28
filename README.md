@@ -1,6 +1,6 @@
 # ViaBTC Exchange Server
 
-ViaBTC Exchange Server is a high performance trade backend for exchanges like digital currency exchange. It support up to 10000 trades every second. It support push price, deals, k kline, order book depths in real time thought websocket.
+ViaBTC Exchange Server is a high performance trade backend for exchanges like digital currency exchange. It support up to 10000 trades every second. It support push user data and market data in real time thought websocket.
 
 ## Architecture
 

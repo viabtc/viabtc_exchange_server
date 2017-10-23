@@ -405,21 +405,15 @@ static bool is_good_limit(int limit)
     return false;
 }
 
-static bool is_good_interval(const char *market, const char *interval)
+static bool is_good_interval(const char *interval)
 {
     mpd_t *merge = decimal(interval, 0);
     if (merge == NULL)
         return false;
 
-    for (int i = 0; i < settings.depth_market_count; ++i) {
-        depth_merge_cfg *cfg = &settings.depth_market_lists[i];
-        if (strcmp(cfg->market, market) != 0)
-            continue;
-        for (int j = 0; j < cfg->count; ++j) {
-            if (mpd_cmp(cfg->limit[j], merge, &mpd_ctx) == 0) {
-                mpd_del(merge);
-                return true;
-            }
+    for (int i = 0; i < settings.depth_merge.count; ++i) {
+        if (mpd_cmp(settings.depth_merge.limit[i], merge, &mpd_ctx) == 0) {
+            return true;
         }
     }
 
@@ -431,7 +425,7 @@ int depth_subscribe(nw_ses *ses, const char *market, uint32_t limit, const char 
 {
     if (!is_good_limit(limit))
         return -1;
-    if (!is_good_interval(market, interval))
+    if (!is_good_interval(interval))
         return -1;
 
     struct depth_key key;

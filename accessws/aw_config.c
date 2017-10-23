@@ -7,38 +7,6 @@
 
 struct settings settings;
 
-static int read_depth_merge_cfg(json_t *root, const char *key)
-{
-    json_t *obj = json_object_get(root, key);
-    if (obj == NULL || !json_is_object(obj))
-        return -__LINE__;
-
-    settings.depth_market_count = json_object_size(obj);
-    settings.depth_market_lists = malloc(sizeof(depth_merge_cfg) * settings.depth_market_count);
-
-    char *market;
-    json_t *value;
-    int index = 0;
-    json_object_foreach(obj, market, value) {
-        depth_merge_cfg *cfg = &settings.depth_market_lists[index++];
-        cfg->market = strdup(market);
-        if (!json_is_array(value))
-            return -__LINE__;
-        cfg->count = json_array_size(value);
-        cfg->limit = malloc(sizeof(void *) * cfg->count);
-        for (int i = 0; i < cfg->count; ++i) {
-            const char *str = json_string_value(json_array_get(value, i));
-            if (str == NULL)
-                return -__LINE__;
-            cfg->limit[i] = decimal(str, 0);
-            if (cfg->limit[i] == NULL)
-                return -__LINE__;
-        }
-    }
-
-    return 0;
-}
-
 static int read_depth_limit_cfg(json_t *root, const char *key)
 {
     json_t *obj = json_object_get(root, key);
@@ -51,6 +19,24 @@ static int read_depth_limit_cfg(json_t *root, const char *key)
     for (int i = 0; i < settings.depth_limit.count; ++i) {
         settings.depth_limit.limit[i] = json_integer_value(json_array_get(obj, i));
         if (settings.depth_limit.limit[i] == 0)
+            return -__LINE__;
+    }
+
+    return 0;
+}
+
+static int read_depth_merge_cfg(json_t *root, const char *key)
+{
+    json_t *obj = json_object_get(root, key);
+    if (obj == NULL || !json_is_array(obj))
+        return -__LINE__;
+
+    settings.depth_merge.count = json_object_size(obj);
+    settings.depth_merge.limit = malloc(sizeof(mpd_t *) * settings.depth_merge.count);
+
+    for (int i = 0; i < settings.depth_merge.count; ++i) {
+        settings.depth_merge.limit[i] = decimal(json_string_value(json_array_get(obj, i)), 0);
+        if (settings.depth_merge.limit[i] == NULL)
             return -__LINE__;
     }
 
@@ -122,8 +108,8 @@ static int read_config_from_json(json_t *root)
     ERR_RET(read_cfg_real(root, "kline_interval", &settings.kline_interval, false, 0.5));
     ERR_RET(read_cfg_real(root, "depth_interval", &settings.depth_interval, false, 0.5));
 
-    ERR_RET(read_depth_merge_cfg(root, "depth_merge"));
     ERR_RET(read_depth_limit_cfg(root, "depth_limit"));
+    ERR_RET(read_depth_merge_cfg(root, "depth_merge"));
 
     return 0;
 }

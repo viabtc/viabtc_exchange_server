@@ -37,7 +37,7 @@
     },
     "assets": [
         {
-            "name": "CNY",
+            "name": "USD",
             "prec_save": 16,
             "prec_show": 4
         }, {
@@ -68,148 +68,66 @@
     ],
     "markets": [
         {
-            "name": "BTCCNY",
+            "name": "BTCUSD",
             "stock": {
                 "name": "BTC",
                 "prec": 4
             },
             "money": {
-                "name": "CNY",
+                "name": "USD",
                 "prec": 2
             },
             "min_amount": "0.001"
         }, {
-            "name": "BCCCNY",
+            "name": "BCCUSD",
             "stock": {
                 "name": "BCC",
                 "prec": 4
             },
             "money": {
-                "name": "CNY",
+                "name": "USD",
                 "prec": 2
             },
             "min_amount": "0.001"
         }, {
-            "name": "ETHCNY",
+            "name": "ETHUSD",
             "stock": {
                 "name": "ETH",
                 "prec": 4
             },
             "money": {
-                "name": "CNY",
+                "name": "USD",
                 "prec": 2
             }
         }, {
-            "name": "ZECCNY",
+            "name": "ZECUSD",
             "stock": {
                 "name": "ZEC",
                 "prec": 4
             },
             "money": {
-                "name": "CNY",
+                "name": "USD",
                 "prec": 2
             }
         }, {
-            "name": "LTCCNY",
+            "name": "LTCUSD",
             "stock": {
                 "name": "LTC",
                 "prec": 4
             },
             "money": {
-                "name": "CNY",
+                "name": "USD",
                 "prec": 2
             }
         }, {
-            "name": "DASHCNY",
+            "name": "DASHUSD",
             "stock": {
                 "name": "DASH",
                 "prec": 4
             },
             "money": {
-                "name": "CNY",
+                "name": "USD",
                 "prec": 2
-            }
-        }, {
-            "name": "BCCBTC",
-            "stock": {
-                "name": "BCC",
-                "prec": 4
-            },
-            "money": {
-                "name": "BTC",
-                "prec": 8
-            },
-            "min_amount": "0.001"
-        }, {
-            "name": "LTCBTC",
-            "stock": {
-                "name": "LTC",
-                "prec": 4
-            },
-            "money": {
-                "name": "BTC",
-                "prec": 8
-            }
-        }, {
-            "name": "ETHBTC",
-            "stock": {
-                "name": "ETH",
-                "prec": 4
-            },
-            "money": {
-                "name": "BTC",
-                "prec": 8
-            }
-        }, {
-            "name": "ZECBTC",
-            "stock": {
-                "name": "ZEC",
-                "prec": 4
-            },
-            "money": {
-                "name": "BTC",
-                "prec": 8
-            }
-        }, {
-            "name": "BTCBCC",
-            "stock": {
-                "name": "BTC",
-                "prec": 4
-            },
-            "money": {
-                "name": "BCC",
-                "prec": 8
-            },
-            "min_amount": "0.001"
-        }, {
-            "name": "LTCBCC",
-            "stock": {
-                "name": "LTC",
-                "prec": 4
-            },
-            "money": {
-                "name": "BCC",
-                "prec": 8
-            }
-        }, {
-            "name": "ETHBCC",
-            "stock": {
-                "name": "ETH",
-                "prec": 4
-            },
-            "money": {
-                "name": "BCC",
-                "prec": 8
-            }
-        }, {
-            "name": "ZECBCC",
-            "stock": {
-                "name": "ZEC",
-                "prec": 4
-            },
-            "money": {
-                "name": "BCC",
-                "prec": 8
             }
         }
     ],

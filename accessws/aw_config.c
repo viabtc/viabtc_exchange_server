@@ -31,7 +31,7 @@ static int read_depth_merge_cfg(json_t *root, const char *key)
     if (obj == NULL || !json_is_array(obj))
         return -__LINE__;
 
-    settings.depth_merge.count = json_object_size(obj);
+    settings.depth_merge.count = json_array_size(obj);
     settings.depth_merge.limit = malloc(sizeof(mpd_t *) * settings.depth_merge.count);
 
     for (int i = 0; i < settings.depth_merge.count; ++i) {

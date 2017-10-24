@@ -413,6 +413,7 @@ static bool is_good_interval(const char *interval)
 
     for (int i = 0; i < settings.depth_merge.count; ++i) {
         if (mpd_cmp(settings.depth_merge.limit[i], merge, &mpd_ctx) == 0) {
+            mpd_del(merge);
             return true;
         }
     }

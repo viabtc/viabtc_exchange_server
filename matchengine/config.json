@@ -37,117 +37,151 @@
     },
     "assets": [
         {
-            "name": "BCH",
-            "prec_save": 20,
+            "name": "ETH",
+            "prec_save": 8,
+            "prec_show": 8
+        }, {
+            "name": "ETC",
+            "prec_save": 8,
             "prec_show": 8
         }, {
             "name": "BTC",
-            "prec_save": 12,
+            "prec_save": 16,
+            "prec_show": 8
+        }, {
+            "name": "BCH",
+            "prec_save": 16,
             "prec_show": 8
         }, {
             "name": "LTC",
             "prec_save": 12,
             "prec_show": 8
         }, {
-            "name": "ETH",
-            "prec_save": 12,
+            "name": "XRP",
+            "prec_save": 8,
             "prec_show": 8
         }, {
-            "name": "ETC",
-            "prec_save": 12,
+            "name": "DASH",
+            "prec_save": 8,
             "prec_show": 8
         }, {
             "name": "ZEC",
-            "prec_save": 12,
-            "prec_show": 8
-        }, {
-            "name": "XMR",
-            "prec_save": 12,
-            "prec_show": 8
-        }, {
-            "name": "DSH",
-            "prec_save": 12,
+            "prec_save": 8,
             "prec_show": 8
         }
     ],
+
     "markets": [
         {
-            "name": "BTCBCH",
+            "name": "BTCETH",
             "stock": {
                 "name": "BTC",
                 "prec": 8
             },
             "money": {
-                "name": "BCH",
-                "prec": 8
-            },
-            "min_amount": "0.001"
+                "name": "ETH",
+                "prec": 4
+            }
         }, {
-            "name": "LTCBCH",
+            "name": "BTCETC",
             "stock": {
-                "name": "LTC",
-                "prec": 8
+                "name": "BTC",
+                "prec": 4
+            },
+            "money": {
+                "name": "ETC",
+                "prec": 4
+            }
+        }, {
+            "name": "BTCBCH",
+            "stock": {
+                "name": "BTC",
+                "prec": 4
             },
             "money": {
                 "name": "BCH",
-                "prec": 8
-            },
-            "min_amount": "0.001"
+                "prec": 4
+            }
         }, {
-            "name": "ETHBCH",
+            "name": "BTCLTC",
+            "stock": {
+                "name": "BTC",
+                "prec": 4
+            },
+            "money": {
+                "name": "LTC",
+                "prec": 4
+            }
+        }, {
+            "name": "BTCXRP",
+            "stock": {
+                "name": "BTC",
+                "prec": 4
+            },
+            "money": {
+                "name": "XRP",
+                "prec": 4
+            }
+        }, {
+            "name": "BTCDASH",
+            "stock": {
+                "name": "BTC",
+                "prec": 4
+            },
+            "money": {
+                "name": "DASH",
+                "prec": 4
+            }
+        }, {
+            "name": "BTCZEC",
+            "stock": {
+                "name": "BTC",
+                "prec": 4
+            },
+            "money": {
+                "name": "ZEC",
+                "prec": 4
+            }
+        }, {
+            "name": "ETHETC",
             "stock": {
                 "name": "ETH",
-                "prec": 8
+                "prec": 4
             },
             "money": {
-                "name": "BCH",
-                "prec": 8
-            },
-            "min_amount": "0.001"
-        }, {
-            "name": "ETCBCH",
-            "stock": {
                 "name": "ETC",
-                "prec": 8
+                "prec": 4
+            }
+        }, {
+            "name": "ETHLTC",
+            "stock": {
+                "name": "ETH",
+                "prec": 4
             },
             "money": {
-                "name": "BCH",
-                "prec": 8
-            },
-            "min_amount": "0.001"
+                "name": "LTC",
+                "prec": 4
+            }
         }, {
-            "name": "ZECBCH",
+            "name": "ETHXRP",
             "stock": {
+                "name": "ETH",
+                "prec": 4
+            },
+            "money": {
+                "name": "XRP",
+                "prec": 4
+            }
+        }, {
+            "name": "ETHZEC",
+            "stock": {
+                "name": "ETH",
+                "prec": 4
+            },
+            "money": {
                 "name": "ZEC",
-                "prec": 8
-            },
-            "money": {
-                "name": "BCH",
-                "prec": 8
-            },
-            "min_amount": "0.001"
-        }, {
-            "name": "XMRBCH",
-            "stock": {
-                "name": "XMR",
-                "prec": 8
-            },
-            "money": {
-                "name": "BCH",
-                "prec": 8
-            },
-            "min_amount": "0.001"
-        }, {
-            "name": "DSHBCH",
-            "stock": {
-                "name": "DSH",
-                "prec": 8
-            },
-            "money": {
-                "name": "BCH",
-                "prec": 8
-            },
-            "min_amount": "0.001"
+                "prec": 4
+            }
         }
     ],
     "brokers": "127.0.0.1:9092",

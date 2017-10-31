@@ -129,8 +129,26 @@ static int on_http_message_complete(http_parser* parser)
     if (upgrade == NULL || strcasecmp(upgrade, "websocket") != 0)
         goto error;
     const char *connection = http_request_get_header(info->request, "Connection");
-    if (connection == NULL || strcasecmp(connection, "Upgrade") != 0)
+    if (connection == NULL)
         goto error;
+    else {
+        bool found_upgrade = false;
+        int count;
+        sds *tokens = sdssplitlen(connection, strlen(connection), ",", 1, &count); 
+        if (tokens == NULL)
+            goto error;
+        for (int i = 0; i < count; i++) {
+            sds token = tokens[i];
+            sdstrim(token, " ");
+            if (strcasecmp(token, "Upgrade") == 0) {
+                found_upgrade = true;
+                break;
+            }
+        }
+        sdsfreesplitres(tokens, count);
+        if (!found_upgrade)
+            goto error;
+    }
     const char *ws_version = http_request_get_header(info->request, "Sec-WebSocket-Version");
     if (ws_version == NULL || strcmp(ws_version, "13") != 0)
         goto error;

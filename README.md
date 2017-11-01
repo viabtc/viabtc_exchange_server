@@ -97,6 +97,3 @@ Example response: `{"code": 0, "message": null, "data": {"user_id": 1}}`
 * BCC: 1364ZurPv8uTgnFr1uqowJDFF15aNFemkf
 * ETH: 0xA2913166AE0689C07fCB5C423559239bB2814b6D
 
-## Paid service
-
-If you need help deploying this system, we can provide paid technical support.

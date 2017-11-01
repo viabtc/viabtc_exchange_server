@@ -87,6 +87,8 @@ The websocket protocol has an authorization method (`server.auth`) which is used
 
 To accomodate this method your exchange frontend will need to supply an internal endpoint which takes an authorization token from the HTTP header named `Authorization` and validates that token and returns the user_id.
 
+The internal authorization endpoint is defined by the `auth_url` setting in the config file (`accessws/config.json`).
+
 Example response: `{"code": 0, "message": null, "data": {"user_id": 1}}`
 
 ## Donation

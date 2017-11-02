@@ -197,7 +197,7 @@ int init_sign(void)
     jt.on_finish = on_finish;
     jt.on_cleanup = on_cleanup;
 
-    job_context = nw_job_create(&jt, 10);
+    job_context = nw_job_create(&jt, 5);
     if (job_context == NULL)
         return -__LINE__;
 

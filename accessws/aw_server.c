@@ -6,6 +6,7 @@
 # include "aw_config.h"
 # include "aw_server.h"
 # include "aw_auth.h"
+# include "aw_sign.h"
 # include "aw_kline.h"
 # include "aw_depth.h"
 # include "aw_price.h"
@@ -154,6 +155,11 @@ static int on_method_server_time(nw_ses *ses, uint64_t id, struct clt_info *info
 static int on_method_server_auth(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
     return send_auth_request(ses, id, info, params);
+}
+
+static int on_method_server_sign(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    return send_sign_request(ses, id, info, params);
 }
 
 static int process_cache(nw_ses *ses, uint64_t id, sds key)
@@ -863,6 +869,7 @@ static int init_svr(void)
     ERR_RET_LN(add_handler("server.ping",       on_method_server_ping));
     ERR_RET_LN(add_handler("server.time",       on_method_server_time));
     ERR_RET_LN(add_handler("server.auth",       on_method_server_auth));
+    ERR_RET_LN(add_handler("server.sign",       on_method_server_sign));
 
     ERR_RET_LN(add_handler("kline.query",       on_method_kline_query));
     ERR_RET_LN(add_handler("kline.subscribe",   on_method_kline_subscribe));

@@ -7,6 +7,7 @@
 # include "aw_config.h"
 # include "aw_server.h"
 # include "aw_auth.h"
+# include "aw_sign.h"
 # include "aw_kline.h"
 # include "aw_depth.h"
 # include "aw_price.h"
@@ -122,6 +123,10 @@ server:
     ret = init_auth();
     if (ret < 0) {
         error(EXIT_FAILURE, errno, "init auth fail: %d", ret);
+    }
+    ret = init_sign();
+    if (ret < 0) {
+        error(EXIT_FAILURE, errno, "init sing fail: %d", ret);
     }
     ret = init_kline();
     if (ret < 0) {

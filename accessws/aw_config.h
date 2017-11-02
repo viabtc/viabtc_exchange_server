@@ -68,6 +68,7 @@ struct settings {
 
     int                 worker_num;
     char                *auth_url;
+    char                *sign_url;
     double              backend_timeout;
     double              cache_timeout;
 

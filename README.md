@@ -4,7 +4,7 @@ ViaBTC Exchange Server is a trading backend with high-speed performance, designe
 
 ## Architecture
 
-![Architecture](https://user-images.githubusercontent.com/1209350/30948274-4e463044-a441-11e7-881b-b50ab903ed65.jpg)
+![Architecture](https://user-images.githubusercontent.com/1209350/32476113-5ffc622a-c3b0-11e7-9755-924f17bcc167.jpeg)
 
 For this project, it is marked as Server in this picture.
 

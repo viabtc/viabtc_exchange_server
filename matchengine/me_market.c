@@ -769,25 +769,10 @@ static int execute_market_bid_order(bool real, market_t *m, order_t *taker)
 
         order_t *maker = node->value;
         mpd_copy(price, maker->price, &mpd_ctx);
-
-        mpd_div(amount, taker->left, price, &mpd_ctx);
-        mpd_rescale(amount, amount, -m->stock_prec, &mpd_ctx);
-        while (true) {
-            mpd_mul(result, amount, price, &mpd_ctx);
-            if (mpd_cmp(result, taker->left, &mpd_ctx) > 0) {
-                mpd_set_i32(result, -m->stock_prec, &mpd_ctx);
-                mpd_pow(result, mpd_ten, result, &mpd_ctx);
-                mpd_sub(amount, amount, result, &mpd_ctx);
-            } else {
-                break;
-            }
-        }
-
-        if (mpd_cmp(amount, maker->left, &mpd_ctx) > 0) {
+        if (mpd_cmp(taker->left, maker->left, &mpd_ctx) < 0) {
+            mpd_copy(amount, taker->left, &mpd_ctx);
+        } else {
             mpd_copy(amount, maker->left, &mpd_ctx);
-        }
-        if (mpd_cmp(amount, mpd_zero, &mpd_ctx) == 0) {
-            break;
         }
 
         mpd_mul(deal, price, amount, &mpd_ctx);
@@ -867,12 +852,16 @@ static int execute_market_bid_order(bool real, market_t *m, order_t *taker)
 
 int market_put_market_order(bool real, json_t **result, market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *taker_fee, const char *source)
 {
-    if (side == MARKET_ORDER_SIDE_ASK) {
-        mpd_t *balance = balance_get(user_id, BALANCE_TYPE_AVAILABLE, m->stock);
-        if (!balance || mpd_cmp(balance, amount, &mpd_ctx) < 0) {
-            return -1;
-        }
+    mpd_t *balance = balance_get(user_id, BALANCE_TYPE_AVAILABLE, m->stock);
+    if (!balance || mpd_cmp(balance, amount, &mpd_ctx) < 0) {
+        return -1;
+    }
 
+    if (mpd_cmp(amount, m->min_amount, &mpd_ctx) < 0) {
+        return -2;
+    }
+
+    if (side == MARKET_ORDER_SIDE_ASK) {
         skiplist_iter *iter = skiplist_get_iterator(m->bids);
         skiplist_node *node = skiplist_next(iter);
         if (node == NULL) {
@@ -880,16 +869,7 @@ int market_put_market_order(bool real, json_t **result, market_t *m, uint32_t us
             return -3;
         }
         skiplist_release_iterator(iter);
-
-        if (mpd_cmp(amount, m->min_amount, &mpd_ctx) < 0) {
-            return -2;
-        }
     } else {
-        mpd_t *balance = balance_get(user_id, BALANCE_TYPE_AVAILABLE, m->money);
-        if (!balance || mpd_cmp(balance, amount, &mpd_ctx) < 0) {
-            return -1;
-        }
-
         skiplist_iter *iter = skiplist_get_iterator(m->asks);
         skiplist_node *node = skiplist_next(iter);
         if (node == NULL) {
@@ -897,15 +877,6 @@ int market_put_market_order(bool real, json_t **result, market_t *m, uint32_t us
             return -3;
         }
         skiplist_release_iterator(iter);
-
-        order_t *order = node->value;
-        mpd_t *require = mpd_new(&mpd_ctx);
-        mpd_mul(require, order->price, m->min_amount, &mpd_ctx);
-        if (mpd_cmp(amount, require, &mpd_ctx) < 0) {
-            mpd_del(require);
-            return -2;
-        }
-        mpd_del(require);
     }
 
     order_t *order = malloc(sizeof(order_t));

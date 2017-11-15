@@ -56,7 +56,7 @@ Compile network and utils first. The rest all are independent.
 
 **Deploy**
 
-One signal instance is given for matchengine, marketprice and alertcenter, while readhistory, accesshttp and accwssws have multi instance works with loadbalance.
+One single instance is given for matchengine, marketprice and alertcenter, while readhistory, accesshttp and accwssws have multi instance works with loadbalance.
 
 Please do not install every instance on the same machine.
 

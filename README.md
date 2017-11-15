@@ -1,6 +1,6 @@
 # ViaBTC Exchange Server
 
-ViaBTC Exchange Server is a trading backend with high-speed performance, designed for cryptocurrency exchanges. It can support up to 10000 trades every second and real-time user/market data notification though websocket.
+ViaBTC Exchange Server is a trading backend with high-speed performance, designed for cryptocurrency exchanges. It can support up to 10000 trades every second and real-time user/market data notification through websocket.
 
 ## Architecture
 
@@ -10,7 +10,7 @@ For this project, it is marked as Server in this picture.
 
 ## code structure
 
-**Require system**
+**Required system**
 
 * MySQL: For saving operation log, user balance history, order history and trade history.
 

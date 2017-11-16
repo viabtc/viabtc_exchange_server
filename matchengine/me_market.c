@@ -792,7 +792,7 @@ static int execute_market_bid_order(bool real, market_t *m, order_t *taker)
             push_deal_message(taker->update_time, m->name, maker, taker, price, amount, ask_fee, bid_fee, MARKET_ORDER_SIDE_BID, deal_id, m->stock, m->money);
         }
 
-        mpd_sub(taker->left, taker->left, deal, &mpd_ctx);
+        mpd_sub(taker->left, taker->left, amount, &mpd_ctx);
         mpd_add(taker->deal_stock, taker->deal_stock, amount, &mpd_ctx);
         mpd_add(taker->deal_money, taker->deal_money, deal, &mpd_ctx);
         mpd_add(taker->deal_fee, taker->deal_fee, bid_fee, &mpd_ctx);

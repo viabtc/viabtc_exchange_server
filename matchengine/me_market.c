@@ -858,16 +858,14 @@ static int execute_market_bid_order(bool real, market_t *m, order_t *taker)
 
 int market_put_market_order(bool real, json_t **result, market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *taker_fee, const char *source)
 {
-    mpd_t *balance = balance_get(user_id, BALANCE_TYPE_AVAILABLE, m->stock);
-    if (!balance || mpd_cmp(balance, amount, &mpd_ctx) < 0) {
-        return -1;
-    }
-
-    if (mpd_cmp(amount, m->min_amount, &mpd_ctx) < 0) {
-        return -2;
-    }
-
     if (side == MARKET_ORDER_SIDE_ASK) {
+        // validate user has the balance available to fulfil order
+        mpd_t *balance = balance_get(user_id, BALANCE_TYPE_AVAILABLE, m->stock);
+        if (!balance || mpd_cmp(balance, amount, &mpd_ctx) < 0) {
+            return -1;
+        }
+
+        // validate there are any market participants on the other side of the order
         skiplist_iter *iter = skiplist_get_iterator(m->bids);
         skiplist_node *node = skiplist_next(iter);
         if (node == NULL) {
@@ -875,14 +873,59 @@ int market_put_market_order(bool real, json_t **result, market_t *m, uint32_t us
             return -3;
         }
         skiplist_release_iterator(iter);
+
     } else {
+        // calculate money required and number of asks
+        mpd_t *money_required = mpd_new(&mpd_ctx);
+        mpd_t *left           = mpd_new(&mpd_ctx);
+        mpd_t *amount_tx      = mpd_new(&mpd_ctx);
+        mpd_t *price          = mpd_new(&mpd_ctx);
+        mpd_t *deal           = mpd_new(&mpd_ctx);
+        mpd_copy(money_required, mpd_zero, &mpd_ctx);
+        mpd_copy(left, amount, &mpd_ctx);
+        int ask_count = 0;
+        skiplist_node *node;
         skiplist_iter *iter = skiplist_get_iterator(m->asks);
-        skiplist_node *node = skiplist_next(iter);
-        if (node == NULL) {
-            skiplist_release_iterator(iter);
-            return -3;
+        while ((node = skiplist_next(iter)) != NULL) {
+            ask_count++;
+            if (mpd_cmp(left, mpd_zero, &mpd_ctx) == 0) {
+                break;
+            }
+
+            order_t *maker = node->value;
+            mpd_copy(price, maker->price, &mpd_ctx);
+            if (mpd_cmp(maker->left, left, &mpd_ctx) < 0) {
+                mpd_copy(amount_tx, maker->left, &mpd_ctx);
+            } else {
+                mpd_copy(amount_tx, left, &mpd_ctx);
+            }
+
+            mpd_mul(deal, price, amount_tx, &mpd_ctx);
+            mpd_sub(left, left, amount_tx, &mpd_ctx);
+            mpd_add(money_required, money_required, deal, &mpd_ctx);
         }
         skiplist_release_iterator(iter);
+        mpd_del(money_required);
+        mpd_del(left);
+        mpd_del(amount_tx);
+        mpd_del(price);
+        mpd_del(deal);
+
+        // validate user has the balance available to fulfil order
+        mpd_t *balance = balance_get(user_id, BALANCE_TYPE_AVAILABLE, m->money);
+        if (!balance || mpd_cmp(balance, money_required, &mpd_ctx) < 0) {
+            return -1;
+        }
+
+        // validate there are any market participants on the other side of the order
+        if (ask_count == 0) {
+            return -3;
+        }
+    }
+
+    // validate order amount is at least the minimum order amount
+    if (mpd_cmp(amount, m->min_amount, &mpd_ctx) < 0) {
+        return -2;
     }
 
     order_t *order = malloc(sizeof(order_t));

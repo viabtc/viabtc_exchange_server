@@ -351,12 +351,15 @@ static int init_market(void)
     if (dict_market == NULL)
         return -__LINE__;
 
-    json_t *r = send_market_list_req();
-    if (r == NULL)
-        return -__LINE__;
     redisContext *context = redis_sentinel_connect_master(redis);
     if (context == NULL)
         return -__LINE__;
+    json_t *r = send_market_list_req();
+    if (r == NULL) {
+        log_error("get market list fail");
+        redisFree(context);
+        return -__LINE__;
+    }
     for (size_t i = 0; i < json_array_size(r); ++i) {
         json_t *item = json_array_get(r, i);
         const char *name = json_string_value(json_object_get(item, "name"));

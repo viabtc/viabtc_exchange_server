@@ -50,6 +50,7 @@ static int read_config_from_json(json_t *root)
     ERR_RET_LN(read_cfg_int(root, "min_max", &settings.min_max, false, 60 * 24 * 365));
     ERR_RET_LN(read_cfg_int(root, "hour_max", &settings.hour_max, false, 24 * 365 * 10));
     ERR_RET_LN(read_cfg_real(root, "cache_timeout", &settings.cache_timeout, false, 0.45));
+    ERR_RET_LN(read_cfg_str(root, "accesshttp", &settings.accesshttp, NULL));
 
     settings.timezone = get_timezone_offset();
 
@@ -77,5 +78,4 @@ int init_config(const char *path)
 
     return 0;
 }
-
 

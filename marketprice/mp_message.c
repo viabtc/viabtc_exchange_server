@@ -3,6 +3,8 @@
  *     History: yang@haipo.me, 2017/04/16, create
  */
 
+# include <curl/curl.h>
+
 # include "mp_config.h"
 # include "mp_message.h"
 # include "mp_kline.h"
@@ -227,22 +229,6 @@ static int load_market(redisContext *context, struct market_info *info)
     return 0;
 }
 
-static int add_markets_list(const char *market)
-{
-    redisContext *context = redis_sentinel_connect_master(redis);
-    if (context == NULL)
-        return -__LINE__;
-    redisReply *reply = redisCmd(context, "SADD k:markets %s", market);
-    if (reply == NULL) {
-        redisFree(context);
-        return -__LINE__;
-    }
-    freeReplyObject(reply);
-    redisFree(context);
-
-    return 0;
-}
-
 static struct market_info *create_market(const char *market)
 {
     struct market_info *info = malloc(sizeof(struct market_info));
@@ -293,6 +279,67 @@ static struct market_info *create_market(const char *market)
     return info;
 }
 
+static size_t post_write_callback(char *ptr, size_t size, size_t nmemb, void *userdata)
+{
+    sds *reply = userdata;
+    *reply = sdscatlen(*reply, ptr, size * nmemb);
+    return size * nmemb;
+}
+
+static json_t *send_market_list_req(void)
+{
+    json_t *reply  = NULL;
+    json_t *error  = NULL;
+    json_t *result = NULL;
+
+    json_t *request = json_object();
+    json_object_set_new(request, "method", json_string("market.list"));
+    json_object_set_new(request, "params", json_array());
+    json_object_set_new(request, "id", json_integer(time(NULL)));
+    char *request_data = json_dumps(request, 0);
+    json_decref(request);
+
+    CURL *curl = curl_easy_init();
+    sds reply_str = sdsempty();
+
+    struct curl_slist *chunk = NULL;
+    chunk = curl_slist_append(chunk, "Content-Type: application/json");
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
+    curl_easy_setopt(curl, CURLOPT_URL, settings.accesshttp);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, post_write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &reply_str);
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, (long)(1000));
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request_data);
+
+    CURLcode ret = curl_easy_perform(curl);
+    if (ret != CURLE_OK) {
+        log_fatal("curl_easy_perform fail: %s", curl_easy_strerror(ret));
+        goto cleanup;
+    }
+
+    reply = json_loads(reply_str, 0, NULL);
+    if (reply == NULL)
+        goto cleanup;
+    error = json_object_get(reply, "error");
+    if (!json_is_null(error)) {
+        log_error("get market list fail: %s", reply_str);
+        goto cleanup;
+    }
+    result = json_object_get(reply, "result");
+    json_incref(result);
+
+cleanup:
+    free(request_data);
+    sdsfree(reply_str);
+    curl_easy_cleanup(curl);
+    curl_slist_free_all(chunk);
+    if (reply)
+        json_decref(reply);
+
+    return result;
+}
+
 static int init_market(void)
 {
     dict_types type;
@@ -304,29 +351,32 @@ static int init_market(void)
     if (dict_market == NULL)
         return -__LINE__;
 
+    json_t *r = send_market_list_req();
+    if (r == NULL)
+        return -__LINE__;
     redisContext *context = redis_sentinel_connect_master(redis);
     if (context == NULL)
         return -__LINE__;
-    redisReply *reply = redisCmd(context, "SMEMBERS k:markets");
-    if (reply == NULL) {
-        redisFree(context);
-        return -__LINE__;
-    }
-    for (size_t i = 0; i < reply->elements; ++i) {
-        struct market_info *info = create_market(reply->element[i]->str);
+    for (size_t i = 0; i < json_array_size(r); ++i) {
+        json_t *item = json_array_get(r, i);
+        const char *name = json_string_value(json_object_get(item, "name"));
+        log_stderr("init market %s", name);
+        struct market_info *info = create_market(name);
         if (info == NULL) {
-            freeReplyObject(reply);
+            log_error("create market %s fail", name);
+            json_decref(r);
             redisFree(context);
             return -__LINE__;
         }
         int ret = load_market(context, info);
         if (ret < 0) {
-            freeReplyObject(reply);
+            log_error("load market %s fail: %d", name, ret);
+            json_decref(r);
             redisFree(context);
-            return ret;
+            return -__LINE__;
         }
     }
-    freeReplyObject(reply);
+    json_decref(r);
     redisFree(context);
 
     return 0;
@@ -377,11 +427,6 @@ static int market_update(const char *market, double timestamp, mpd_t *price, mpd
     if (info == NULL) {
         info = create_market(market);
         if (info == NULL) {
-            return -__LINE__;
-        }
-        int ret = add_markets_list(market);
-        if (ret < 0) {
-            log_fatal("add market: %s fail: %d", market, ret);
             return -__LINE__;
         }
     }

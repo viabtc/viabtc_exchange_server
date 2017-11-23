@@ -49,6 +49,7 @@ struct settings {
     int                 min_max;
     int                 hour_max;
     double              cache_timeout;
+    char                *accesshttp;
 };
 
 extern struct settings settings;

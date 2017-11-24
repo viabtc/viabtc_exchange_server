@@ -8,9 +8,9 @@ ViaBTC Exchange Server is a trading backend with high-speed performance, designe
 
 For this project, it is marked as Server in this picture.
 
-## code structure
+## Code structure
 
-**Required system**
+**Required systems**
 
 * MySQL: For saving operation log, user balance history, order history and trade history.
 
@@ -40,7 +40,7 @@ For this project, it is marked as Server in this picture.
 
 ## Compile and Install
 
-**operating system**
+**Operating system**
 
 Ubuntu 14.04 or Ubuntu 16.04. Not yet tested on other systems.
 
@@ -50,13 +50,13 @@ See [requirements](https://github.com/viabtc/viabtc_exchange_server/wiki/require
 
 You MUST use the depends/hiredis to install the hiredis library. Or it may not be compatible.
 
-**Compile order**
+**Compilation**
 
 Compile network and utils first. The rest all are independent.
 
-**Deploy**
+**Deployment**
 
-One single instance is given for matchengine, marketprice and alertcenter, while readhistory, accesshttp and accwssws have multi instance works with loadbalance.
+One single instance is given for matchengine, marketprice and alertcenter, while readhistory, accesshttp and accwssws can have multiple instances to work with loadbalancing.
 
 Please do not install every instance on the same machine.
 

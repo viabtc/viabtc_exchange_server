@@ -969,6 +969,7 @@ json_t *get_market_status(const char *market, int period)
     json_object_set_new_mpd(result, "high", kinfo->high);
     json_object_set_new_mpd(result, "low", kinfo->low);
     json_object_set_new_mpd(result, "volume", kinfo->volume);
+    json_object_set_new_mpd(result, "deal", kinfo->deal);
 
     kline_info_free(kinfo);
 

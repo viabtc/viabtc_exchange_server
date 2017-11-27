@@ -105,6 +105,7 @@ static int read_config_from_json(json_t *root)
 
     ERR_RET(read_cfg_real(root, "deals_interval", &settings.deals_interval, false, 0.5));
     ERR_RET(read_cfg_real(root, "price_interval", &settings.price_interval, false, 0.5));
+    ERR_RET(read_cfg_real(root, "state_interval", &settings.state_interval, false, 0.5));
     ERR_RET(read_cfg_real(root, "today_interval", &settings.today_interval, false, 0.5));
     ERR_RET(read_cfg_real(root, "kline_interval", &settings.kline_interval, false, 0.5));
     ERR_RET(read_cfg_real(root, "depth_interval", &settings.depth_interval, false, 0.5));

@@ -74,6 +74,7 @@ struct settings {
 
     double              deals_interval;
     double              price_interval;
+    double              state_interval;
     double              today_interval;
     double              kline_interval;
     double              depth_interval;

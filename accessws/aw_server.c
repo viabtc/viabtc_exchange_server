@@ -10,6 +10,7 @@
 # include "aw_kline.h"
 # include "aw_depth.h"
 # include "aw_price.h"
+# include "aw_state.h"
 # include "aw_today.h"
 # include "aw_deals.h"
 # include "aw_order.h"
@@ -372,6 +373,71 @@ static int on_method_price_subscribe(nw_ses *ses, uint64_t id, struct clt_info *
 static int on_method_price_unsubscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
 {
     price_unsubscribe(ses);
+    return send_success(ses, id);
+}
+
+static int on_method_state_query(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    if (!rpc_clt_connected(marketprice))
+        return send_error_internal_error(ses, id);
+
+    sds key = sdsempty();
+    char *params_str = json_dumps(params, 0);
+    key = sdscatprintf(key, "%u-%s", CMD_MARKET_STATUS, params_str);
+    int ret = process_cache(ses, id, key);
+    if (ret > 0) {
+        sdsfree(key);
+        free(params_str);
+        return 0;
+    }
+
+    nw_state_entry *entry = nw_state_add(state_context, settings.backend_timeout, 0);
+    struct state_data *state = entry->data;
+    state->ses = ses;
+    state->ses_id = ses->id;
+    state->request_id = id;
+    state->cache_key = key;
+
+    rpc_pkg pkg;
+    memset(&pkg, 0, sizeof(pkg));
+    pkg.pkg_type  = RPC_PKG_TYPE_REQUEST;
+    pkg.command   = CMD_MARKET_STATUS;
+    pkg.sequence  = entry->id;
+    pkg.req_id    = id;
+    pkg.body      = params_str;
+    pkg.body_size = strlen(pkg.body);
+
+    rpc_clt_send(marketprice, &pkg);
+    log_trace("send request to %s, cmd: %u, sequence: %u, params: %s",
+            nw_sock_human_addr(rpc_clt_peer_addr(marketprice)), pkg.command, pkg.sequence, (char *)pkg.body);
+    free(pkg.body);
+
+    return 0;
+}
+
+static int on_method_state_subscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    state_unsubscribe(ses);
+    size_t params_size = json_array_size(params);
+    for (size_t i = 0; i < params_size; ++i) {
+        const char *market = json_string_value(json_array_get(params, i));
+        if (market == NULL || strlen(market) >= MARKET_NAME_MAX_LEN)
+            return send_error_invalid_argument(ses, id);
+        if (state_subscribe(ses, market) < 0)
+            return send_error_internal_error(ses, id);
+    }
+
+    send_success(ses, id);
+    for (size_t i = 0; i < params_size; ++i) {
+        state_send_last(ses, json_string_value(json_array_get(params, i)));
+    }
+
+    return 0;
+}
+
+static int on_method_state_unsubscribe(nw_ses *ses, uint64_t id, struct clt_info *info, json_t *params)
+{
+    state_unsubscribe(ses);
     return send_success(ses, id);
 }
 
@@ -837,6 +903,22 @@ static int add_handler(char *method, on_request_method func)
     return 0;
 }
 
+static void on_timeout(nw_state_entry *entry)
+{
+    log_error("state id: %u timeout", entry->id);
+    struct state_data *state = entry->data;
+    if (state->ses->id == state->ses_id) {
+        send_error_service_timeout(state->ses, state->request_id);
+    }
+}
+
+static void on_release(nw_state_entry *entry)
+{
+    struct state_data *state = entry->data;
+    if (state->cache_key)
+        sdsfree(state->cache_key);
+}
+
 static int init_svr(void)
 {
     ws_svr_type type;
@@ -853,6 +935,15 @@ static int init_svr(void)
 
     privdata_cache = nw_cache_create(sizeof(struct clt_info));
     if (privdata_cache == NULL)
+        return -__LINE__;
+
+    nw_state_type st;
+    memset(&st, 0, sizeof(st));
+    st.on_timeout = on_timeout;
+    st.on_release = on_release;
+
+    state_context = nw_state_create(&st, sizeof(struct state_data));
+    if (state_context == NULL)
         return -__LINE__;
 
     dict_types dt;
@@ -883,6 +974,10 @@ static int init_svr(void)
     ERR_RET_LN(add_handler("price.subscribe",   on_method_price_subscribe));
     ERR_RET_LN(add_handler("price.unsubscribe", on_method_price_unsubscribe));
 
+    ERR_RET_LN(add_handler("state.query",       on_method_state_query));
+    ERR_RET_LN(add_handler("state.subscribe",   on_method_state_subscribe));
+    ERR_RET_LN(add_handler("state.unsubscribe", on_method_state_unsubscribe));
+
     ERR_RET_LN(add_handler("today.query",       on_method_today_query));
     ERR_RET_LN(add_handler("today.subscribe",   on_method_today_subscribe));
     ERR_RET_LN(add_handler("today.unsubscribe", on_method_today_unsubscribe));
@@ -900,36 +995,6 @@ static int init_svr(void)
     ERR_RET_LN(add_handler("asset.history",     on_method_asset_history));
     ERR_RET_LN(add_handler("asset.subscribe",   on_method_asset_subscribe));
     ERR_RET_LN(add_handler("asset.unsubscribe", on_method_asset_unsubscribe));
-
-    return 0;
-}
-
-static void on_timeout(nw_state_entry *entry)
-{
-    log_error("state id: %u timeout", entry->id);
-    struct state_data *state = entry->data;
-    if (state->ses->id == state->ses_id) {
-        send_error_service_timeout(state->ses, state->request_id);
-    }
-}
-
-static void on_release(nw_state_entry *entry)
-{
-    struct state_data *state = entry->data;
-    if (state->cache_key)
-        sdsfree(state->cache_key);
-}
-
-static int init_state(void)
-{
-    nw_state_type st;
-    memset(&st, 0, sizeof(st));
-    st.on_timeout = on_timeout;
-    st.on_release = on_release;
-
-    state_context = nw_state_create(&st, sizeof(struct state_data));
-    if (state_context == NULL)
-        return -__LINE__;
 
     return 0;
 }
@@ -1113,7 +1178,6 @@ static int init_listener_clt(void)
 int init_server(void)
 {
     ERR_RET(init_svr());
-    ERR_RET(init_state());
     ERR_RET(init_backend());
     ERR_RET(init_listener_clt());
 

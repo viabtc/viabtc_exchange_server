@@ -40,7 +40,7 @@
 # define ASSET_NAME_MAX_LEN     16
 # define MARKET_NAME_MAX_LEN    16
 # define SOURCE_MAX_LEN         32
-# define INTERVAL_MAX_LEN       10
+# define INTERVAL_MAX_LEN       16
 
 # define AW_LISTENER_BIND   "seqpacket@/tmp/accessws_listener.sock"
 

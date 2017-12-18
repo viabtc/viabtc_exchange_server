@@ -25,14 +25,14 @@
     "cli": "tcp@127.0.0.1:7317",
     "db_log": {
         "host": "localhost",
-        "user": "root",
-        "pass": "shit",
+        "user": "user",
+        "pass": "pass",
         "name": "trade_log"
     },
     "db_history": {
         "host": "localhost",
-        "user": "root",
-        "pass": "shit",
+        "user": "user",
+        "pass": "pass",
         "name": "trade_history"
     },
     "assets": [

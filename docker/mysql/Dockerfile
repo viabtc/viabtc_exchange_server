@@ -1,6 +1,4 @@
 FROM alpine:3.7
-RUN apk update
-RUN apk upgrade
 RUN apk --no-cache add mariadb mariadb-client
 
 VOLUME /var/lib/mysql

@@ -14,3 +14,12 @@ services:
     image: bitlum/exchange-kafka
     volumes:
       - /tmp/bitlum/exchange/kafka/logs:/var/log/kafka
+  redis1:
+    build:
+      context: redis
+      args:
+        PORT: 6381
+    image: bitlum/exchange-redis-1
+    container_name: exchange_redis_1
+    volumes:
+      - /tmp/bitlum/exchange/redis/1/lib:/var/lib/redis

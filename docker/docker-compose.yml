@@ -1,0 +1,9 @@
+version: '2.1'
+services:
+  mysql:
+    build: mysql
+    image: bitlum/exchange-mysql
+    container_name: exchange_mysql
+    restart: always
+    volumes:
+      - /tmp/bitlum/exchange/mysql/lib:/var/lib/mysql

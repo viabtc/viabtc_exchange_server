@@ -13,4 +13,4 @@ services:
     restart: always
     image: bitlum/exchange-kafka
     volumes:
-      - /tmp/bitlum/exchange/kafka/logs:/tmp/kafka-logs
+      - /tmp/bitlum/exchange/kafka/logs:/var/log/kafka

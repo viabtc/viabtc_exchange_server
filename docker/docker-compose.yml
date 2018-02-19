@@ -7,3 +7,10 @@ services:
     restart: always
     volumes:
       - /tmp/bitlum/exchange/mysql/lib:/var/lib/mysql
+  kafka:
+    build: kafka
+    container_name: exchange_kafka
+    restart: always
+    image: bitlum/exchange-kafka
+    volumes:
+      - /tmp/bitlum/exchange/kafka/logs:/tmp/kafka-logs

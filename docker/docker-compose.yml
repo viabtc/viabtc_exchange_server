@@ -1,19 +1,25 @@
 version: '2.1'
 services:
-#  mysql:
-#    build: mysql
-#    image: bitlum/exchange-mysql
-#    container_name: exchange_mysql
-#    restart: always
-#    volumes:
-#      - /tmp/bitlum/exchange/mysql/lib:/var/lib/mysql
-#  kafka:
-#    build: kafka
-#    container_name: exchange_kafka
-#    restart: always
-#    image: bitlum/exchange-kafka
-#    volumes:
-#      - /tmp/bitlum/exchange/kafka/logs:/var/log/kafka
+  mysql:
+    build: mysql
+    image: bitlum/exchange-mysql
+    container_name: exchange_mysql
+    restart: always
+    volumes:
+      - /tmp/bitlum/exchange/mysql/lib:/var/lib/mysql
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.10
+  kafka:
+    build: kafka
+    container_name: exchange_kafka
+    restart: always
+    image: bitlum/exchange-kafka
+    volumes:
+      - /tmp/bitlum/exchange/kafka/logs:/var/log/kafka
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.20
   redis1:
     build:
       context: redis
@@ -23,6 +29,9 @@ services:
     container_name: exchange_redis_1
     volumes:
       - /tmp/bitlum/exchange/redis/1/lib:/var/lib/redis
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.31
   sentinel1:
     build:
       context: sentinel
@@ -37,3 +46,128 @@ services:
       - redis1
     volumes:
       - /tmp/bitlum/exchange/sentinel/1/log:/var/log/sentinel
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.32
+  alertcenter:
+    build:
+      context: ..
+      dockerfile: docker/exchange/Dockerfile
+    command: alertcenter
+    image: bitlum/exchange-alertcenter
+    container_name: exchange_trade_alertcenter
+    restart: always
+    depends_on:
+      - sentinel1
+    volumes:
+      - /tmp/bitlum/exchange/trade/alertcenter/log:/var/log/trade
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.41
+  matchengine:
+    build:
+      context: ..
+      dockerfile: docker/exchange/Dockerfile
+    command: matchengine
+    image: bitlum/exchange-matchengine
+    container_name: exchange_trade_matchengine
+    restart: always
+    depends_on:
+      - mysql
+      - kafka
+      - sentinel1
+      - alertcenter
+    volumes:
+      - /tmp/bitlum/exchange/trade/matchengine/log:/var/log/trade
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.42
+  marketprice:
+    build:
+      context: ..
+      dockerfile: docker/exchange/Dockerfile
+      args:
+        SERVICE: marketprice
+    image: bitlum/exchange-marketprice
+    container_name: exchange_trade_marketprice
+    restart: always
+    depends_on:
+      - kafka
+      - sentinel1
+      - alertcenter
+    volumes:
+      - /tmp/bitlum/exchange/trade/marketprice/log:/var/log/trade
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.43
+  readhistory:
+    build:
+      context: ..
+      dockerfile: docker/exchange/Dockerfile
+      args:
+        SERVICE: readhistory
+    image: bitlum/exchange-readhistory
+    container_name: exchange_trade_readhistory
+    restart: always
+    depends_on:
+      - mysql
+      - alertcenter
+    volumes:
+      - /tmp/bitlum/exchange/trade/readhistory/log:/var/log/trade
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.44
+  accesshttp:
+    build:
+      context: ..
+      dockerfile: docker/exchange/Dockerfile
+      args:
+        SERVICE: accesshttp
+    image: bitlum/exchange-accesshttp
+    container_name: exchange_trade_accesshttp
+    restart: always
+    depends_on:
+      - alertcenter
+      - matchengine
+      - marketprice
+      - readhistory
+    volumes:
+      - /tmp/bitlum/exchange/trade/accesshttp/log:/var/log/trade
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.45
+  accessws:
+    build:
+      context: ..
+      dockerfile: docker/exchange/Dockerfile
+      args:
+        SERVICE: accessws
+    image: bitlum/exchange-accessws
+    container_name: exchange_trade_accessws
+    restart: always
+    depends_on:
+      - kafka
+      - alertcenter
+      - matchengine
+      - marketprice
+      - readhistory
+    volumes:
+      - /tmp/bitlum/exchange/trade/accessws/log:/var/log/trade
+    ports:
+      - "8090:8090"
+      - "8090:8091"
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.46
+networks:
+  exchange_net:
+    driver: bridge
+    enable_ipv6: false
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.18.0/24
+          gateway: 192.168.18.254

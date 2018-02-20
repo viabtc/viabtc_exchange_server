@@ -23,3 +23,17 @@ services:
     container_name: exchange_redis_1
     volumes:
       - /tmp/bitlum/exchange/redis/1/lib:/var/lib/redis
+  sentinel1:
+    build:
+      context: sentinel
+      args:
+        PORT: 26381
+        REDIS_HOST: redis1
+        REDIS_PORT: 6381
+        REDIS_QUORUM: 1
+    image: bitlum/exchange-sentinel-1
+    container_name: exchange_sentinel_1
+    depends_on:
+      - redis1
+    volumes:
+      - /tmp/bitlum/exchange/sentinel/1/log:/var/log/sentinel

@@ -17,7 +17,6 @@ COPY init_trade_log.sh /docker-entrypoint-initdb.d
 COPY init_trade_history.sh /docker-entrypoint-initdb.d
 COPY create_trade_history.sql /docker-entrypoint-initdb.d
 COPY create_trade_log.sql /docker-entrypoint-initdb.d
-RUN ls -la /docker-entrypoint-initdb.d
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["mysqld"]

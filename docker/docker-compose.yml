@@ -20,42 +20,100 @@ services:
     networks:
       exchange_net:
         ipv4_address: 192.168.18.20
-  redis1:
+  redis-master:
     build:
       context: redis
-      args:
-        PORT: 6381
-    image: bitlum/exchange-redis-1
-    container_name: exchange_redis_1
+    environment:
+      PORT: 6381
+    image: bitlum/exchange-redis
+    container_name: exchange_redis_master
     volumes:
-      - /tmp/bitlum/exchange/redis/1/lib:/var/lib/redis
+      - /tmp/bitlum/exchange/redis/master/lib:/var/lib/redis
     networks:
       exchange_net:
-        ipv4_address: 192.168.18.31
+        ipv4_address: 192.168.18.36
+  redis-replica-1:
+    build:
+      context: redis
+    environment:
+      PORT: 6382
+      SLAVEOF: "redis-master 6381"
+    image: bitlum/exchange-redis
+    container_name: exchange_redis_replica_1
+    depends_on:
+      - redis-master
+    volumes:
+      - /tmp/bitlum/exchange/redis/replica1/lib:/var/lib/redis
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.37
+  redis-replica-2:
+    build:
+      context: redis
+    environment:
+      PORT: 6383
+      SLAVEOF: "redis-master 6381"
+    image: bitlum/exchange-redis
+    container_name: exchange_redis_replica_2
+    depends_on:
+      - redis-master
+    volumes:
+      - /tmp/bitlum/exchange/redis/replica2/lib:/var/lib/redis
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.38
   sentinel1:
     build:
       context: sentinel
-      args:
-        PORT: 26381
-        REDIS_HOST: redis1
-        REDIS_PORT: 6381
-        REDIS_QUORUM: 1
-    image: bitlum/exchange-sentinel-1
+    environment:
+      PORT: 26381
+      REDIS_HOST: redis-master
+      REDIS_PORT: 6381
+    image: bitlum/exchange-sentinel
     container_name: exchange_sentinel_1
     depends_on:
-      - redis1
-    volumes:
-      - /tmp/bitlum/exchange/sentinel/1/log:/var/log/sentinel
+      - redis-master
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.31
+  sentinel2:
+    build:
+      context: sentinel
+    environment:
+      PORT: 26382
+      REDIS_HOST: redis-replica-2
+      REDIS_PORT: 6382
+    image: bitlum/exchange-sentinel
+    container_name: exchange_sentinel_2
+    depends_on:
+      - redis-replica-1
+      - sentinel1
     networks:
       exchange_net:
         ipv4_address: 192.168.18.32
+  sentinel3:
+    build:
+      context: sentinel
+    environment:
+      PORT: 26383
+      REDIS_HOST: redis-replica-2
+      REDIS_PORT: 6383
+    image: bitlum/exchange-sentinel
+    container_name: exchange_sentinel_3
+    depends_on:
+      - redis-replica-2
+      - sentinel1
+      - sentinel2
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.33
   alertcenter:
     build:
       context: ..
       dockerfile: docker/exchange/Dockerfile
     command: alertcenter
-    image: bitlum/exchange-alertcenter
-    container_name: exchange_trade_alertcenter
+    image: bitlum/exchange
+    container_name: exchange_alertcenter
     restart: always
     depends_on:
       - sentinel1
@@ -69,13 +127,12 @@ services:
       context: ..
       dockerfile: docker/exchange/Dockerfile
     command: matchengine
-    image: bitlum/exchange-matchengine
-    container_name: exchange_trade_matchengine
+    image: bitlum/exchange
+    container_name: exchange_matchengine
     restart: always
     depends_on:
       - mysql
       - kafka
-      - sentinel1
       - alertcenter
     volumes:
       - /tmp/bitlum/exchange/trade/matchengine/log:/var/log/trade
@@ -86,10 +143,9 @@ services:
     build:
       context: ..
       dockerfile: docker/exchange/Dockerfile
-      args:
-        SERVICE: marketprice
-    image: bitlum/exchange-marketprice
-    container_name: exchange_trade_marketprice
+    image: bitlum/exchange
+    command: marketprice
+    container_name: exchange_marketprice
     restart: always
     depends_on:
       - kafka
@@ -104,10 +160,9 @@ services:
     build:
       context: ..
       dockerfile: docker/exchange/Dockerfile
-      args:
-        SERVICE: readhistory
-    image: bitlum/exchange-readhistory
-    container_name: exchange_trade_readhistory
+    command: readhistory
+    image: bitlum/exchange
+    container_name: exchange_readhistory
     restart: always
     depends_on:
       - mysql
@@ -121,10 +176,9 @@ services:
     build:
       context: ..
       dockerfile: docker/exchange/Dockerfile
-      args:
-        SERVICE: accesshttp
-    image: bitlum/exchange-accesshttp
-    container_name: exchange_trade_accesshttp
+    command: accesshttp
+    image: bitlum/exchange
+    container_name: exchange_accesshttp
     restart: always
     depends_on:
       - alertcenter
@@ -143,10 +197,9 @@ services:
     build:
       context: ..
       dockerfile: docker/exchange/Dockerfile
-      args:
-        SERVICE: accessws
-    image: bitlum/exchange-accessws
-    container_name: exchange_trade_accessws
+    command: accessws
+    image: bitlum/exchange
+    container_name: exchange_accessws
     restart: always
     depends_on:
       - kafka
@@ -158,10 +211,29 @@ services:
       - /tmp/bitlum/exchange/trade/accessws/log:/var/log/trade
     ports:
       - "8090:8090"
-      - "8090:8091"
+      - "8091:8091"
     networks:
       exchange_net:
         ipv4_address: 192.168.18.46
+  cli:
+    build: cli
+    image: bitlum/exchange-cli
+    container_name: exchange_cli
+    restart: always
+    volumes:
+      - /tmp/bitlum/exchange/mysql/lib
+      - /tmp/bitlum/exchange/kafka/logs
+      - /tmp/bitlum/exchange/redis/master/lib
+      - /tmp/bitlum/exchange/redis/replica1/lib
+      - /tmp/bitlum/exchange/redis/replica2/lib
+      - /tmp/bitlum/exchange/trade/alertcenter
+      - /tmp/bitlum/exchange/trade/matchengine
+      - /tmp/bitlum/exchange/trade/marketprice
+      - /tmp/bitlum/exchange/trade/readhistory
+      - /tmp/bitlum/exchange/trade/accesshttp
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.50
 networks:
   exchange_net:
     driver: bridge

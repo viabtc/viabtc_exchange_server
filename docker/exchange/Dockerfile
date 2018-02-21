@@ -62,6 +62,9 @@ FROM ubuntu:16.04
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y \
+		  libldap-2.4 \
+      libgss3 \
+      librtmp1 \
       jq \
       netcat \
     && rm -rf /var/lib/apt/lists/* 
@@ -85,7 +88,6 @@ COPY docker/exchange/accesshttp.json /viabtc_exchange_server
 COPY --from=BUILDSTEP /viabtc_exchange_server/accessws/accessws.exe /viabtc_exchange_server/accessws.exe
 COPY docker/exchange/accessws.json /viabtc_exchange_server
 
-COPY docker/exchange/run.sh run.sh
+COPY docker/exchange/entrypoint.sh /docker-entrypoint.sh
 
-ENTRYPOINT [ "/run.sh" ]
-# CMD /run.sh
+ENTRYPOINT [ "/docker-entrypoint.sh" ]

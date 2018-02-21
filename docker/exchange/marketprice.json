@@ -28,9 +28,11 @@
         "partition": 0
     },
     "redis": {
-        "name": "exchange-sentinel",
+        "name": "exchange_sentinel",
         "addr": [
-            "192.168.18.32:26381"
+            "192.168.18.31:26381",
+            "192.168.18.32:26382",
+            "192.168.18.33:26383"
         ]
     },
     "accesshttp": "http://accesshttp:8080"

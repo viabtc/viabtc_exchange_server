@@ -1,0 +1,90 @@
+#!/bin/bash
+
+echo @=$@
+
+if [ x$1 = x--help -o x$1 = x-h ];then
+	echo "With params calls http access service"
+	echo "  $0 METHOD [comma separated params]"
+	echo "Without params adds the highlevel functions to the environment"
+	echo "  $0"
+	echo "Exported functions are:"
+	echo "  rpc METHOD [comma separated params]"
+	echo "  balance_update user_id asset deposit | withdraw op_id amount"
+	echo "  order_put_market user_id 1(sell)|2(buy) amount taker_fee_rate [source]"
+	exit 0
+fi
+
+shdir=`dirname ${0}`
+
+if [ -z $HTTP_URL ];then
+	. ${shdir}/config.sh
+	HTTP_URL="http://$( accesshttp_bind )"
+fi
+
+function rpc () {
+	method=$1
+	shift
+	if [ ! -z $DEBUG ];then
+	 echo  "{\"method\":\"${method}\",\"params\":[$1],\"id\":${RANDOM}}" 
+	fi
+  curl -i -H 'Accept: application/json' \
+		   -X POST \
+			 -d "{\"method\":\"${method}\",\"params\":[$1],\"id\":${RANDOM}}" \
+	     $HTTP_URL
+  RESULT=$?
+	echo
+	return $RESULT
+}
+
+function balance.query () {
+	if [ $# -lt 1 ]; then
+		echo "bad arguments: $@"
+		echo 'usage: user_id'
+		return 1
+	fi
+	rpc balance.query $1
+}
+
+# user_id
+# asset
+# deposit | withdraw
+# op_id
+# amount
+function balance.update () {
+	rpc balance.update "$1,\"$2\",\"$3\",$4,\"$5\",{}"
+}
+
+function order.put_market () {
+	if [ $# -lt 5 ]; then
+		echo "bad arguments: $@"
+		echo 'usage: user_id market 1(sell)|2(buy) amount taker_fee_rate [source]'
+		return 1
+	fi
+	source=$6 
+	test $source || source="shell command"
+	rpc order.put_market "$1,\"$2\",$3,\"$4\",\"$5\",\"$source\""
+}
+
+function order.put_market () {
+	if [ $# -lt 5 ]; then
+		echo "bad arguments: $@"
+		echo 'usage: user_id market 1(sell)|2(buy) amount taker_fee_rate [source]'
+		return 1
+	fi
+	source=$6 
+	test $source || source="shell command"
+	rpc order.put_market "$1,\"$2\",$3,\"$4\",\"$5\",\"$source\""
+}
+
+function market.status () {
+	if [ $# -lt 2 ]; then
+		echo "bad arguments: $@"
+		echo 'usage: market period'
+		return 1
+	fi
+	rpc "market.status" "\"$1\",$2"
+}
+
+# if [ $# -gt 0 ];then
+# rpc $@
+# fi

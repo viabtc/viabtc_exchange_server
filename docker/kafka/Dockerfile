@@ -42,4 +42,4 @@ EXPOSE 9092
 CMD cd /opt/kafka/kafka_2.11-1.0.0 && \
    (nohup bin/zookeeper-server-start.sh config/zookeeper.properties &) && \
    sleep 3 && \
-   bin/kafka-server-start.sh config/server.properties
+   bin/kafka-server-start.sh /etc/kafka/server.properties

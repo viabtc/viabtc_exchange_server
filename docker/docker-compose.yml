@@ -17,6 +17,7 @@ services:
     image: bitlum/exchange-kafka
     volumes:
       - /tmp/bitlum/exchange/kafka/logs:/var/log/kafka
+      - /tmp/bitlum/exchange/zookeeper/logs:/var/log/zookeeper
     networks:
       exchange_net:
         ipv4_address: 192.168.18.20

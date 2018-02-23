@@ -5,6 +5,9 @@ services:
     image: bitlum/exchange-mysql
     container_name: exchange_mysql
     restart: always
+    logging:
+      options:
+        max-size: 10m
     volumes:
       - /tmp/bitlum/exchange/mysql/lib:/var/lib/mysql
     networks:
@@ -12,9 +15,12 @@ services:
         ipv4_address: 192.168.18.10
   kafka:
     build: kafka
+    image: bitlum/exchange-kafka
     container_name: exchange_kafka
     restart: always
-    image: bitlum/exchange-kafka
+    logging:
+      options:
+        max-size: 10m
     volumes:
       - /tmp/bitlum/exchange/kafka/logs:/var/log/kafka
       - /tmp/bitlum/exchange/zookeeper/logs:/var/log/zookeeper
@@ -28,6 +34,10 @@ services:
       PORT: 6381
     image: bitlum/exchange-redis
     container_name: exchange_redis_master
+    restart: always
+    logging:
+      options:
+        max-size: 10m
     volumes:
       - /tmp/bitlum/exchange/redis/master/lib:/var/lib/redis
     networks:
@@ -41,6 +51,10 @@ services:
       SLAVEOF: "redis-master 6381"
     image: bitlum/exchange-redis
     container_name: exchange_redis_replica_1
+    restart: always
+    logging:
+      options:
+        max-size: 10m
     depends_on:
       - redis-master
     volumes:
@@ -56,6 +70,10 @@ services:
       SLAVEOF: "redis-master 6381"
     image: bitlum/exchange-redis
     container_name: exchange_redis_replica_2
+    restart: always
+    logging:
+      options:
+        max-size: 10m
     depends_on:
       - redis-master
     volumes:
@@ -72,6 +90,10 @@ services:
       REDIS_PORT: 6381
     image: bitlum/exchange-sentinel
     container_name: exchange_sentinel_1
+    restart: always
+    logging:
+      options:
+        max-size: 10m
     depends_on:
       - redis-master
     networks:
@@ -86,6 +108,10 @@ services:
       REDIS_PORT: 6382
     image: bitlum/exchange-sentinel
     container_name: exchange_sentinel_2
+    restart: always
+    logging:
+      options:
+        max-size: 10m
     depends_on:
       - redis-replica-1
       - sentinel1
@@ -101,6 +127,10 @@ services:
       REDIS_PORT: 6383
     image: bitlum/exchange-sentinel
     container_name: exchange_sentinel_3
+    restart: always
+    logging:
+      options:
+        max-size: 10m
     depends_on:
       - redis-replica-2
       - sentinel1
@@ -116,6 +146,9 @@ services:
     image: bitlum/exchange
     container_name: exchange_alertcenter
     restart: always
+    logging:
+      options:
+        max-size: 10m
     depends_on:
       - sentinel1
     volumes:
@@ -131,6 +164,9 @@ services:
     image: bitlum/exchange
     container_name: exchange_matchengine
     restart: always
+    logging:
+      options:
+        max-size: 10m
     depends_on:
       - mysql
       - kafka
@@ -148,6 +184,9 @@ services:
     command: marketprice
     container_name: exchange_marketprice
     restart: always
+    logging:
+      options:
+        max-size: 10m
     depends_on:
       - kafka
       - sentinel1
@@ -165,6 +204,9 @@ services:
     image: bitlum/exchange
     container_name: exchange_readhistory
     restart: always
+    logging:
+      options:
+        max-size: 10m
     depends_on:
       - mysql
       - alertcenter
@@ -181,6 +223,9 @@ services:
     image: bitlum/exchange
     container_name: exchange_accesshttp
     restart: always
+    logging:
+      options:
+        max-size: 10m
     depends_on:
       - alertcenter
       - matchengine
@@ -202,6 +247,9 @@ services:
     image: bitlum/exchange
     container_name: exchange_accessws
     restart: always
+    logging:
+      options:
+        max-size: 10m
     depends_on:
       - kafka
       - alertcenter
@@ -221,6 +269,9 @@ services:
     image: bitlum/exchange-cli
     container_name: exchange_cli
     restart: always
+    logging:
+      options:
+        max-size: 10m
     volumes:
       - /tmp/bitlum/exchange/mysql/lib
       - /tmp/bitlum/exchange/kafka/logs

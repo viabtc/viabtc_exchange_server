@@ -1,3 +1,10 @@
+test/matchengine/cli
+accesshttp/accesshttp
+accessws/accessws
+alertcenter/alertcenter
+marketprice/marketprice
+readhistroy/readhistory
+
 # Compiled Object files
 *.slo
 *.lo

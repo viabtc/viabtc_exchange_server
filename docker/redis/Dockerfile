@@ -9,5 +9,4 @@ COPY entrypoint.sh /docker-entrypoint.sh
 ENV PORT=6379
 ENV SLAVEOF=
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["redis-server", "/etc/redis/redis.conf"]

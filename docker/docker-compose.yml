@@ -88,6 +88,7 @@ services:
       PORT: 26381
       REDIS_HOST: redis-master
       REDIS_PORT: 6381
+      QUORUM: 2
     image: bitlum/exchange-sentinel
     container_name: exchange_sentinel_1
     restart: always
@@ -104,8 +105,9 @@ services:
       context: sentinel
     environment:
       PORT: 26382
-      REDIS_HOST: redis-replica-2
+      REDIS_HOST: redis-replica-1
       REDIS_PORT: 6382
+      QUORUM: 2
     image: bitlum/exchange-sentinel
     container_name: exchange_sentinel_2
     restart: always
@@ -125,6 +127,7 @@ services:
       PORT: 26383
       REDIS_HOST: redis-replica-2
       REDIS_PORT: 6383
+      QUORUM: 2
     image: bitlum/exchange-sentinel
     container_name: exchange_sentinel_3
     restart: always
@@ -151,6 +154,8 @@ services:
         max-size: 10m
     depends_on:
       - sentinel1
+      - sentinel2
+      - sentinel3
     volumes:
       - /tmp/bitlum/exchange/trade/alertcenter/log:/var/log/trade
     networks:
@@ -190,6 +195,8 @@ services:
     depends_on:
       - kafka
       - sentinel1
+      - sentinel2
+      - sentinel3
       - alertcenter
     volumes:
       - /tmp/bitlum/exchange/trade/marketprice/log:/var/log/trade

@@ -5,6 +5,8 @@ services:
     image: bitlum/exchange-mysql
     container_name: exchange_mysql
     restart: always
+    ports:
+      - "3316:3306"
     logging:
       options:
         max-size: 10m

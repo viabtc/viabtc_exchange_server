@@ -103,17 +103,6 @@
       "prec": 8
     },
     "min_amount":"0.00001"
-    }, {
-    "name": "ETHLTC",
-    "stock": {
-      "name": "LTC",
-      "prec": 8
-    },
-    "money": {
-      "name": "ETH",
-      "prec": 8
-    },
-    "min_amount":"0.00001"
     }
   ],
   "brokers": "kafka:9092",

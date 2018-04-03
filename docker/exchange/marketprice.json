@@ -1,0 +1,40 @@
+{
+    "debug": true,
+    "process": {
+        "file_limit": 1000000,
+        "core_limit": 1000000000
+    },
+    "log": {
+        "path": "/var/log/trade/marketprice",
+        "flag": "fatal,error,warn,info,debug,trace",
+        "num": 10
+    },
+    "alert": {
+        "host": "marketprice",
+        "addr": "192.168.18.41:4444"
+    },
+    "svr": {
+        "bind": [
+            "tcp@0.0.0.0:7416",
+            "udp@0.0.0.0:7416"
+        ],
+        "buf_limit": 100,
+        "max_pkg_size": 1000000,
+        "heartbeat_check": false
+    },
+    "deals": {
+        "brokers": "192.168.18.20:9092",
+        "topic": "deals",
+        "partition": 0
+    },
+    "redis": {
+        "name": "exchange_sentinel",
+        "addr": [
+            "192.168.18.31:26381",
+            "192.168.18.32:26382",
+            "192.168.18.33:26383"
+        ]
+    },
+    "accesshttp": "http://accesshttp:8080"
+}
+

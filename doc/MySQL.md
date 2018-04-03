@@ -23,6 +23,22 @@ The one reason to have them separated is to protect each other from exhausting d
 Usual maintenance tasks are: to clean (possible backup) "operlog_yyyymmdd" tables and binary logs if
 they are turned on.
 
+## Maintenance
+
+The *simnet* script to clean up all operlog tables besides the most recent (active) one:
+```
+#bin/sh
+MYSQL="mysql -uUSER -pPWD -h127.0.0.1  -P3316"
+echo 'show tables' | $MYSQL trade_log|grep operlog|grep -v example |head -n -1|while read f;do echo "drop table $f;";done|$MYSQL trade_log
+```
+
+The *simnet* script to clean up binary logs (if they are turned on) older than 3 days
+```
+#bin/sh
+MYSQL="mysql -uexchange -pexchange -h127.0.0.1  -P3316"
+echo 'PURGE BINARY LOGS BEFORE DATE(NOW() - INTERVAL 3 DAY) + INTERVAL 0 SECOND;' | $MYSQL
+```
+
 ### Database trade_history
 
 This database is created with five empty tables: `balance_history_example`, `order_history_example`,

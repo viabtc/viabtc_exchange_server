@@ -58,18 +58,8 @@ RUN cd viabtc_exchange_server/accesshttp && make
 COPY docker/exchange/makefile.accessws.ubuntu viabtc_exchange_server/accessws/makefile
 RUN cd viabtc_exchange_server/accessws && make
 
-FROM ubuntu:16.04
-
-RUN apt-get update \
-    && apt-get upgrade -y \
-    && apt-get install -y \
-		  libldap-2.4 \
-      libgss3 \
-      librtmp1 \
-      libmysqlclient20 \
-      jq \
-      netcat \
-    && rm -rf /var/lib/apt/lists/* 
+FROM alpine:3.7
+RUN apk --no-cache add bash
 
 RUN mkdir /viabtc_exchange_server
 # keep .exe for better grep of ps output

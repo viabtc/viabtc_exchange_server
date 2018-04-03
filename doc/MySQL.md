@@ -2,17 +2,17 @@
 
 ## Terminology
 The terms to be used during the tables description without further explanations.
-`Exchange` - (usually "the Exchange") the set of the software providing assets exchange functionality and
+* `Exchange` - (usually "the Exchange") the set of the software providing assets exchange functionality and
 use the databases to perstist the interanal state.
-`Asset` - in the scope of the Exchange the asset means nothing more than a name of the crypto currency.
-`Money` - an asset an user usually "owns" (or borrow) and may "sell" (or put "ask" limit order) in exchange of the
+* `Asset` - in the scope of the Exchange the asset means nothing more than a name of the crypto currency.
+* `Money` - an asset an user usually "owns" (or borrow) and may "sell" (or put "ask" limit order) in exchange of the
 another asset called "stock".
-`Stock` - in the simplest case, an asset to be suggested by the market for the exchange to "money". Stock
+* `Stock` - in the simplest case, an asset to be suggested by the market for the exchange to "money". Stock
 is the currency an user may "buy" (or put "bid" limit order) in exchange of the "money" he owns.
-`Market` - a 6 or 7 characters long string concatenation of "Stock" and "Money".
-`TBI` - "to be investigated" - there's no knowledge yet
-`TBC` - "to be confirmed" - there's an assumtion not confirmed yet
-`user_id` - an ID of exchange user sometimes referred as "exchange id" meaning "an id of the exchange user".
+* `Market` - a 6 or 7 characters long string concatenation of "Stock" and "Money".
+* `TBI` - "to be investigated" - there's no knowledge yet
+* `TBC` - "to be confirmed" - there's an assumtion not confirmed yet
+* `user_id` - an ID of exchange user sometimes referred as "exchange id" meaning "an id of the exchange user".
 
 ## Databases
 

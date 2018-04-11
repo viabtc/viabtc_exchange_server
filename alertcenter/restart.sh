@@ -1,5 +1,5 @@
 #!/bin/bash
 
-killall -s SIGQUIT alertcenter.exe
+killall -s SIGQUIT alertcenter
 sleep 1
-./alertcenter.exe config.json
+./alertcenter config.json

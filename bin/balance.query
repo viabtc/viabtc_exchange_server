@@ -1,0 +1,5 @@
+#!/bin/bash
+shdir=`dirname ${0}`
+. ${shdir}/accesshttp
+
+balance.query $@

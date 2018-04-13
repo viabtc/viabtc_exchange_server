@@ -1,5 +1,6 @@
-version: '2.1'
+version: '3.4'
 services:
+
   mysql:
     build: mysql
     image: bitlum/exchange-mysql
@@ -13,6 +14,7 @@ services:
     networks:
       exchange_net:
         ipv4_address: 192.168.18.10
+
   kafka:
     build: kafka
     image: bitlum/exchange-kafka
@@ -27,6 +29,7 @@ services:
     networks:
       exchange_net:
         ipv4_address: 192.168.18.20
+
   redis-master:
     build:
       context: redis
@@ -43,6 +46,7 @@ services:
     networks:
       exchange_net:
         ipv4_address: 192.168.18.36
+
   redis-replica-1:
     build:
       context: redis
@@ -62,6 +66,7 @@ services:
     networks:
       exchange_net:
         ipv4_address: 192.168.18.37
+
   redis-replica-2:
     build:
       context: redis
@@ -81,6 +86,7 @@ services:
     networks:
       exchange_net:
         ipv4_address: 192.168.18.38
+
   sentinel1:
     build:
       context: sentinel
@@ -100,6 +106,7 @@ services:
     networks:
       exchange_net:
         ipv4_address: 192.168.18.31
+
   sentinel2:
     build:
       context: sentinel
@@ -120,6 +127,7 @@ services:
     networks:
       exchange_net:
         ipv4_address: 192.168.18.32
+
   sentinel3:
     build:
       context: sentinel
@@ -141,6 +149,7 @@ services:
     networks:
       exchange_net:
         ipv4_address: 192.168.18.33
+
   alertcenter:
     build:
       context: ..
@@ -161,6 +170,7 @@ services:
     networks:
       exchange_net:
         ipv4_address: 192.168.18.41
+
   matchengine:
     build:
       context: ..
@@ -181,6 +191,7 @@ services:
     networks:
       exchange_net:
         ipv4_address: 192.168.18.42
+
   marketprice:
     build:
       context: ..
@@ -203,6 +214,7 @@ services:
     networks:
       exchange_net:
         ipv4_address: 192.168.18.43
+
   readhistory:
     build:
       context: ..
@@ -222,6 +234,7 @@ services:
     networks:
       exchange_net:
         ipv4_address: 192.168.18.44
+
   accesshttp:
     build:
       context: ..
@@ -246,6 +259,7 @@ services:
     networks:
       exchange_net:
         ipv4_address: 192.168.18.45
+
   accessws:
     build:
       context: ..
@@ -271,6 +285,7 @@ services:
     networks:
       exchange_net:
         ipv4_address: 192.168.18.46
+
   cli:
     build: cli
     image: bitlum/exchange-cli
@@ -293,12 +308,11 @@ services:
     networks:
       exchange_net:
         ipv4_address: 192.168.18.50
+
 networks:
   exchange_net:
     driver: bridge
-    enable_ipv6: false
     ipam:
       driver: default
       config:
         - subnet: 192.168.18.0/24
-          gateway: 192.168.18.254

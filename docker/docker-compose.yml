@@ -312,7 +312,6 @@ services:
 networks:
   exchange_net:
     driver: bridge
-    name: docker_exchange_net
     ipam:
       driver: default
       config:

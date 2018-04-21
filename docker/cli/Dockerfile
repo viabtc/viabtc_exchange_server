@@ -11,6 +11,7 @@ RUN apt-get update && \
       telnet && \
     rm -rf /var/lib/apt/lists/* 
 
+# Run docker indefinetly
 RUN echo 'while true;do sleep 3600;done' > /wait
 RUN chmod +x /wait
 CMD /wait

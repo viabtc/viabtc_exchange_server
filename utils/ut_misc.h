@@ -59,6 +59,12 @@ time_t get_timezone_offset(void);
 # undef be16toh
 # undef be32toh
 # undef be64toh
+# undef htole16
+# undef htole32
+# undef htole64
+# undef le16toh
+# undef le32toh
+# undef le64toh
 
 # if __BYTE_ORDER == __LITTLE_ENDIAN
 #  define htole16(x) (x)

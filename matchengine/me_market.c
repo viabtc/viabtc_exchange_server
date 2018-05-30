@@ -244,12 +244,12 @@ static int order_finish(bool real, market_t *m, order_t *order)
     }
 
     if (real) {
-        if (mpd_cmp(order->deal_stock, mpd_zero, &mpd_ctx) > 0) {
+        // if (mpd_cmp(order->deal_stock, mpd_zero, &mpd_ctx) > 0) {
             int ret = append_order_history(order);
             if (ret < 0) {
                 log_fatal("append_order_history fail: %d, order: %"PRIu64"", ret, order->id);
             }
-        }
+        // }
     }
 
     order_free(order);

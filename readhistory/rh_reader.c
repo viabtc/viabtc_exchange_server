@@ -257,7 +257,7 @@ json_t *get_market_user_deals(MYSQL *conn, uint32_t user_id, const char *market,
     mysql_real_escape_string(conn, _market, market, market_len);
 
     sds sql = sdsempty();
-    sql = sdscatprintf(sql, "SELECT `time`, `user_id`, `deal_id`, `side`, `role`, `price`, `amount`, `deal`, `fee`, `deal_order_id` "
+    sql = sdscatprintf(sql, "SELECT `time`, `user_id`, `deal_id`, `side`, `role`, `price`, `amount`, `deal`, `fee`, `deal_order_id`, `market` "
             "FROM `user_deal_history_%u` where `user_id` = %u AND `market` = '%s' ORDER BY `id` DESC", user_id % HISTORY_HASH_NUM, user_id, _market);
     if (offset) {
         sql = sdscatprintf(sql, " LIMIT %zu, %zu", offset, limit);
@@ -298,6 +298,8 @@ json_t *get_market_user_deals(MYSQL *conn, uint32_t user_id, const char *market,
 
         uint64_t deal_order_id = strtoull(row[9], NULL, 0);
         json_object_set_new(record, "deal_order_id", json_integer(deal_order_id));
+
+        json_object_set_new(record, "market", json_string(row[10]));
 
         json_array_append_new(records, record);
     }

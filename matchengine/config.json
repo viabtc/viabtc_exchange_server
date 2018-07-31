@@ -37,80 +37,24 @@
     },
     "assets": [
         {
-            "name": "ETH",
+            "name": "RINKEBY",
             "prec_save": 16,
             "prec_show": 8
         },{
-            "name": "BTC",
-            "prec_save": 16,
-            "prec_show": 8
-        }, {
-            "name": "BCH",
-            "prec_save": 16,
-            "prec_show": 8
-        }, {
-            "name": "LTC",
-            "prec_save": 16,
-            "prec_show": 8
-        },{
-            "name": "DASH",
+            "name": "TESTNET3",
             "prec_save": 16,
             "prec_show": 8
         }
     ],
     "markets": [
         {
-            "name": "BTCETH",
+            "name": "TESTNET3RINKEBY",
             "stock": {
-                "name": "ETH",
+                "name": "RINKEBY",
                 "prec": 8
             },
             "money": {
-                "name": "BTC",
-                "prec": 8
-            },
-        "min_amount":"0.00001"
-        }, {
-            "name": "BTCBCH",
-            "stock": {
-                "name": "BCH",
-                "prec": 8
-            },
-            "money": {
-                "name": "BTC",
-                "prec": 8
-            },
-        "min_amount":"0.00001"
-        }, {
-            "name": "BTCLTC",
-            "stock": {
-                "name": "LTC",
-                "prec": 8
-            },
-            "money": {
-                "name": "BTC",
-                "prec": 8
-            },
-        "min_amount":"0.00001"
-        }, {
-            "name": "BTCDASH",
-            "stock": {
-                "name": "DASH",
-                "prec": 8
-            },
-            "money": {
-                "name": "BTC",
-                "prec": 8
-            },
-        "min_amount":"0.00001"
-        }, {
-            "name": "ETHLTC",
-            "stock": {
-                "name": "LTC",
-                "prec": 8
-            },
-            "money": {
-                "name": "ETH",
+                "name": "TESTNET3",
                 "prec": 8
             },
         "min_amount":"0.00001"

@@ -93,6 +93,102 @@ The internal authorization endpoint is defined by the `auth_url` setting in the 
 
 Example response: `{"code": 0, "message": null, "data": {"user_id": 1}}`
 
+## Build on Ubuntu 14.04.5X64
+```
+#在ubuntu14.04 64位上编译成功
+#首先创建一个目录，进入此工作目录后运行以下所有命令
+apt update 
+apt install -y wget vim psmisc git
+
+# 依赖包
+apt install -y libev-dev libmpdec-dev  libmysqlclient-dev libssl-dev
+
+#libssl-dev version: 1.0.1f-1ubuntu2.26
+
+# 安装构建工具
+apt install -y build-essential autoconf libtool python 
+
+# 清理
+rm -rf /var/lib/apt/lists/* 
+
+#安装jansson
+git clone https://github.com/akheron/jansson
+cd jansson
+autoreconf -i
+./configure
+make
+make install
+cd ..
+
+# 安装kafka
+wget --no-check-certificate https://codeload.github.com/edenhill/librdkafka/tar.gz/v0.11.3 -O  librdkafka.tar.gz 
+tar xzvf librdkafka.tar.gz 
+rm -rf librdkafka.tar.gz
+
+cd librdkafka-* 
+./configure --prefix=/usr/local 
+sed -i "s/WITH_LDS=/#WITH_LDS=/g" Makefile.config 
+make 
+make install
+cd ../
+
+# 安装 curl
+wget --no-check-certificate https://codeload.github.com/curl/curl/tar.gz/curl-7_45_0 -O curl-7.45.0.tar.gz
+tar xzvf curl-7.45.0.tar.gz
+rm -rf curl-7.45.0.tar.gz
+mv curl-* curl
+cd curl
+./buildconf
+./configure --prefix=/usr/local --disable-ldap --disable-ldaps --without-ssl
+
+#./configure --prefix=/usr/local --disable-shared --enable-static --without-libidn --without-librtmp --without-gnutls --without-nss --without-libssh2 --without-zlib --without-winidn --disable-rtsp --disable-ldap --disable-ldaps --disable-ipv6 --without-ssl
+
+make
+make install
+cd ../
+
+#安装liblz4
+apt update  
+apt install -y liblz4-dev 
+
+#安装viabtc
+git clone https://github.com/Bringer-of-Light/viabtc_exchange_server.git
+mv viabtc_exchange_server viabtc
+
+cd viabtc
+make -C depends/hiredis clean
+make -C network clean
+make -C utils clean
+make -C accesshttp clean
+make -C accessws clean
+make -C matchengine clean
+make -C marketprice clean
+make -C alertcenter clean
+make -C readhistory clean
+
+make -C depends/hiredis
+make -C depends/hiredis install
+make -C network
+make -C utils
+make -C accesshttp
+make -C accessws
+make -C matchengine
+make -C marketprice
+make -C alertcenter
+make -C readhistory
+cd ..
+
+#复制所有可执行文件到bin
+mkdir bin
+cp -f viabtc/accesshttp/accesshttp.exe bin
+cp -f viabtc/accessws/accessws.exe bin
+cp -f viabtc/matchengine/matchengine.exe bin
+cp -f viabtc/marketprice/marketprice.exe bin
+cp -f viabtc/alertcenter/alertcenter.exe bin
+cp -f viabtc/readhistory/readhistory.exe bin
+ll
+```
+
 ## Donation
 
 * BTC: 14x3GrEoMLituT6vF2wcEbqMAxCvt2724s

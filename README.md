@@ -139,7 +139,7 @@ rm -rf curl-7.45.0.tar.gz
 mv curl-* curl
 cd curl
 ./buildconf
-./configure --prefix=/usr/local --disable-ldap --disable-ldaps --without-ssl
+./configure --prefix=/usr/local --disable-ldap --disable-ldaps
 
 #./configure --prefix=/usr/local --disable-shared --enable-static --without-libidn --without-librtmp --without-gnutls --without-nss --without-libssh2 --without-zlib --without-winidn --disable-rtsp --disable-ldap --disable-ldaps --disable-ipv6 --without-ssl
 

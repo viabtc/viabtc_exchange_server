@@ -189,6 +189,10 @@ cp -f viabtc/readhistory/readhistory.exe bin
 ll
 ```
 
+## Warning
+1. Using source repo of viabtc won't success when compiling accessws, the makefile of accessws has been modified.
+2. This repo add some new features to json rpc API "balance.update", see the wiki for detail.
+
 ## Donation
 
 * BTC: 14x3GrEoMLituT6vF2wcEbqMAxCvt2724s

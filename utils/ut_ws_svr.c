@@ -129,7 +129,7 @@ static int on_http_message_complete(http_parser* parser)
     if (upgrade == NULL || strcasecmp(upgrade, "websocket") != 0)
         goto error;
     const char *connection = http_request_get_header(info->request, "Connection");
-    if (connection == NULL)
+    if (connection == NULL || strlen(connection) > UT_WS_SVR_MAX_HEADER_SIZE)
         goto error;
     else {
         bool found_upgrade = false;

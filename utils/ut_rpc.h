@@ -32,6 +32,7 @@ typedef struct rpc_pkg {
 # pragma pack()
 
 # define RPC_PKG_HEAD_SIZE (sizeof(rpc_pkg) - sizeof(void *) * 2)
+# define RPC_PKG_MAX_BODY_SIZE ((UINT32_MAX / 2) - UINT16_MAX - sizeof(rpc_pkg))
 
 int rpc_decode(nw_ses *ses, void *data, size_t max);
 int rpc_pack(rpc_pkg *pkg, void **data, uint32_t *size);

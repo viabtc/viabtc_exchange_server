@@ -1,0 +1,67 @@
+{
+  "debug": true,
+  "process": {
+    "file_limit": 1000000,
+    "core_limit": 1000000000
+  },
+  "log": {
+    "path": "/var/log/trade/matchengine",
+    "flag": "fatal,error,warn,info,debug,trace",
+    "num": 10
+  },
+  "alert": {
+    "host": "matchengine",
+    "addr": "192.168.18.41:4444"
+  },
+  "svr": {
+    "bind": [
+      "tcp@0.0.0.0:7316",
+      "udp@0.0.0.0:7316"
+    ],
+    "buf_limit": 100,
+    "max_pkg_size": 10240,
+    "heartbeat_check": false
+  },
+  "cli": "tcp@127.0.0.1:7317",
+  "db_log": {
+    "host": "mysql",
+    "user": "exchange",
+    "pass": "exchange",
+    "name": "trade_log"
+  },
+  "db_history": {
+    "host": "mysql",
+    "user": "exchange",
+    "pass": "exchange",
+    "name": "trade_history"
+  },
+  "assets": [
+      {
+          "name": "RINKEBY",
+          "prec_save": 16,
+          "prec_show": 8
+      },{
+          "name": "TESTNET3",
+          "prec_save": 16,
+          "prec_show": 8
+      }
+  ],
+  "markets": [
+      {
+          "name": "TESTNET3RINKEBY",
+          "stock": {
+              "name": "RINKEBY",
+              "prec": 8
+          },
+          "money": {
+              "name": "TESTNET3",
+              "prec": 8
+          },
+          "min_amount":"0.00001"
+      }
+  ],
+  "brokers": "kafka:9092",
+  "slice_interval": 3600,
+  "slice_keeptime": 259200 
+}
+

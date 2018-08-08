@@ -95,23 +95,17 @@ Example response: `{"code": 0, "message": null, "data": {"user_id": 1}}`
 
 ## Build on Ubuntu 14.04.5X64
 ```
-#在ubuntu14.04 64位上编译成功
-#首先创建一个目录，进入此工作目录后运行以下所有命令
+#make a new folder and cd into it before you run these cmds
+
 apt update 
 apt install -y wget vim psmisc git
-
-# 依赖包
 apt install -y libev-dev libmpdec-dev  libmysqlclient-dev libssl-dev
-
-#libssl-dev version: 1.0.1f-1ubuntu2.26
-
-# 安装构建工具
 apt install -y build-essential autoconf libtool python 
 
-# 清理
+# clear
 rm -rf /var/lib/apt/lists/* 
 
-#安装jansson
+#install jansson
 git clone https://github.com/akheron/jansson
 cd jansson
 autoreconf -i
@@ -120,7 +114,7 @@ make
 make install
 cd ..
 
-# 安装kafka
+# install kafka
 wget --no-check-certificate https://codeload.github.com/edenhill/librdkafka/tar.gz/v0.11.3 -O  librdkafka.tar.gz 
 tar xzvf librdkafka.tar.gz 
 rm -rf librdkafka.tar.gz
@@ -132,7 +126,7 @@ make
 make install
 cd ../
 
-# 安装 curl
+# install curl
 wget --no-check-certificate https://codeload.github.com/curl/curl/tar.gz/curl-7_45_0 -O curl-7.45.0.tar.gz
 tar xzvf curl-7.45.0.tar.gz
 rm -rf curl-7.45.0.tar.gz
@@ -147,11 +141,11 @@ make
 make install
 cd ../
 
-#安装liblz4
+# install liblz4
 apt update  
 apt install -y liblz4-dev 
 
-#安装viabtc
+# download viabtc
 git clone https://github.com/Bringer-of-Light/viabtc_exchange_server.git
 mv viabtc_exchange_server viabtc
 
@@ -178,7 +172,7 @@ make -C alertcenter
 make -C readhistory
 cd ..
 
-#复制所有可执行文件到bin
+# copy all exe file into bin
 mkdir bin
 cp -f viabtc/accesshttp/accesshttp.exe bin
 cp -f viabtc/accessws/accessws.exe bin

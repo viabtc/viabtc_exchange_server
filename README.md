@@ -38,6 +38,24 @@ For this project, it is marked as Server in this picture.
 
 * alertcenter: A simple server that writes FATAL level log to redis list so we can send alert emails.
 
+## API Reference
+
+[HTTP Protocol](https://github.com/Bringer-of-Light/viabtc_exchange_server/wiki/HTTP-Protocol) and [Websocket Protocol](https://github.com/Bringer-of-Light/viabtc_exchange_server/wiki/WebSocket-Protocol) documents are available in english.
+
+[Python3 API realisation](https://github.com/grumpydevelop/viabtc_exchange_server_tools/blob/master/api/api_exchange.py)
+
+
+## Websocket authorization
+
+The websocket protocol has an authorization method (`server.auth`) which is used to authorize the websocket connection to subscribe to user specific events (trade and balance events).
+
+To accomodate this method your exchange frontend will need to supply an internal endpoint which takes an authorization token from the HTTP header named `Authorization` and validates that token and returns the user_id.
+
+The internal authorization endpoint is defined by the `auth_url` setting in the config file (`accessws/config.json`).
+
+Example response: `{"code": 0, "message": null, "data": {"user_id": 1}}`
+
+
 ## Compile and Install
 
 **Operating system**
@@ -45,8 +63,6 @@ For this project, it is marked as Server in this picture.
 Ubuntu 14.04 or Ubuntu 16.04. Not yet tested on other systems.
 
 **Requirements**
-
-See [requirements](https://github.com/viabtc/viabtc_exchange_server/wiki/requirements). Install the mentioned system or library.
 
 You MUST use the depends/hiredis to install the hiredis library. Or it may not be compatible.
 
@@ -62,7 +78,7 @@ Please do not install every instance on the same machine.
 
 Every process runs in deamon and starts with a watchdog process. It will automatically restart within 1s when crashed.
 
-The best practice of deploying the instance is in the following directory structure:
+(out of date)The best practice of deploying the instance is in the following directory structure:
 
 ```
 matchengine
@@ -77,23 +93,16 @@ matchengine
 |   |---check_alive.sh
 ```
 
-## API
+**Using Docker**
+```
+git clone 
+cd viabtc_exchange_server/docker
+docker-compose up [opitional: service name]
+```
+docker integration is merged from [ohld: testnet-exchange/viabtc_exchange_server](https://github.com/testnet-exchange/viabtc_exchange_server).
 
-[HTTP Protocol](https://github.com/viabtc/viabtc_exchange_server/wiki/HTTP-Protocol) and [Websocket Protocol](https://github.com/viabtc/viabtc_exchange_server/wiki/WebSocket-Protocol) documents are available in Chinese. Should time permit, we will have it translated into English in the future.</br>
-[Python3 API realisation](https://github.com/grumpydevelop/viabtc_exchange_server_tools/blob/master/api/api_exchange.py)
 
-
-## Websocket authorization
-
-The websocket protocol has an authorization method (`server.auth`) which is used to authorize the websocket connection to subscribe to user specific events (trade and balance events).
-
-To accomodate this method your exchange frontend will need to supply an internal endpoint which takes an authorization token from the HTTP header named `Authorization` and validates that token and returns the user_id.
-
-The internal authorization endpoint is defined by the `auth_url` setting in the config file (`accessws/config.json`).
-
-Example response: `{"code": 0, "message": null, "data": {"user_id": 1}}`
-
-## Build on Ubuntu 14.04.5X64
+**Manual compile on Ubuntu 14.04.5X64**
 ```
 #make a new folder and cd into it before you run these cmds
 
@@ -184,7 +193,7 @@ ll
 ```
 
 ## Warning
-1. Using source repo of viabtc won't success when compiling accessws, the makefile of accessws in this repo has been modified.
+1. Using source repo of viabtc won't success when manual compiling, many makefile in this repo has been modified.
 2. This repo add some new features to json rpc API "balance.update", see the wiki for detail.
 
 ## Donation
@@ -192,4 +201,3 @@ ll
 * BTC: 14x3GrEoMLituT6vF2wcEbqMAxCvt2724s
 * BCC: 1364ZurPv8uTgnFr1uqowJDFF15aNFemkf
 * ETH: 0xA2913166AE0689C07fCB5C423559239bB2814b6D
-

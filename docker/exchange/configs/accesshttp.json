@@ -1,0 +1,49 @@
+{
+    "debug": true,
+    "process": {
+        "file_limit": 1000000,
+        "core_limit": 1000000000
+    },
+    "log": {
+        "path": "/var/log/trade/accesshttp",
+        "flag": "fatal,error,warn,info,debug,trace",
+        "num": 10
+    },
+    "alert": {
+        "host": "accesshttp",
+        "addr": "192.168.18.41:4444"
+    },
+    "svr": {
+        "bind": [
+            "tcp@0.0.0.0:8080"
+        ],
+        "max_pkg_size": 102400
+    },
+    "monitor": {
+        "bind": "tcp@0.0.0.0:8081",
+        "max_pkg_size": 1024
+    },
+    "worker_num": 4,
+    "timeout": 1.0,
+    "matchengine": {
+        "name": "matchengine",
+        "addr": [
+            "tcp@192.168.18.42:7316"
+        ],
+        "max_pkg_size": 2000000
+    },
+    "marketprice": {
+        "name": "marketprice",
+        "addr": [
+            "tcp@192.168.18.43:7416"
+        ],
+        "max_pkg_size": 2000000
+    },
+    "readhistory": {
+        "name": "readhistory",
+        "addr": [
+            "tcp@192.168.18.44:7424"
+        ],
+        "max_pkg_size": 2000000
+    }
+}

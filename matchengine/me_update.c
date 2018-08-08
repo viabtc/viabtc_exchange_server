@@ -108,11 +108,24 @@ int update_user_balance(bool real, uint32_t user_id, const char *asset, const ch
     mpd_t *result;
     mpd_t *abs_change = mpd_new(&mpd_ctx);
     mpd_abs(abs_change, change, &mpd_ctx);
-    if (mpd_cmp(change, mpd_zero, &mpd_ctx) >= 0) {
-        result = balance_add(user_id, BALANCE_TYPE_AVAILABLE, asset, abs_change);
-    } else {
-        result = balance_sub(user_id, BALANCE_TYPE_AVAILABLE, asset, abs_change);
+
+
+    if (0 == strcmp(business, SET_FREEZE)){
+        result = balance_freeze(user_id, asset, abs_change);
+    }else if (0 == strcmp(business, SET_UNFREEZE)){
+        result = balance_unfreeze(user_id, asset, abs_change);
+    }else if (0 == strcmp(business, SET_SUB_FREEZE)){
+        result = balance_sub(user_id, BALANCE_TYPE_FREEZE, asset, abs_change);
+    }else if (0 == strcmp(business, SET_ADD_FREEZE)){
+        result = balance_add(user_id, BALANCE_TYPE_FREEZE, asset, abs_change);
+    }else{
+        if (mpd_cmp(change, mpd_zero, &mpd_ctx) >= 0) {
+            result = balance_add(user_id, BALANCE_TYPE_AVAILABLE, asset, abs_change);
+        } else {
+            result = balance_sub(user_id, BALANCE_TYPE_AVAILABLE, asset, abs_change);
+        }
     }
+
     mpd_del(abs_change);
     if (result == NULL)
         return -2;

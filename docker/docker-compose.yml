@@ -1,0 +1,318 @@
+version: '3.4'
+services:
+
+  mysql:
+    build: mysql
+    image: bitlum/exchange-mysql
+    container_name: exchange_mysql
+    restart: always
+    logging:
+      options:
+        max-size: 10m
+    volumes:
+      - /var/bitlum/exchange/mysql/lib:/var/lib/mysql
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.10
+
+  kafka:
+    build: kafka
+    image: bitlum/exchange-kafka
+    container_name: exchange_kafka
+    restart: always
+    logging:
+      options:
+        max-size: 10m
+    volumes:
+      - /var/bitlum/exchange/kafka/logs:/var/log/kafka
+      - /var/bitlum/exchange/zookeeper/logs:/var/log/zookeeper
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.20
+
+  redis-master:
+    build:
+      context: redis
+    environment:
+      PORT: 6381
+    image: bitlum/exchange-redis
+    container_name: exchange_redis_master
+    restart: always
+    logging:
+      options:
+        max-size: 10m
+    volumes:
+      - /var/bitlum/exchange/redis/master/lib:/var/lib/redis
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.36
+
+  redis-replica-1:
+    build:
+      context: redis
+    environment:
+      PORT: 6382
+      SLAVEOF: "redis-master 6381"
+    image: bitlum/exchange-redis
+    container_name: exchange_redis_replica_1
+    restart: always
+    logging:
+      options:
+        max-size: 10m
+    depends_on:
+      - redis-master
+    volumes:
+      - /var/bitlum/exchange/redis/replica1/lib:/var/lib/redis
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.37
+
+  redis-replica-2:
+    build:
+      context: redis
+    environment:
+      PORT: 6383
+      SLAVEOF: "redis-master 6381"
+    image: bitlum/exchange-redis
+    container_name: exchange_redis_replica_2
+    restart: always
+    logging:
+      options:
+        max-size: 10m
+    depends_on:
+      - redis-master
+    volumes:
+      - /var/bitlum/exchange/redis/replica2/lib:/var/lib/redis
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.38
+
+  sentinel1:
+    build:
+      context: sentinel
+    environment:
+      PORT: 26381
+      REDIS_HOST: redis-master
+      REDIS_PORT: 6381
+      QUORUM: 2
+    image: bitlum/exchange-sentinel
+    container_name: exchange_sentinel_1
+    restart: always
+    logging:
+      options:
+        max-size: 10m
+    depends_on:
+      - redis-master
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.31
+
+  sentinel2:
+    build:
+      context: sentinel
+    environment:
+      PORT: 26382
+      REDIS_HOST: redis-replica-1
+      REDIS_PORT: 6382
+      QUORUM: 2
+    image: bitlum/exchange-sentinel
+    container_name: exchange_sentinel_2
+    restart: always
+    logging:
+      options:
+        max-size: 10m
+    depends_on:
+      - redis-replica-1
+      - sentinel1
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.32
+
+  sentinel3:
+    build:
+      context: sentinel
+    environment:
+      PORT: 26383
+      REDIS_HOST: redis-replica-2
+      REDIS_PORT: 6383
+      QUORUM: 2
+    image: bitlum/exchange-sentinel
+    container_name: exchange_sentinel_3
+    restart: always
+    logging:
+      options:
+        max-size: 10m
+    depends_on:
+      - redis-replica-2
+      - sentinel1
+      - sentinel2
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.33
+
+  alertcenter:
+    build:
+      context: ..
+      dockerfile: docker/exchange/Dockerfile
+    command: alertcenter
+    image: bitlum/exchange
+    container_name: exchange_alertcenter
+    restart: always
+    logging:
+      options:
+        max-size: 10m
+    depends_on:
+      - sentinel1
+      - sentinel2
+      - sentinel3
+    volumes:
+      - /var/bitlum/exchange/trade/alertcenter/log:/var/log/trade
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.41
+
+  matchengine:
+    build:
+      context: ..
+      dockerfile: docker/exchange/Dockerfile
+    command: matchengine
+    image: bitlum/exchange
+    container_name: exchange_matchengine
+    restart: always
+    logging:
+      options:
+        max-size: 10m
+    depends_on:
+      - mysql
+      - kafka
+      - alertcenter
+    volumes:
+      - /var/bitlum/exchange/trade/matchengine/log:/var/log/trade
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.42
+
+  marketprice:
+    build:
+      context: ..
+      dockerfile: docker/exchange/Dockerfile
+    image: bitlum/exchange
+    command: marketprice
+    container_name: exchange_marketprice
+    restart: always
+    logging:
+      options:
+        max-size: 10m
+    depends_on:
+      - kafka
+      - sentinel1
+      - sentinel2
+      - sentinel3
+      - alertcenter
+    volumes:
+      - /var/bitlum/exchange/trade/marketprice/log:/var/log/trade
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.43
+
+  readhistory:
+    build:
+      context: ..
+      dockerfile: docker/exchange/Dockerfile
+    command: readhistory
+    image: bitlum/exchange
+    container_name: exchange_readhistory
+    restart: always
+    logging:
+      options:
+        max-size: 10m
+    depends_on:
+      - mysql
+      - alertcenter
+    volumes:
+      - /var/bitlum/exchange/trade/readhistory/log:/var/log/trade
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.44
+
+  accesshttp:
+    build:
+      context: ..
+      dockerfile: docker/exchange/Dockerfile
+    command: accesshttp
+    image: bitlum/exchange
+    container_name: exchange_accesshttp
+    restart: always
+    logging:
+      options:
+        max-size: 10m
+    depends_on:
+      - alertcenter
+      - matchengine
+      - marketprice
+      - readhistory
+    volumes:
+      - /var/bitlum/exchange/trade/accesshttp/log:/var/log/trade
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.45
+
+  accessws:
+    build:
+      context: ..
+      dockerfile: docker/exchange/Dockerfile
+    command: accessws
+    image: bitlum/exchange
+    container_name: exchange_accessws
+    restart: always
+    logging:
+      options:
+        max-size: 10m
+    depends_on:
+      - kafka
+      - alertcenter
+      - matchengine
+      - marketprice
+      - readhistory
+    volumes:
+      - /var/bitlum/exchange/trade/accessws/log:/var/log/trade
+    ports:
+      - "8090:8090"
+      - "8091:8091"
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.46
+
+  cli:
+    build: cli
+    image: bitlum/exchange-cli
+    container_name: exchange_cli
+    restart: always
+    logging:
+      options:
+        max-size: 10m
+    volumes:
+      - /var/bitlum/exchange/mysql/lib
+      - /var/bitlum/exchange/kafka/logs
+      - /var/bitlum/exchange/redis/master/lib
+      - /var/bitlum/exchange/redis/replica1/lib
+      - /var/bitlum/exchange/redis/replica2/lib
+      - /var/bitlum/exchange/trade/alertcenter
+      - /var/bitlum/exchange/trade/matchengine
+      - /var/bitlum/exchange/trade/marketprice
+      - /var/bitlum/exchange/trade/readhistory
+      - /var/bitlum/exchange/trade/accesshttp
+    networks:
+      exchange_net:
+        ipv4_address: 192.168.18.50
+
+networks:
+  exchange_net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.18.0/24

@@ -12,6 +12,8 @@
 # include "nw_buf.h"
 # include "nw_timer.h"
 
+# define UT_WS_SVR_MAX_HEADER_SIZE 1024
+
 typedef struct ws_svr_cfg {
     uint32_t bind_count;
     nw_svr_bind *bind_arr;

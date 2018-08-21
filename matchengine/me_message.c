@@ -164,7 +164,7 @@ static int push_message(char *message, rd_kafka_topic_t *topic, list_t *list)
     if (ret == -1) {
         log_fatal("Failed to produce: %s to topic %s: %s\n", message, rd_kafka_topic_name(rkt_deals), rd_kafka_err2str(rd_kafka_last_error()));
         if (rd_kafka_last_error() == RD_KAFKA_RESP_ERR__QUEUE_FULL) {
-            list_add_node_tail(list_deals, message);
+            list_add_node_tail(list, message);
             return 0;
         }
         free(message);

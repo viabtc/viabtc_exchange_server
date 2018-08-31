@@ -527,4 +527,4 @@ paket-files/
 
 # Custom Files
 init_trade_history.sh
-*config.json
+*/config.json

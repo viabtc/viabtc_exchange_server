@@ -525,6 +525,17 @@ paket-files/
 
 # End of https://www.gitignore.io/api/c,vim,python,windows,visualstudio
 
-# Custom Files
-init_trade_history.sh
-*/config.json
+# Custom
+# Config Files
+alertcenter/config.json
+marketprice/config.json
+matchengine/config.json
+readhistory/config.json
+sql/init_trade_history.sh
+
+# Builds
+accesshttp/accesshttp
+alertcenter/alertcenter
+marketprice/marketprice
+matchengine/matchengine
+readhistory/readhistory

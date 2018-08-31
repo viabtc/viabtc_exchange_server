@@ -524,3 +524,7 @@ paket-files/
 *.cap
 
 # End of https://www.gitignore.io/api/c,vim,python,windows,visualstudio
+
+# Custom Files
+init_trade_history.sh
+*config.json

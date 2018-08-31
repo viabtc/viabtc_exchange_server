@@ -531,6 +531,8 @@ alertcenter/config.json
 marketprice/config.json
 matchengine/config.json
 readhistory/config.json
+accesshttp/config.json
+accessws/config.json
 sql/init_trade_history.sh
 
 # Builds

@@ -1,0 +1,32 @@
+{
+    "debug": true,
+    "process": {
+        "file_limit": 1000000,
+        "core_limit": 1000000000
+    },
+    "log": {
+        "path": "/var/log/trade/readhistory",
+        "flag": "fatal,error,warn,info,debug,trace",
+        "num": 10
+    },
+    "alert": {
+        "host": "readhistory",
+        "addr": "127.0.0.1:4444"
+    },
+    "svr": {
+        "bind": [
+            "tcp@0.0.0.0:7424",
+            "udp@0.0.0.0:7424"
+        ],
+        "buf_limit": 100,
+        "max_pkg_size": 1000000,
+        "heartbeat_check": false
+    },
+    "db_history": {
+        "host": "localhost",
+        "user": "user",
+        "pass": "pass",
+        "name": "trade_history"
+    },
+    "worker_num": 10
+}

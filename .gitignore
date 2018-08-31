@@ -537,6 +537,7 @@ sql/init_trade_history.sh
 
 # Builds
 accesshttp/accesshttp
+accessws/accessws
 alertcenter/alertcenter
 marketprice/marketprice
 matchengine/matchengine

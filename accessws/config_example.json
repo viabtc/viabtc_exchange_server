@@ -1,0 +1,71 @@
+{
+    "debug": true,
+    "process": {
+        "file_limit": 1000000,
+        "core_limit": 1000000000
+    },
+    "log": {
+        "path": "/var/log/trade/accessws",
+        "flag": "fatal,error,warn,info,debug,trace",
+        "num": 10
+    },
+    "alert": {
+        "host": "accessws",
+        "addr": "127.0.0.1:4444"
+    },
+    "svr": {
+        "bind": [
+            "stream@/tmp/accessws.sock"
+        ],
+        "max_pkg_size": 102400,
+        "protocol": "chat"
+    },
+    "monitor": {
+        "bind": "tcp@0.0.0.0:8091",
+        "max_pkg_size": 1024
+    },
+    "worker_num": 1,
+    "timeout": 1.0,
+    "matchengine": {
+        "name": "matchengine",
+        "addr": [
+            "tcp@127.0.0.1:7316"
+        ],
+        "max_pkg_size": 2000000
+    },
+    "marketprice": {
+        "name": "marketprice",
+        "addr": [
+            "tcp@127.0.0.1:7416"
+        ],
+        "max_pkg_size": 2000000
+    },
+    "readhistory": {
+        "name": "readhistory",
+        "addr": [
+            "tcp@127.0.0.1:7424"
+        ],
+        "max_pkg_size": 2000000
+    },
+    "deals": {
+        "brokers": "127.0.0.1:9092",
+        "topic": "deals",
+        "partition": 0
+    },
+    "orders": {
+        "brokers": "127.0.0.1:9092",
+        "topic": "orders",
+        "partition": 0
+    },
+    "balances": {
+        "brokers": "127.0.0.1:9092",
+        "topic": "balances",
+        "partition": 0
+    },
+    "backend_timeout": 1.0,
+    "cache_timeout": 10.0,
+    "auth_url": "http://192.168.1.6:8000/internal/exchange/user/auth",
+    "sign_url": "http://192.168.1.6:8000/internal/exchange/user/api/auth",
+    "depth_limit": [1, 5, 10, 20, 30, 50, 100],
+    "depth_merge": ["0", "0.00000001", "0.0000001", "0.000001", "0.00001", "0.0001", "0.001", "0.01", "0.1"]
+}

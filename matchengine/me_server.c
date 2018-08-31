@@ -289,6 +289,45 @@ static int on_cmd_balance_update(nw_ses *ses, rpc_pkg *pkg, json_t *params)
     return reply_success(ses, pkg);
 }
 
+static int on_cmd_balance_freeze(nw_ses *ses, rpc_pkg *pkg, json_t *params)
+{
+    if (json_array_size(params) != 3)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // user_id
+    if (!json_is_integer(json_array_get(params, 0)))
+        return reply_error_invalid_argument(ses, pkg);
+    uint32_t user_id = json_integer_value(json_array_get(params, 0));
+    if (user_id < 0)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // asset
+    if (!json_is_string(json_array_get(params, 1)))
+        return reply_error_invalid_argument(ses, pkg);
+    const char *asset = json_string_value(json_array_get(params, 1));
+    int prec = asset_prec_show(asset);
+    if (prec < 0)
+        return reply_error_invalid_argument(ses, pkg);
+
+    // change
+    if (!json_is_string(json_array_get(params, 2)))
+        return reply_error_invalid_argument(ses, pkg);
+    mpd_t *change = decimal(json_string_value(json_array_get(params, 2)), prec);
+    if (change == NULL)
+        return reply_error_invalid_argument(ses, pkg);
+
+    int ret = freeze_user_balance(user_id, asset, change);
+    mpd_del(change);
+    if (ret == -2) {
+        return reply_error(ses, pkg, 11, "balance not enough");
+    } else if (ret < 0) {
+        return reply_error_internal_error(ses, pkg);
+    }
+
+    append_operlog("freeze_balance", params);
+    return reply_success(ses, pkg);
+}
+
 static int on_cmd_asset_list(nw_ses *ses, rpc_pkg *pkg, json_t *params)
 {
     json_t *result = json_array();
@@ -1034,6 +1073,19 @@ static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)
         ret = on_cmd_balance_update(ses, pkg, params);
         if (ret < 0) {
             log_error("on_cmd_balance_update %s fail: %d", params_str, ret);
+        }
+        break;
+    case CMD_BALANCE_FREEZE:
+        if (is_operlog_block() || is_history_block() || is_message_block()) {
+            log_fatal("service unavailable, operlog: %d, history: %d, message: %d",
+                    is_operlog_block(), is_history_block(), is_message_block());
+            reply_error_service_unavailable(ses, pkg);
+            goto cleanup;
+        }
+        log_trace("from: %s cmd balance freeze, sequence: %u params: %s", nw_sock_human_addr(&ses->peer_addr), pkg->sequence, params_str);
+        ret = on_cmd_balance_freeze(ses, pkg, params);
+        if (ret < 0) {
+            log_error("on_cmd_balance_freeze %s fail: %d", params_str, ret);
         }
         break;
     case CMD_ASSET_LIST:

@@ -628,7 +628,7 @@ static int on_method_order_history(nw_ses *ses, uint64_t id, struct clt_info *in
 
     if (!info->auth)
         return send_error_require_auth(ses, id);
-    if (json_array_size(params) != 5)
+    if (json_array_size(params) != 6)
         return send_error_invalid_argument(ses, id);
 
     json_t *read_params = json_array();

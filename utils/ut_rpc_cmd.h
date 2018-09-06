@@ -13,6 +13,7 @@
 # define CMD_ASSET_LIST             104
 # define CMD_ASSET_SUMMARY          105
 # define CMD_BALANCE_FREEZE         106
+# define CMD_BALANCE_FREEZE_UPDATE  107
 
 // trade
 # define CMD_ORDER_PUT_LIMIT        201

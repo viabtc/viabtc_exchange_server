@@ -265,6 +265,7 @@ static int init_methods_handler(void)
     ERR_RET_LN(add_handler("balance.update", matchengine, CMD_BALANCE_UPDATE));
     ERR_RET_LN(add_handler("balance.history", readhistory, CMD_BALANCE_HISTORY));
     ERR_RET_LN(add_handler("balance.freeze", matchengine, CMD_BALANCE_FREEZE));
+    ERR_RET_LN(add_handler("balance.freeze_update", matchengine, CMD_BALANCE_FREEZE_UPDATE));
 
     ERR_RET_LN(add_handler("order.put_limit", matchengine, CMD_ORDER_PUT_LIMIT));
     ERR_RET_LN(add_handler("order.put_market", matchengine, CMD_ORDER_PUT_MARKET));

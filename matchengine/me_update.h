@@ -8,6 +8,7 @@
 
 int init_update(void);
 int update_user_balance(bool real, uint32_t user_id, const char *asset, const char *business, uint64_t business_id, mpd_t *change, json_t *detail);
+int freeze_user_balance(uint32_t user_id, const char *asset, mpd_t *change);
 
 # endif
 

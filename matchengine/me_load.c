@@ -366,6 +366,96 @@ static int load_cancel_order(json_t *params)
     return 0;
 }
 
+static int load_freeze_balance(json_t *params) {
+    if (json_array_size(params) != 3)
+        return -__LINE__;
+
+    // user_id
+    if (!json_is_integer(json_array_get(params, 0)))
+        return -__LINE__;
+    uint32_t user_id = json_integer_value(json_array_get(params, 0));
+
+    // asset
+    if (!json_is_string(json_array_get(params, 1)))
+        return -__LINE__;
+    const char *asset = json_string_value(json_array_get(params, 1));
+    int prec = asset_prec(asset);
+    if (prec < 0)
+        return 0;
+
+    // change
+    if (!json_is_string(json_array_get(params, 2)))
+        return -__LINE__;
+    mpd_t *change = decimal(json_string_value(json_array_get(params, 2)), prec);
+    if (change == NULL)
+        return -__LINE__;
+
+    int ret = freeze_user_balance(user_id, asset, change);
+    mpd_del(change);
+    if (ret < 0) {
+        return -__LINE__;
+    }
+
+    return 0;
+}
+
+static int load_freeze_update_balance(json_t *params) {
+    if (json_array_size(params) != 6)
+        return -__LINE__;
+
+    // user_id
+    if (!json_is_integer(json_array_get(params, 0)))
+        return -__LINE__;
+    uint32_t user_id = json_integer_value(json_array_get(params, 0));
+
+    // asset
+    if (!json_is_string(json_array_get(params, 1)))
+        return -__LINE__;
+    const char *asset = json_string_value(json_array_get(params, 1));
+    int prec = asset_prec(asset);
+    if (prec < 0)
+        return 0;
+
+    // business
+    if (!json_is_string(json_array_get(params, 2)))
+        return -__LINE__;
+    const char *business = json_string_value(json_array_get(params, 2));
+
+    // business_id
+    if (!json_is_integer(json_array_get(params, 3)))
+        return -__LINE__;
+    uint64_t business_id = json_integer_value(json_array_get(params, 3));
+
+    // change
+    if (!json_is_string(json_array_get(params, 4)))
+        return -__LINE__;
+    mpd_t *change = decimal(json_string_value(json_array_get(params, 4)), prec);
+    if (change == NULL)
+        return -__LINE__;
+
+    // detail
+    json_t *detail = json_array_get(params, 5);
+    if (!json_is_object(detail)) {
+        mpd_del(change);
+        return -__LINE__;
+    }
+
+    int freeze_ret = freeze_user_balance(user_id, asset, change);
+    if (freeze_ret < 0) {
+        mpd_del(change);
+        return -__LINE__;
+    }
+
+    int ret = update_user_balance(false, user_id, asset, business, business_id, change, detail);
+    mpd_del(change);
+
+    if (ret < 0) {
+        return -__LINE__;
+    }
+
+    return 0;
+}
+
 static int load_oper(json_t *detail)
 {
     const char *method = json_string_value(json_object_get(detail, "method"));
@@ -384,6 +474,10 @@ static int load_oper(json_t *detail)
         ret = load_market_order(params);
     } else if (strcmp(method, "cancel_order") == 0) {
         ret = load_cancel_order(params);
+    } else if (strcmp(method, "freeze_balance") == 0) {
+        ret = load_freeze_balance(params);
+    } else if (strcmp(method, "freeze_update_balance") == 0) {
+        ret = load_freeze_update_balance(params);
     } else {
         return -__LINE__;
     }

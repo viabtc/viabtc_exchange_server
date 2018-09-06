@@ -524,3 +524,25 @@ paket-files/
 *.cap
 
 # End of https://www.gitignore.io/api/c,vim,python,windows,visualstudio
+
+# Custom
+# Config Files
+alertcenter/config.json
+marketprice/config.json
+matchengine/config.json
+readhistory/config.json
+accesshttp/config.json
+accessws/config.json
+sql/init_trade_history.sh
+
+# Builds
+accesshttp/accesshttp
+accessws/accessws
+alertcenter/alertcenter
+marketprice/marketprice
+matchengine/matchengine
+readhistory/readhistory
+test/matchengine/cli
+test/marketprice/marketprice
+test/utils/test_list
+test/utils/test_skiplist

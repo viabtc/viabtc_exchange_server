@@ -87,7 +87,7 @@ json_t *get_user_order_finished(MYSQL *conn, uint32_t user_id,
 
     sds sql = sdsempty();
     sql = sdscatprintf(sql, "SELECT `id`, `create_time`, `finish_time`, `user_id`, `market`, `source`, `t`, `side`, `price`, `amount`, "
-            "`taker_fee`, `maker_fee`, `deal_stock`, `deal_money`, `deal_fee` FROM `order_history_%u` WHERE `user_id` = %u "
+            "`taker_fee`, `maker_fee`, `deal_stock`, `deal_money`, `deal_fee` FROM `user_order_history_%u` WHERE `user_id` = %u "
             "AND `market` = '%s'", user_id % HISTORY_HASH_NUM, user_id, _market);
     if (side) {
         sql = sdscatprintf(sql, " AND `side` = %d", side);

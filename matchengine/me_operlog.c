@@ -80,7 +80,7 @@ static void flush_log(void)
     sql = sdscatprintf(sql, "INSERT INTO `%s` (`id`, `time`, `detail`) VALUES ", table);
     sdsfree(table);
 
-    size_t count;
+    size_t count = 0;
     char buf[10240];
     list_node *node;
     list_iter *iter = list_get_iterator(list, LIST_START_HEAD);

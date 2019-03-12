@@ -145,6 +145,7 @@ int fini_operlog(void)
 
     usleep(100 * 1000);
     nw_job_release(job);
+    mysql_close(mysql_conn);
 
     return 0;
 }

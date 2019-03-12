@@ -779,7 +779,7 @@ static void clear_kline(void)
     while ((entry = dict_next(iter)) != NULL) {
         struct market_info *info = entry->val;
         clear_dict(info->sec, now - settings.sec_max);
-        clear_dict(info->sec, now / 60 * 60 - settings.min_max * 60);
+        clear_dict(info->min, now / 60 * 60 - settings.min_max * 60);
         clear_dict(info->hour, now / 3600 * 3600 - settings.hour_max * 3600);
     }
     dict_release_iterator(iter);

@@ -368,7 +368,6 @@ static int execute_limit_ask_order(bool real, market_t *m, order_t *taker)
     mpd_t *deal     = mpd_new(&mpd_ctx);
     mpd_t *ask_fee  = mpd_new(&mpd_ctx);
     mpd_t *bid_fee  = mpd_new(&mpd_ctx);
-    mpd_t *result   = mpd_new(&mpd_ctx);
 
     skiplist_node *node;
     skiplist_iter *iter = skiplist_get_iterator(m->bids);
@@ -459,7 +458,6 @@ static int execute_limit_ask_order(bool real, market_t *m, order_t *taker)
     mpd_del(deal);
     mpd_del(ask_fee);
     mpd_del(bid_fee);
-    mpd_del(result);
 
     return 0;
 }
@@ -471,7 +469,6 @@ static int execute_limit_bid_order(bool real, market_t *m, order_t *taker)
     mpd_t *deal     = mpd_new(&mpd_ctx);
     mpd_t *ask_fee  = mpd_new(&mpd_ctx);
     mpd_t *bid_fee  = mpd_new(&mpd_ctx);
-    mpd_t *result   = mpd_new(&mpd_ctx);
 
     skiplist_node *node;
     skiplist_iter *iter = skiplist_get_iterator(m->asks);
@@ -562,7 +559,6 @@ static int execute_limit_bid_order(bool real, market_t *m, order_t *taker)
     mpd_del(deal);
     mpd_del(ask_fee);
     mpd_del(bid_fee);
-    mpd_del(result);
 
     return 0;
 }
@@ -665,7 +661,6 @@ static int execute_market_ask_order(bool real, market_t *m, order_t *taker)
     mpd_t *deal     = mpd_new(&mpd_ctx);
     mpd_t *ask_fee  = mpd_new(&mpd_ctx);
     mpd_t *bid_fee  = mpd_new(&mpd_ctx);
-    mpd_t *result   = mpd_new(&mpd_ctx);
 
     skiplist_node *node;
     skiplist_iter *iter = skiplist_get_iterator(m->bids);
@@ -752,7 +747,6 @@ static int execute_market_ask_order(bool real, market_t *m, order_t *taker)
     mpd_del(deal);
     mpd_del(ask_fee);
     mpd_del(bid_fee);
-    mpd_del(result);
 
     return 0;
 }

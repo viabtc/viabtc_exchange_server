@@ -3,7 +3,7 @@
  *     History: yang@haipo.me, 2017/04/04, create
  */
 
-# include "ut_mysql.h"
+# include "ut_database.h"
 # include "me_trade.h"
 # include "me_market.h"
 # include "me_update.h"
@@ -73,6 +73,91 @@ int load_orders(MYSQL *conn, const char *table)
     return 0;
 }
 
+int load_orders_from_postgresql(PGconn *conn, const char *table)
+{
+    size_t query_limit = 1000;
+    uint64_t last_id = 0;
+    while (true) {
+        sds sql = sdsempty();
+        sql = sdscatprintf(sql, "SELECT id, order_type, side, extract(epoch from create_time), extract(epoch from update_time), user_id, market, price, amount,"
+                                " taker_fee, maker_fee, \"left\", \"freeze\", deal_stock, deal_money, deal_fee FROM %s "
+                                "WHERE id > %"PRIu64" ORDER BY id LIMIT %zu", table, last_id, query_limit);
+        log_trace("exec postgresql sql: %s", sql);
+        PGresult* result = PQexec(conn, sql);
+        if(PQresultStatus(result) != PGRES_TUPLES_OK){
+            log_error("exec postgresql: %s fail: %s", sql, PQresultErrorMessage(result));
+            PQclear(result);
+            sdsfree(sql);
+            return -__LINE__;
+        }
+        sdsfree(sql);
+
+        size_t num_rows = PQntuples(result);
+        for (size_t i = 0; i < num_rows; ++i) {
+            const char* id_str = PQgetvalue(result, i, 0);
+            const char* order_type_str = PQgetvalue(result, i, 1);
+            const char* side_str = PQgetvalue(result, i, 2);
+            const char* create_time_str = PQgetvalue(result, i, 3);
+            const char* update_time_str = PQgetvalue(result, i, 4);
+            const char* user_id_str = PQgetvalue(result, i, 5);
+            const char* market_str = PQgetvalue(result, i, 6);
+            const char* price_str = PQgetvalue(result, i, 7);
+            const char* amount_str = PQgetvalue(result, i, 8);
+            const char* taker_fee_str = PQgetvalue(result, i, 9);
+            const char* maker_fee_str = PQgetvalue(result, i, 10);
+            const char* left_str = PQgetvalue(result, i, 11);
+            const char* freeze_str = PQgetvalue(result, i, 12);
+            const char* deal_stock_str = PQgetvalue(result, i, 13);
+            const char* deal_money_str = PQgetvalue(result, i, 14);
+            const char* deal_fee_str = PQgetvalue(result, i, 15);
+
+            last_id = strtoull(id_str, NULL, 0);
+
+            market_t *market = get_market(market_str);
+            if (market == NULL) {
+                log_error(" unknown market [%s] ", market_str);
+                continue;
+            }
+
+            order_t *order = malloc(sizeof(order_t));
+            memset(order, 0, sizeof(order_t));
+
+            order->id = last_id;
+            order->type = strtoul(order_type_str, NULL, 0);
+            order->side = strtoul(side_str, NULL, 0);
+            order->create_time = strtod(create_time_str, NULL);
+            order->update_time = strtod(update_time_str, NULL);
+            order->user_id = strtoul(user_id_str, NULL, 0);
+            order->market = strdup(market_str);
+            order->price = decimal(price_str, market->money_prec);
+            order->amount = decimal(amount_str, market->stock_prec);
+            order->taker_fee = decimal(taker_fee_str, market->fee_prec);
+            order->maker_fee = decimal(maker_fee_str, market->fee_prec);
+            order->left = decimal(left_str, market->stock_prec);
+            order->freeze = decimal(freeze_str, 0);
+            order->deal_stock = decimal(deal_stock_str, 0);
+            order->deal_money = decimal(deal_money_str, 0);
+            order->deal_fee = decimal(deal_fee_str, 0);
+
+            if (!order->market || !order->price || !order->amount || !order->taker_fee || !order->maker_fee || !order->left ||
+                !order->freeze || !order->deal_stock || !order->deal_money || !order->deal_fee) {
+                log_error("get order detail of order id: %"PRIu64" fail", order->id);
+                PQclear(result);
+                order_free(order);
+                return -__LINE__;
+            }
+
+            market_put_order(market, order);
+        }
+        PQclear(result);
+
+        if (num_rows < query_limit)
+            break;
+    }
+
+    return 0;
+}
+
 int load_balance(MYSQL *conn, const char *table)
 {
     size_t query_limit = 1000;
@@ -105,6 +190,51 @@ int load_balance(MYSQL *conn, const char *table)
             balance_set(user_id, type, asset, balance);
         }
         mysql_free_result(result);
+
+        if (num_rows < query_limit)
+            break;
+    }
+
+    return 0;
+}
+
+int load_balance_from_postgresql(PGconn *conn, const char *table)
+{
+    size_t query_limit = 1000;
+    uint64_t last_id = 0;
+    while (true) {
+        sds sql = sdsempty();
+        sql = sdscatprintf(sql, "SELECT id, user_id, asset, balance_type, balance FROM %s "
+                                "WHERE id > %"PRIu64" ORDER BY id LIMIT %zu", table, last_id, query_limit);
+        log_trace("exec postgresql sql: %s", sql);
+        PGresult* result = PQexec(conn, sql);
+        if(PQresultStatus(result) != PGRES_TUPLES_OK){
+            log_error("exec postgresql: %s fail: %s", sql, PQresultErrorMessage(result));
+            PQclear(result);
+            sdsfree(sql);
+            return -__LINE__;
+        }
+        sdsfree(sql);
+
+        size_t num_rows = PQntuples(result);
+        for (size_t i = 0; i < num_rows; ++i) {
+            const char* id_str = PQgetvalue(result, i, 0);
+            const char* user_id_str = PQgetvalue(result, i, 1);
+            const char* asset_str = PQgetvalue(result, i, 2);
+            const char* balance_type_str = PQgetvalue(result, i, 3);
+            const char* balance_str = PQgetvalue(result, i, 4);
+
+            last_id = strtoull(id_str, NULL, 0);
+            uint32_t user_id = strtoul(user_id_str, NULL, 0);
+            if (!asset_exist(asset_str)) {
+                log_error(" unknown asset [%s] ", asset_str);
+                continue;
+            }
+            uint32_t type = strtoul(balance_type_str, NULL, 0);
+            mpd_t *balance = decimal(balance_str, asset_prec(asset_str));
+            balance_set(user_id, type, asset_str, balance);
+        }
+        PQclear(result);
 
         if (num_rows < query_limit)
             break;
@@ -442,3 +572,58 @@ int load_operlog(MYSQL *conn, const char *table, uint64_t *start_id)
     return 0;
 }
 
+
+int load_operlog_from_postgresql(PGconn *conn, uint64_t *start_id)
+{
+    // load from postgresql
+    size_t query_limit = 1000;
+    uint64_t last_id = *start_id;
+    while (true) {
+        sds sql = sdsempty();
+        sql = sdscatprintf(sql, "SELECT id, query  from operlog WHERE id > %"PRIu64" ORDER BY id LIMIT %zu", last_id, query_limit);
+        log_trace("exec sql: %s", sql);
+
+        PGresult* result = PQexec(conn, sql);
+        if(PQresultStatus(result) != PGRES_TUPLES_OK){
+            log_error("exec postgresql: %s fail: %s", sql, PQresultErrorMessage(result));
+            PQclear(result);
+            sdsfree(sql);
+            return -__LINE__;
+        }
+        sdsfree(sql);
+
+        size_t num_rows = PQntuples(result);
+        for (size_t i = 0; i < num_rows; ++i) {
+            char* id_str = PQgetvalue(result, i, 0);
+            uint64_t id = strtoull(id_str, NULL, 0);
+            if (id != last_id + 1) {
+                log_error("invalid id: %"PRIu64", last id: %"PRIu64"", id, last_id);
+                return -__LINE__;
+            }
+            last_id = id;
+
+            char* query = PQgetvalue(result, i, 1);
+            json_t *detail = json_loadb(query, strlen(query), 0, NULL);
+            if (detail == NULL) {
+                log_error("invalid query data: %s", query);
+                PQclear(result);
+                return -__LINE__;
+            }
+            int ret = load_oper(detail);
+            if (ret < 0) {
+                json_decref(detail);
+                log_error("load_oper: %"PRIu64":%s fail: %d", id, query, ret);
+                PQclear(result);
+                return -__LINE__;
+            }
+            json_decref(detail);
+        }
+        PQclear(result);
+
+        if (num_rows < query_limit)
+            break;
+    }
+
+    *start_id = last_id;
+    return 0;
+}

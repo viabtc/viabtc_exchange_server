@@ -24,12 +24,18 @@
     },
     "cli": "tcp@127.0.0.1:7317",
     "db_log": {
+        "read_db_type": "mysql",
+        "write_db_type": "all",
+        "pg_conninfo":"host=localhost port=5432 user=user password=pass dbname=trade_log",
         "host": "localhost",
         "user": "user",
         "pass": "pass",
         "name": "trade_log"
     },
     "db_history": {
+        "read_db_type": "postgresql",
+        "write_db_type": "postgresql",
+        "pg_conninfo":"host=localhost port=5432 user=user password=pass dbname=trade_history",
         "host": "localhost",
         "user": "user",
         "pass": "pass",

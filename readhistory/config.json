@@ -23,6 +23,8 @@
         "heartbeat_check": false
     },
     "db_history": {
+        "read_db_type": "postgresql",
+        "pg_conninfo":"host=localhost port=5432 user=user password=pass dbname=trade_history",
         "host": "localhost",
         "user": "user",
         "pass": "pass",

@@ -956,7 +956,6 @@ int market_put_market_order(bool real, json_t **result, market_t *m, uint32_t us
                 mpd_add(money_required, money_required, deal, &mpd_ctx);
             }
             skiplist_release_iterator(iter);
-            mpd_del(money_required);
             mpd_del(left);
             mpd_del(amount_tx);
             mpd_del(price);
@@ -965,8 +964,10 @@ int market_put_market_order(bool real, json_t **result, market_t *m, uint32_t us
             // validate user has the balance available to fulfil order
             mpd_t *balance = balance_get(user_id, BALANCE_TYPE_AVAILABLE, m->money);
             if (!balance || mpd_cmp(balance, money_required, &mpd_ctx) < 0) {
+                mpd_del(money_required);
                 return -1;
             }
+            mpd_del(money_required);
 
             // validate there are any market participants on the other side of the order
             if (ask_count == 0) {

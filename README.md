@@ -85,6 +85,8 @@ matchengine
 
 - [Python3 API realisation](https://github.com/testnet-exchange/python-viabtc-api)
 - [Ruby Gem 💎](https://github.com/krmbzds/viabtc)
+- [C# API](https://github.com/djpnewton/via_jsonrpc)
+- [HTML UI to test exchange API](https://github.com/djpnewton/viaxchtest)
 
 ## Websocket authorization
 

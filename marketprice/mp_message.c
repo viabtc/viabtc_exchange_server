@@ -229,12 +229,12 @@ static int load_market(redisContext *context, struct market_info *info)
     return 0;
 }
 
-static struct market_info *create_market(const char *market)
+static struct market_info *create_market(const char *market, mpd_t *price = mpd_zero)
 {
     struct market_info *info = malloc(sizeof(struct market_info));
     memset(info, 0, sizeof(struct market_info));
     info->name = strdup(market);
-    info->last = mpd_qncopy(mpd_zero);
+    info->last = mpd_qncopy(price);
     dict_types dt;
 
     memset(&dt, 0, sizeof(dt));
@@ -428,7 +428,7 @@ static int market_update(const char *market, double timestamp, mpd_t *price, mpd
 {
     struct market_info *info = market_query(market);
     if (info == NULL) {
-        info = create_market(market);
+        info = create_market(market, price);
         if (info == NULL) {
             return -__LINE__;
         }
@@ -442,7 +442,7 @@ static int market_update(const char *market, double timestamp, mpd_t *price, mpd
     if (entry) {
         kinfo = entry->val;
     } else {
-        kinfo = kline_info_new(price);
+        kinfo = kline_info_new(info->last);
         if (kinfo == NULL)
             return -__LINE__;
         dict_add(info->sec, &time_sec, kinfo);
@@ -456,7 +456,7 @@ static int market_update(const char *market, double timestamp, mpd_t *price, mpd
     if (entry) {
         kinfo = entry->val;
     } else {
-        kinfo = kline_info_new(price);
+        kinfo = kline_info_new(info->last);
         if (kinfo == NULL)
             return -__LINE__;
         dict_add(info->min, &time_min, kinfo);
@@ -470,7 +470,7 @@ static int market_update(const char *market, double timestamp, mpd_t *price, mpd
     if (entry) {
         kinfo = entry->val;
     } else {
-        kinfo = kline_info_new(price);
+        kinfo = kline_info_new(info->last);
         if (kinfo == NULL)
             return -__LINE__;
         dict_add(info->hour, &time_hour, kinfo);
@@ -484,7 +484,7 @@ static int market_update(const char *market, double timestamp, mpd_t *price, mpd
     if (entry) {
         kinfo = entry->val;
     } else {
-        kinfo = kline_info_new(price);
+        kinfo = kline_info_new(info->last);
         if (kinfo == NULL)
             return -__LINE__;
         dict_add(info->day, &time_day, kinfo);

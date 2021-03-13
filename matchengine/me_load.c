@@ -262,7 +262,7 @@ error:
 
 static int load_market_order(json_t *params)
 {
-    if (json_array_size(params) != 6)
+    if (json_array_size(params) != 6 && json_array_size(params) != 7)
         return -__LINE__;
 
     // user_id
@@ -313,7 +313,16 @@ static int load_market_order(json_t *params)
     if (strlen(source) > SOURCE_MAX_LEN)
         goto error;
 
-    int ret = market_put_market_order(false, NULL, market, user_id, side, amount, taker_fee, source);
+    // bid amount money (should the bid amount be treated as "money" or "stock")
+    // optional parameter, default is true
+    bool bid_amount_money = true;
+    if (json_array_size(params) == 7) {
+        if (!json_is_boolean(json_array_get(params, 6)))
+            goto error;
+        bid_amount_money = json_boolean_value(json_array_get(params, 6));
+    }
+
+    int ret = market_put_market_order(false, NULL, market, user_id, side, amount, taker_fee, source, bid_amount_money);
 
     mpd_del(amount);
     mpd_del(taker_fee);

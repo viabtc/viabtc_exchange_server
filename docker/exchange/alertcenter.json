@@ -1,0 +1,26 @@
+{
+    "process": {
+        "file_limit": 1000000,
+        "core_limit": 1000000000
+    },
+    "log": {
+        "path": "/var/log/trade/alertcenter",
+        "flag": "fatal,error,warn,info,debug"
+    },
+    "svr": {
+        "bind": [
+            "tcp@0.0.0.0:4444",
+            "udp@0.0.0.0:4444"
+        ],
+        "max_pkg_size": 10240
+    },
+    "redis": {
+        "name": "exchange_sentinel",
+        "addr": [
+            "192.168.18.31:26381",
+            "192.168.18.32:26382",
+            "192.168.18.33:26383"
+        ]
+    }
+}
+

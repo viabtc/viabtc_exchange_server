@@ -1,0 +1,6 @@
+#!/bin/bash
+
+shdir=`dirname ${0}`
+. ${shdir}/accesshttp
+
+asset.list

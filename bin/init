@@ -1,0 +1,27 @@
+#!/bin/bash
+
+shdir=`dirname ${0}`
+. ${shdir}/accesshttp
+
+OP=3
+
+balance.update 1 BTC deposit $OP 1000
+balance.update 1 ETH deposit $OP 1000
+balance.update 1 BCH deposit $OP 1000
+balance.update 1 LTC deposit $OP 1000
+balance.update 1 DASH deposit $OP 1000
+
+balance.update 2 BTC deposit $OP 1000
+balance.update 2 ETH deposit $OP 1000
+balance.update 2 BCH deposit $OP 1000
+balance.update 2 LTC deposit $OP 1000
+balance.update 2 DASH deposit $OP 1000
+
+balance.update 1121516550 BTC deposit $OP 1000
+balance.update 1121516550 ETH deposit $OP 1000
+balance.update 1121516550 BCH deposit $OP 1000
+balance.update 1121516550 LTC deposit $OP 1000
+balance.update 1121516550 DASH deposit $OP 1000
+
+order.put_market 1121516550 BTCETH 1 0.00001 0.0000001
+order.put_market 1121516550 BTCBCH 1 0.00001 0.0000001

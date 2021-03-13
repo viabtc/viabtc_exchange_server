@@ -1,0 +1,10 @@
+#!/bin/bash
+if [ $# -eq 0 -o x$1 = x--help -o x$1 = x-h ];then
+	echo "$0 user_id asset deposit | withdraw op_id amount"
+	exit 0
+fi
+
+shdir=`dirname ${0}`
+. ${shdir}/accesshttp
+
+balance.update $@

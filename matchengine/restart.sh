@@ -1,5 +1,5 @@
 #!/bin/bash
 
-killall -s SIGQUIT matchengine.exe
+killall -s SIGQUIT matchengine
 sleep 1
-./matchengine.exe config.json
+./matchengine config.json

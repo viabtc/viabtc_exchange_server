@@ -381,6 +381,7 @@ int load_cfg_redis_sentinel(json_t *root, const char *key, redis_sentinel_cfg *c
         return -__LINE__;
 
     ERR_RET(read_cfg_str(node, "name", &cfg->name, NULL));
+    ERR_RET(read_cfg_str(node, "auth", &cfg->auth, NULL));
     ERR_RET(read_cfg_int(node, "db", &cfg->db, false, 0));
 
     json_t *addr = json_object_get(node, "addr");

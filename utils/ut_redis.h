@@ -17,6 +17,7 @@ typedef struct redis_addr {
 
 typedef struct redis_sentinel_cfg {
     char *name;
+    char *auth;
     uint32_t addr_count;
     redis_addr *addr_arr;
     int db;
@@ -30,6 +31,7 @@ typedef struct redis_sentinel_node {
 
 typedef struct redis_sentinel_t {
     char *name;
+    char *auth;
     redis_sentinel_node *list;
     int db;
 } redis_sentinel_t;

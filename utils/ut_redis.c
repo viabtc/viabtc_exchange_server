@@ -47,6 +47,7 @@ redis_sentinel_t *redis_sentinel_create(redis_sentinel_cfg *cfg)
     memset(context, 0, sizeof(redis_sentinel_t));
     context->db = cfg->db;
     context->name = strdup(cfg->name);
+    context->auth = strdup(cfg->auth);
     if (context->name == NULL) {
         free(context);
         return NULL;
@@ -201,7 +202,21 @@ redisContext *redis_sentinel_connect_master(redis_sentinel_t *context)
         free(addr.host);
         redisSetTimeout(redis, timeout);
 
-        redisReply *reply = redisCommand(redis, "ROLE");
+        redisReply *reply;
+        if (strlen(context->auth)) {
+            reply = redisCommand(redis, "AUTH %s", context->auth);
+            if (redis == NULL || reply->type == REDIS_REPLY_ERROR) {
+                printf("redis auth failed\n");
+                if (reply) {
+                    freeReplyObject(reply);
+                }
+                redisFree(redis);
+                return NULL;
+            }
+            freeReplyObject(reply);
+        }
+
+        reply = redisCommand(redis, "ROLE");
         if (reply == NULL || reply->type != REDIS_REPLY_ARRAY) {
             if (reply) {
                 freeReplyObject(reply);

@@ -8,6 +8,8 @@
 # include "me_balance.h"
 
 static MYSQL *mysql_conn;
+static bool use_mysql;
+static bool use_postgresql;
 static nw_job *job;
 static dict_t *dict_sql;
 static nw_timer timer;
@@ -49,33 +51,54 @@ static void dict_sql_key_free(void *key)
 
 static void *on_job_init(void)
 {
-    return mysql_connect(&settings.db_history);
+    struct db_connection *conn = db_connect(&settings.db_history);
+    return conn;
 }
 
 static void on_job(nw_job_entry *entry, void *privdata)
 {
-    MYSQL *conn = privdata;
-    sds sql = entry->request;
-    log_trace("exec sql: %s", sql);
-    while (true) {
-        int ret = mysql_real_query(conn, sql, sdslen(sql));
-        if (ret != 0 && mysql_errno(conn) != 1062) {
-            log_fatal("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
-            usleep(1000 * 1000);
-            continue;
+    struct db_connection *db = privdata;
+    struct db_query *query = entry->request;
+    if (is_need_insert_my(db)) {
+        MYSQL *conn = db->mysql;
+        sds sql = query->mysql;
+        log_trace("exec mysql sql: %s", sql);
+        while (true) {
+            int ret = mysql_real_query(conn, sql, sdslen(sql));
+            if (ret != 0 && mysql_errno(conn) != 1062) {
+                log_fatal("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+                usleep(1000 * 1000);
+                continue;
+            }
+            break;
         }
-        break;
+    }
+    if (is_need_insert_pg(db)) {
+        // TODO add retry? if fail postgresql
+        sds sql = query->postgresql;
+        log_trace("exec postgresql sql: %s", sql);
+        PGresult *res;
+        res = PQexec(db->postgresql, sql);
+        if (!res || PQresultStatus(res) != PGRES_COMMAND_OK) {
+            log_fatal( "Error executing commands: %s\n", PQresultErrorMessage(res));
+        }
+
+        PQclear(res);
     }
 }
 
 static void on_job_cleanup(nw_job_entry *entry)
 {
-    sdsfree(entry->request);
+    struct db_query *query = entry->request;
+    sdsfree(query->mysql);
+    sdsfree(query->postgresql);
+    free(entry->request);
 }
 
 static void on_job_release(void *privdata)
 {
-    mysql_close(privdata);
+    struct db_connection *db = privdata;
+    db_connection_free(db);
 }
 
 static void on_timer(nw_timer *t, void *privdata)
@@ -97,11 +120,21 @@ static void on_timer(nw_timer *t, void *privdata)
 
 int init_history(void)
 {
-    mysql_conn = mysql_init(NULL);
-    if (mysql_conn == NULL)
-        return -__LINE__;
-    if (mysql_options(mysql_conn, MYSQL_SET_CHARSET_NAME, settings.db_history.charset) != 0)
-        return -__LINE__;
+    use_mysql = false;
+    use_postgresql = false;
+    if (is_need_mysql(&settings.db_log)){
+        use_mysql = true;
+    }
+    if (is_need_pgsql(&settings.db_log)){
+        use_postgresql = true;
+    }
+    if (use_mysql) {
+        mysql_conn = mysql_init(NULL);
+        if (mysql_conn == NULL)
+            return -__LINE__;
+        if (mysql_options(mysql_conn, MYSQL_SET_CHARSET_NAME, settings.db_history.charset) != 0)
+            return -__LINE__;
+    }
 
     dict_types dt;
     memset(&dt, 0, sizeof(dt));
@@ -153,25 +186,32 @@ static sds sql_append_mpd(sds sql, mpd_t *val, bool comma)
     return sql;
 }
 
-static sds get_sql(struct dict_sql_key *key)
+static struct db_query  *get_query(struct dict_sql_key *key)
 {
+    // query's send to db periodic every 0.1 (sec?)
+    // query's accumulate on dict_sql shard over table
+    // dict_sql:  key aka (table_id(0...99), table_name code) => (sql_str)
     dict_entry *entry = dict_find(dict_sql, key);
     if (!entry) {
-        sds val = sdsempty();
-        entry = dict_add(dict_sql, key, val);
+        struct db_query  *query = malloc(sizeof(struct db_query));
+        query->mysql = sdsempty();
+        query->postgresql = sdsempty();
+        entry = dict_add(dict_sql, key, query);
         if (entry == NULL) {
-            sdsfree(val);
+            sdsfree(query->mysql);
+            sdsfree(query->postgresql);
+            free(query);
             return NULL;
         }
     }
     return entry->val;
 }
 
-static void set_sql(struct dict_sql_key *key, sds sql)
+static void set_query(struct dict_sql_key *key, struct db_query  *query)
 {
     dict_entry *entry = dict_find(dict_sql, key);
     if (entry) {
-        entry->val = sql;
+        entry->val = query;
     }
 }
 
@@ -180,29 +220,54 @@ static int append_user_order(order_t *order)
     struct dict_sql_key key;
     key.hash = order->user_id % HISTORY_HASH_NUM;
     key.type = HISTORY_USER_ORDER;
-    sds sql = get_sql(&key);
-    if (sql == NULL)
+    struct db_query  *query = get_query(&key);
+    if (query == NULL)
         return -__LINE__;
 
-    if (sdslen(sql) == 0) {
-        sql = sdscatprintf(sql, "INSERT INTO `order_history_%u` (`id`, `create_time`, `finish_time`, `user_id`, "
-                "`market`, `source`, `t`, `side`, `price`, `amount`, `taker_fee`, `maker_fee`, `deal_stock`, `deal_money`, `deal_fee`) VALUES ", key.hash);
-    } else {
-        sql = sdscatprintf(sql, ", ");
+    if (use_mysql) {
+        if (sdslen(query->mysql) == 0) {
+            query->mysql = sdscatprintf(query->mysql, "INSERT INTO `order_history_%u` (`id`, `create_time`, `finish_time`, `user_id`, "
+                                    "`market`, `source`, `t`, `side`, `price`, `amount`, `taker_fee`, `maker_fee`, `deal_stock`, `deal_money`, `deal_fee`) VALUES ",
+                               key.hash);
+        } else {
+            query->mysql = sdscatprintf(query->mysql, ", ");
+        }
+
+        query->mysql = sdscatprintf(query->mysql, "(%"PRIu64", %f, %f, %u, '%s', '%s', %u, %u, ", order->id,
+                           order->create_time, order->update_time, order->user_id, order->market, order->source,
+                           order->type, order->side);
+        query->mysql = sql_append_mpd(query->mysql, order->price, true);
+        query->mysql = sql_append_mpd(query->mysql, order->amount, true);
+        query->mysql = sql_append_mpd(query->mysql, order->taker_fee, true);
+        query->mysql = sql_append_mpd(query->mysql, order->maker_fee, true);
+        query->mysql = sql_append_mpd(query->mysql, order->deal_stock, true);
+        query->mysql = sql_append_mpd(query->mysql, order->deal_money, true);
+        query->mysql = sql_append_mpd(query->mysql, order->deal_fee, false);
+        query->mysql = sdscatprintf(query->mysql, ")");
     }
+    if (use_postgresql)
+    {
+        // TODO key.hash=user_id % 100 not need for postgresql because we inserted one table
+        if (sdslen(query->postgresql) == 0) {
+            query->postgresql = sdscat(query->postgresql, "INSERT INTO \"order_history\" (id, create_time, finish_time, user_id, market,"
+                                    " source, order_type, side, price, amount , taker_fee, maker_fee, deal_stock, deal_money, deal_fee) VALUES ");
+        } else {
+            query->postgresql = sdscat(query->postgresql, ", ");
+        }
 
-    sql = sdscatprintf(sql, "(%"PRIu64", %f, %f, %u, '%s', '%s', %u, %u, ", order->id,
-        order->create_time, order->update_time, order->user_id, order->market, order->source, order->type, order->side);
-    sql = sql_append_mpd(sql, order->price, true);
-    sql = sql_append_mpd(sql, order->amount, true);
-    sql = sql_append_mpd(sql, order->taker_fee, true);
-    sql = sql_append_mpd(sql, order->maker_fee, true);
-    sql = sql_append_mpd(sql, order->deal_stock, true);
-    sql = sql_append_mpd(sql, order->deal_money, true);
-    sql = sql_append_mpd(sql, order->deal_fee, false);
-    sql = sdscatprintf(sql, ")");
-
-    set_sql(&key, sql);
+        query->postgresql = sdscatprintf(query->postgresql, "(%"PRIu64", to_timestamp(%f), to_timestamp(%f), %u, '%s', '%s', %u, %u, ", order->id,
+                           order->create_time, order->update_time, order->user_id, order->market, order->source,
+                           order->type, order->side);
+        query->postgresql = sql_append_mpd(query->postgresql, order->price, true);
+        query->postgresql = sql_append_mpd(query->postgresql, order->amount, true);
+        query->postgresql = sql_append_mpd(query->postgresql, order->taker_fee, true);
+        query->postgresql = sql_append_mpd(query->postgresql, order->maker_fee, true);
+        query->postgresql = sql_append_mpd(query->postgresql, order->deal_stock, true);
+        query->postgresql = sql_append_mpd(query->postgresql, order->deal_money, true);
+        query->postgresql = sql_append_mpd(query->postgresql, order->deal_fee, false);
+        query->postgresql = sdscatprintf(query->postgresql, ")");
+    }
+    set_query(&key, query);
 
     return 0;
 }
@@ -212,29 +277,54 @@ static int append_order_detail(order_t *order)
     struct dict_sql_key key;
     key.hash = order->id % HISTORY_HASH_NUM;
     key.type = HISTORY_ORDER_DETAIL;
-    sds sql = get_sql(&key);
-    if (sql == NULL)
+    struct db_query  *query = get_query(&key);
+    if (query == NULL)
         return -__LINE__;
+    if (use_mysql) {
+        if (sdslen(query->mysql) == 0) {
+            query->mysql = sdscatprintf(query->mysql, "INSERT INTO `order_detail_%u` (`id`, `create_time`, `finish_time`, `user_id`, "
+                                    "`market`, `source`, `t`, `side`, `price`, `amount`, `taker_fee`, `maker_fee`, `deal_stock`, `deal_money`, `deal_fee`) VALUES ",
+                               key.hash);
+        } else {
+            query->mysql = sdscatprintf(query->mysql, ", ");
+        }
 
-    if (sdslen(sql) == 0) {
-        sql = sdscatprintf(sql, "INSERT INTO `order_detail_%u` (`id`, `create_time`, `finish_time`, `user_id`, "
-                "`market`, `source`, `t`, `side`, `price`, `amount`, `taker_fee`, `maker_fee`, `deal_stock`, `deal_money`, `deal_fee`) VALUES ", key.hash);
-    } else {
-        sql = sdscatprintf(sql, ", ");
+        query->mysql = sdscatprintf(query->mysql, "(%"PRIu64", %f, %f, %u, '%s', '%s', %u, %u, ", order->id,
+                           order->create_time, order->update_time, order->user_id, order->market, order->source,
+                           order->type, order->side);
+        query->mysql = sql_append_mpd(query->mysql, order->price, true);
+        query->mysql = sql_append_mpd(query->mysql, order->amount, true);
+        query->mysql = sql_append_mpd(query->mysql, order->taker_fee, true);
+        query->mysql = sql_append_mpd(query->mysql, order->maker_fee, true);
+        query->mysql = sql_append_mpd(query->mysql, order->deal_stock, true);
+        query->mysql = sql_append_mpd(query->mysql, order->deal_money, true);
+        query->mysql = sql_append_mpd(query->mysql, order->deal_fee, false);
+        query->mysql = sdscatprintf(query->mysql, ")");
+
     }
+    if (use_postgresql)
+    {
+        // TODO key.hash=id % 100 not need for postgresql because we inserted one table
+        if (sdslen(query->postgresql) == 0) {
+            query->postgresql = sdscat(query->postgresql, "INSERT INTO \"order_detail\" (id, create_time, finish_time, user_id, market,"
+                                                          " source, order_type, side, price, amount , taker_fee, maker_fee, deal_stock, deal_money, deal_fee) VALUES ");
+        } else {
+            query->postgresql = sdscat(query->postgresql, ", ");
+        }
 
-    sql = sdscatprintf(sql, "(%"PRIu64", %f, %f, %u, '%s', '%s', %u, %u, ", order->id,
-        order->create_time, order->update_time, order->user_id, order->market, order->source, order->type, order->side);
-    sql = sql_append_mpd(sql, order->price, true);
-    sql = sql_append_mpd(sql, order->amount, true);
-    sql = sql_append_mpd(sql, order->taker_fee, true);
-    sql = sql_append_mpd(sql, order->maker_fee, true);
-    sql = sql_append_mpd(sql, order->deal_stock, true);
-    sql = sql_append_mpd(sql, order->deal_money, true);
-    sql = sql_append_mpd(sql, order->deal_fee, false);
-    sql = sdscatprintf(sql, ")");
-
-    set_sql(&key, sql);
+        query->postgresql = sdscatprintf(query->postgresql, "(%"PRIu64", to_timestamp(%f), to_timestamp(%f), %u, '%s', '%s', %u, %u, ", order->id,
+                                         order->create_time, order->update_time, order->user_id, order->market, order->source,
+                                         order->type, order->side);
+        query->postgresql = sql_append_mpd(query->postgresql, order->price, true);
+        query->postgresql = sql_append_mpd(query->postgresql, order->amount, true);
+        query->postgresql = sql_append_mpd(query->postgresql, order->taker_fee, true);
+        query->postgresql = sql_append_mpd(query->postgresql, order->maker_fee, true);
+        query->postgresql = sql_append_mpd(query->postgresql, order->deal_stock, true);
+        query->postgresql = sql_append_mpd(query->postgresql, order->deal_money, true);
+        query->postgresql = sql_append_mpd(query->postgresql, order->deal_fee, false);
+        query->postgresql = sdscatprintf(query->postgresql, ")");
+    }
+    set_query(&key, query);
 
     return 0;
 }
@@ -244,25 +334,50 @@ static int append_order_deal(double t, uint32_t user_id, uint64_t deal_id, uint6
     struct dict_sql_key key;
     key.hash = order_id % HISTORY_HASH_NUM;
     key.type = HISTORY_ORDER_DEAL;
-    sds sql = get_sql(&key);
-    if (sql == NULL)
+    struct db_query  *query = get_query(&key);
+    if (query == NULL)
         return -__LINE__;
+    if (use_mysql) {
+        if (sdslen(query->mysql) == 0) {
+            query->mysql = sdscatprintf(query->mysql,
+                               "INSERT INTO `deal_history_%u` (`id`, `time`, `user_id`, `deal_id`, `order_id`, `deal_order_id`,"
+                               " `role`, `price`, `amount`, `deal`, `fee`, `deal_fee`) VALUES ",
+                               key.hash);
+        } else {
+            query->mysql = sdscatprintf(query->mysql, ", ");
+        }
 
-    if (sdslen(sql) == 0) {
-        sql = sdscatprintf(sql, "INSERT INTO `deal_history_%u` (`id`, `time`, `user_id`, `deal_id`, `order_id`, `deal_order_id`, `role`, `price`, `amount`, `deal`, `fee`, `deal_fee`) VALUES ", key.hash);
-    } else {
-        sql = sdscatprintf(sql, ", ");
+        query->mysql = sdscatprintf(query->mysql, "(NULL, %f, %u, %"PRIu64", %"PRIu64", %"PRIu64", %d, ", t, user_id, deal_id, order_id,
+                           deal_order_id, role);
+        query->mysql = sql_append_mpd(query->mysql, price, true);
+        query->mysql = sql_append_mpd(query->mysql, amount, true);
+        query->mysql = sql_append_mpd(query->mysql, deal, true);
+        query->mysql = sql_append_mpd(query->mysql, fee, true);
+        query->mysql = sql_append_mpd(query->mysql, deal_fee, false);
+        query->mysql = sdscatprintf(query->mysql, ")");
     }
+    if (use_postgresql)
+    {
+        // TODO rm key.hash=order_id % 100 not need for postgresql because we inserted one table
+        if (sdslen(query->postgresql) == 0) {
+            query->postgresql = sdscat(query->postgresql, "INSERT INTO \"deal_history\" (time, user_id, deal_id,"
+                                                          " order_id, deal_order_id, role, price, amount , deal, "
+                                                          "fee, deal_fee"
+                                                          ") VALUES ");
+        } else {
+            query->postgresql = sdscat(query->postgresql, ", ");
+        }
 
-    sql = sdscatprintf(sql, "(NULL, %f, %u, %"PRIu64", %"PRIu64", %"PRIu64", %d, ", t, user_id, deal_id, order_id, deal_order_id, role);
-    sql = sql_append_mpd(sql, price, true);
-    sql = sql_append_mpd(sql, amount, true);
-    sql = sql_append_mpd(sql, deal, true);
-    sql = sql_append_mpd(sql, fee, true);
-    sql = sql_append_mpd(sql, deal_fee, false);
-    sql = sdscatprintf(sql, ")");
-
-    set_sql(&key, sql);
+        query->postgresql = sdscatprintf(query->postgresql, "(to_timestamp(%f), %u, %"PRIu64", %"PRIu64", %"PRIu64", %d, ", t, user_id, deal_id, order_id,
+                           deal_order_id, role);
+        query->postgresql = sql_append_mpd(query->postgresql, price, true);
+        query->postgresql = sql_append_mpd(query->postgresql, amount, true);
+        query->postgresql = sql_append_mpd(query->postgresql, deal, true);
+        query->postgresql = sql_append_mpd(query->postgresql, fee, true);
+        query->postgresql = sql_append_mpd(query->postgresql, deal_fee, false);
+        query->postgresql = sdscatprintf(query->postgresql, ")");
+    }
+    set_query(&key, query);
 
     return 0;
 }
@@ -272,25 +387,48 @@ static int append_user_deal(double t, uint32_t user_id, const char *market, uint
     struct dict_sql_key key;
     key.hash = user_id % HISTORY_HASH_NUM;
     key.type = HISTORY_USER_DEAL;
-    sds sql = get_sql(&key);
-    if (sql == NULL)
+    struct db_query  *query = get_query(&key);
+    if (query == NULL)
         return -__LINE__;
+    if (use_mysql) {
+        if (sdslen(query->mysql) == 0) {
+            query->mysql = sdscatprintf(query->mysql,
+                               "INSERT INTO `user_deal_history_%u` (`id`, `time`, `user_id`, `market`, `deal_id`, `order_id`, `deal_order_id`, `side`, `role`, `price`, `amount`, `deal`, `fee`, `deal_fee`) VALUES ",
+                               key.hash);
+        } else {
+            query->mysql = sdscatprintf(query->mysql, ", ");
+        }
 
-    if (sdslen(sql) == 0) {
-        sql = sdscatprintf(sql, "INSERT INTO `user_deal_history_%u` (`id`, `time`, `user_id`, `market`, `deal_id`, `order_id`, `deal_order_id`, `side`, `role`, `price`, `amount`, `deal`, `fee`, `deal_fee`) VALUES ", key.hash);
-    } else {
-        sql = sdscatprintf(sql, ", ");
+        query->mysql = sdscatprintf(query->mysql, "(NULL, %f, %u, '%s', %"PRIu64", %"PRIu64", %"PRIu64", %d, %d, ", t, user_id, market,
+                           deal_id, order_id, deal_order_id, side, role);
+        query->mysql = sql_append_mpd(query->mysql, price, true);
+        query->mysql = sql_append_mpd(query->mysql, amount, true);
+        query->mysql = sql_append_mpd(query->mysql, deal, true);
+        query->mysql = sql_append_mpd(query->mysql, fee, true);
+        query->mysql = sql_append_mpd(query->mysql, deal_fee, false);
+        query->mysql = sdscatprintf(query->mysql, ")");
     }
+    if (use_postgresql)
+    {
+        // TODO rm key.hash=user_id % 100 not need for postgresql because we inserted one table
+        if (sdslen(query->postgresql) == 0) {
+            query->postgresql = sdscat(query->postgresql,
+                               "INSERT INTO \"user_deal_history\" (\"time\", user_id, market, deal_id, order_id, "
+                               "deal_order_id, side, role, price, amount, deal, fee, deal_fee) VALUES ");
+        } else {
+            query->postgresql = sdscat(query->postgresql, ", ");
+        }
 
-    sql = sdscatprintf(sql, "(NULL, %f, %u, '%s', %"PRIu64", %"PRIu64", %"PRIu64", %d, %d, ", t, user_id, market, deal_id, order_id, deal_order_id, side, role);
-    sql = sql_append_mpd(sql, price, true);
-    sql = sql_append_mpd(sql, amount, true);
-    sql = sql_append_mpd(sql, deal, true);
-    sql = sql_append_mpd(sql, fee, true);
-    sql = sql_append_mpd(sql, deal_fee, false);
-    sql = sdscatprintf(sql, ")");
-
-    set_sql(&key, sql);
+        query->postgresql = sdscatprintf(query->postgresql, "(to_timestamp(%f), %u, '%s', %"PRIu64", %"PRIu64", %"PRIu64", %d, %d, ",
+                t, user_id, market, deal_id, order_id, deal_order_id, side, role);
+        query->postgresql = sql_append_mpd(query->postgresql, price, true);
+        query->postgresql = sql_append_mpd(query->postgresql, amount, true);
+        query->postgresql = sql_append_mpd(query->postgresql, deal, true);
+        query->postgresql = sql_append_mpd(query->postgresql, fee, true);
+        query->postgresql = sql_append_mpd(query->postgresql, deal_fee, false);
+        query->postgresql = sdscatprintf(query->postgresql, ")");
+    }
+    set_query(&key, query);
 
     return 0;
 }
@@ -300,24 +438,95 @@ static int append_user_balance(double t, uint32_t user_id, const char *asset, co
     struct dict_sql_key key;
     key.hash = user_id % HISTORY_HASH_NUM;
     key.type = HISTORY_USER_BALANCE;
-    sds sql = get_sql(&key);
-    if (sql == NULL)
+    struct db_query  *query = get_query(&key);
+    if (query == NULL)
         return -__LINE__;
+    if (use_mysql) {
+        if (sdslen(query->mysql) == 0) {
+            query->mysql = sdscatprintf(query->mysql,
+                               "INSERT INTO `balance_history_%u` (`id`, `time`, `user_id`, `asset`, `business`, `change`, `balance`, `detail`) VALUES ",
+                               key.hash);
+        } else {
+            query->mysql = sdscatprintf(query->mysql, ", ");
+        }
 
-    if (sdslen(sql) == 0) {
-        sql = sdscatprintf(sql, "INSERT INTO `balance_history_%u` (`id`, `time`, `user_id`, `asset`, `business`, `change`, `balance`, `detail`) VALUES ", key.hash);
-    } else {
-        sql = sdscatprintf(sql, ", ");
+        char buf[10 * 1024];
+        query->mysql = sdscatprintf(query->mysql, "(NULL, %f, %u, '%s', '%s', ", t, user_id, asset, business);
+        query->mysql = sql_append_mpd(query->mysql, change, true);
+        query->mysql = sql_append_mpd(query->mysql, balance, true);
+        mysql_real_escape_string(mysql_conn, buf, detail, strlen(detail));
+        query->mysql = sdscatprintf(query->mysql, "'%s')", buf);
     }
+    if (use_postgresql)
+    {
+        // TODO rm key.hash=user_id % 100 not need for postgresql because we inserted one table
+        if (sdslen(query->postgresql) == 0) {
+            query->postgresql = sdscat(query->postgresql, "INSERT INTO \"balance_history\" (\"time\", user_id, asset, business, change, balance, detail) VALUES ");
+        } else {
+            query->postgresql = sdscat(query->postgresql, ", ");
+        }
+        query->postgresql = sdscatprintf(query->postgresql, "(to_timestamp(%f), %u, '%s', '%s', ", t, user_id, asset, business);
+        query->postgresql = sql_append_mpd(query->postgresql, change, true);
+        query->postgresql = sql_append_mpd(query->postgresql, balance, true);
+        // TODO  need escape_string
+        query->postgresql = sdscatprintf(query->postgresql, "'%s')", detail);
+    }
+    set_query(&key, query);
 
-    char buf[10 * 1024];
-    sql = sdscatprintf(sql, "(NULL, %f, %u, '%s', '%s', ", t, user_id, asset, business);
-    sql = sql_append_mpd(sql, change, true);
-    sql = sql_append_mpd(sql, balance, true);
-    mysql_real_escape_string(mysql_conn, buf, detail, strlen(detail));
-    sql = sdscatprintf(sql, "'%s')", buf);
+    return 0;
+}
 
-    set_sql(&key, sql);
+static int append_wallet_balance_fee(order_t *order, const char *stock, const char *money)
+{
+    struct dict_sql_key key;
+    key.hash = 0;
+    key.type = HISTORY_EXCHANGE_DATA;
+    struct db_query  *query = get_query(&key);
+    if (query == NULL)
+        return -__LINE__;
+    if (use_mysql) {
+        if (sdslen(query->mysql) == 0) {
+            query->mysql = sdscatprintf(query->mysql,
+                               "INSERT INTO `exchange_data` (`id`, `time`, `asset`, `business`, `change`) VALUES ");
+        } else {
+            query->mysql = sdscatprintf(query->mysql, ", ");
+        }
+
+        query->mysql = sdscatprintf(query->mysql, "(NULL, %f, ", order->update_time);
+        if (order->side == 1) {
+            query->mysql = sdscatprintf(query->mysql, "'%s', ", money);
+        } else {
+            query->mysql = sdscatprintf(query->mysql, "'%s', ", stock);
+        }
+
+        query->mysql = sdscatprintf(query->mysql, "'fee', ");
+        query->mysql = sql_append_mpd(query->mysql, order->deal_fee, false);
+        query->mysql = sdscatprintf(query->mysql, ")");
+    }
+    if (use_postgresql)
+    {
+        if (sdslen(query->postgresql) == 0) {
+            query->postgresql = sdscatprintf(query->postgresql,
+                                        "INSERT INTO \"exchange_data\" (\"time\", order_id, user_id, asset,"
+                                        " operation, amount) VALUES ");
+        } else {
+            query->postgresql = sdscat(query->postgresql, ", ");
+        }
+
+        query->postgresql = sdscatprintf(query->postgresql, "(to_timestamp(%f),%"PRIu64",%u, ",
+                order->update_time, order->id, order->user_id);
+
+        if (order->side == 1) {
+            query->postgresql = sdscatprintf(query->postgresql, "'%s', ", money);
+        } else {
+            query->postgresql = sdscatprintf(query->postgresql, "'%s', ", stock);
+        }
+
+        query->postgresql = sdscat(query->postgresql, "'fee', ");
+        query->postgresql = sql_append_mpd(query->postgresql, order->deal_fee, false);
+        query->postgresql = sdscatprintf(query->postgresql, ")");
+    }
+    set_query(&key, query);
 
     return 0;
 }

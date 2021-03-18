@@ -14,6 +14,8 @@ int init_operlog(void);
 int fini_operlog(void);
 
 int append_operlog(const char *method, json_t *params);
+sds get_current_operlog_table_name();
+sds get_operlog_table_name(time_t now);
 
 bool is_operlog_block(void);
 sds operlog_status(sds reply);

@@ -343,7 +343,7 @@ int load_cfg_inetv4_list(json_t *root, const char *key, inetv4_list *cfg)
     return 0;
 }
 
-int load_cfg_mysql(json_t *root,  const char *key, mysql_cfg *cfg)
+int load_cfg_database(json_t *root,  const char *key, database_cfg *cfg)
 {
     json_t *node = json_object_get(root, key);
     if (!node || !json_is_object(node))
@@ -355,6 +355,14 @@ int load_cfg_mysql(json_t *root,  const char *key, mysql_cfg *cfg)
     ERR_RET(read_cfg_str(node, "pass", &cfg->pass, NULL));
     ERR_RET(read_cfg_str(node, "name", &cfg->name, NULL));
     ERR_RET(read_cfg_str(node, "charset", &cfg->charset, "utf8"));
+    ERR_RET(read_cfg_str(node, "read_db_type", &cfg->read_db_type, "mysql"));
+    ERR_RET(read_cfg_str(node, "write_db_type", &cfg->write_db_type, "all"));
+    int ret = read_cfg_str(node, "pg_conninfo", &cfg->conninfo, NULL);
+    if (ret < 0 && (strcmp(cfg->read_db_type, "postgresql") == 0
+                    || strcmp(cfg->write_db_type, "postgresql") == 0)) {
+        log_fatal("Database type is `postgresql` but no conninfo.");
+        return -__LINE__;
+    }
 
     return 0;
 }

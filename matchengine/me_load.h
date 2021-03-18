@@ -7,13 +7,15 @@
 # define _ME_LOAD_H_
 
 # include <stdint.h>
-# include "ut_mysql.h"
+# include "ut_database.h"
 
 int load_orders(MYSQL *conn, const char *table);
-int load_markets(MYSQL *conn, const char *table);
+int load_orders_from_postgresql(PGconn *conn, const char *table);
 int load_balance(MYSQL *conn, const char *table);
+int load_balance_from_postgresql(PGconn *conn, const char *table);
 
 int load_operlog(MYSQL *conn, const char *table, uint64_t *start_id);
+int load_operlog_from_postgresql(PGconn *conn, uint64_t *start_id);
 
 # endif
 

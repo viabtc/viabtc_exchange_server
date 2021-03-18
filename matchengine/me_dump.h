@@ -8,9 +8,8 @@
 
 # include "ut_mysql.h"
 
-int dump_orders(MYSQL *conn, const char *table);
-int dump_markets(MYSQL *conn, const char *table);
-int dump_balance(MYSQL *conn, const char *table);
+int dump_orders(struct db_connection *conn, const char *table);
+int dump_balance(struct db_connection *conn, const char *table);
 
 # endif
 

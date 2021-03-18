@@ -91,10 +91,11 @@ static int reply_result(nw_ses *ses, rpc_pkg *pkg, json_t *result)
 
 static void *on_job_init(void)
 {
-    return mysql_connect(&settings.db_history);
+    struct db_connection *conn = db_connect(&settings.db_history);
+    return conn;
 }
 
-static int on_cmd_balance_history(MYSQL *conn, json_t *params, struct job_reply *rsp)
+static int on_cmd_balance_history(struct db_connection *conn, json_t *params, struct job_reply *rsp)
 {
     if (json_array_size(params) != 7)
         goto invalid_argument;
@@ -138,7 +139,7 @@ invalid_argument:
     return 0;
 }
 
-static int on_cmd_order_history(MYSQL *conn, json_t *params, struct job_reply *rsp)
+static int on_cmd_order_history(struct db_connection *conn, json_t *params, struct job_reply *rsp)
 {
     if (json_array_size(params) < 6)
         goto invalid_argument;
@@ -218,7 +219,7 @@ invalid_argument:
     return 0;
 }
 
-static int on_cmd_order_detail_finished(MYSQL *conn, json_t *params, struct job_reply *rsp)
+static int on_cmd_order_detail_finished(struct db_connection *conn, json_t *params, struct job_reply *rsp)
 {
     if (json_array_size(params) != 1)
         goto invalid_argument;
@@ -241,7 +242,7 @@ invalid_argument:
     return 0;
 }
 
-static int on_cmd_market_deals(MYSQL *conn, json_t *params, struct job_reply *rsp)
+static int on_cmd_market_deals(struct db_connection *conn, json_t *params, struct job_reply *rsp)
 {
     if (json_array_size(params) != 4)
         goto invalid_argument;
@@ -280,7 +281,7 @@ invalid_argument:
 
 static void on_job(nw_job_entry *entry, void *privdata)
 {
-    MYSQL *conn = privdata;
+    struct db_connection *conn = privdata;
     struct job_request *req = entry->request;
     struct job_reply *rsp = malloc(sizeof(struct job_reply));
     entry->reply = rsp;
@@ -365,7 +366,8 @@ static void on_job_cleanup(nw_job_entry *entry)
 
 static void on_job_release(void *privdata)
 {
-    mysql_close(privdata);
+    struct db_connection *db = privdata;
+    db_connection_free(db);
 }
 
 static void svr_on_recv_pkg(nw_ses *ses, rpc_pkg *pkg)

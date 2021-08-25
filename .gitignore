@@ -1,3 +1,10 @@
+test/matchengine/cli
+accesshttp/accesshttp
+accessws/accessws
+alertcenter/alertcenter
+marketprice/marketprice
+readhistroy/readhistory
+
 # Compiled Object files
 *.slo
 *.lo
@@ -260,7 +267,6 @@ $RECYCLE.BIN/
 x64/
 x86/
 bld/
-[Bb]in/
 [Oo]bj/
 [Ll]og/
 

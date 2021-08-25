@@ -99,9 +99,3 @@ To accommodate this method your exchange frontend will need to supply an interna
 The internal authorization endpoint is defined by the `auth_url` setting in the config file (`accessws/config.json`).
 
 Example response: `{"code": 0, "message": null, "data": {"user_id": 1}}`
-
-## Donation
-
-* BTC/BCH: 1LB34q942fRN8ukMoaLJNWBjm5erZccgUb
-* ETH: 0xd6938fcad9aa20de7360ce15090ec2e036867f27
-

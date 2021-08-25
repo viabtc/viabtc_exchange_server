@@ -29,7 +29,7 @@
 # include "ut_misc.h"
 # include "ut_list.h"
 # include "ut_kafka.h"
-# include "ut_mysql.h"
+# include "ut_database.h"
 # include "ut_signal.h"
 # include "ut_config.h"
 # include "ut_define.h"
@@ -46,7 +46,7 @@ struct settings {
     log_cfg             log;
     alert_cfg           alert;
     rpc_svr_cfg         svr;
-    mysql_cfg           db_history;
+    database_cfg        db_history;
     int                 worker_num;
 };
 

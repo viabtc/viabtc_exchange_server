@@ -6,7 +6,7 @@
 # include "ut_log.h"
 # include "ut_mysql.h"
 
-MYSQL *mysql_connect(mysql_cfg *db)
+MYSQL *mysql_connect(database_cfg *db)
 {
     MYSQL *conn = mysql_init(NULL);
     if (conn == NULL)

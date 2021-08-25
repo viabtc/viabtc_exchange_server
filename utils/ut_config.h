@@ -43,14 +43,17 @@ typedef struct inetv4_list {
     struct sockaddr_in *arr;
 } inetv4_list;
 
-typedef struct mysql_cfg {
+typedef struct database_cfg {
     char    *host;
     int      port;
     char    *user;
     char    *pass;
     char    *name;
     char    *charset;
-} mysql_cfg;
+    char    *conninfo;
+    char    *read_db_type;
+    char    *write_db_type;
+} database_cfg;
 
 int parse_inetv4_addr(const char *str, struct sockaddr_in *addr);
 
@@ -65,7 +68,7 @@ int load_cfg_cli_svr(json_t *root, const char *key, cli_svr_cfg *cfg);
 int load_cfg_http_svr(json_t *root, const char *key, http_svr_cfg *cfg);
 int load_cfg_ws_svr(json_t *root, const char *key, ws_svr_cfg *cfg);
 int load_cfg_inetv4_list(json_t *root, const char *key, inetv4_list *cfg);
-int load_cfg_mysql(json_t *root, const char *key, mysql_cfg *cfg);
+int load_cfg_database(json_t *root, const char *key, database_cfg *cfg);
 int load_cfg_kafka_consumer(json_t *root, const char *key, kafka_consumer_cfg *cfg);
 int load_cfg_redis_sentinel(json_t *root, const char *key, redis_sentinel_cfg *cfg);
 

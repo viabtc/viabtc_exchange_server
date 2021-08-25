@@ -21,33 +21,53 @@ struct operlog {
 
 static void *on_job_init(void)
 {
-    return mysql_connect(&settings.db_log);
+    struct db_connection *conn = db_connect(&settings.db_log);
+    return conn;
 }
 
-static void on_job(nw_job_entry *entry, void *privdata)
-{
-    MYSQL *conn = privdata;
-    sds sql = entry->request;
-    log_trace("exec sql: %s", sql);
-    while (true) {
-        int ret = mysql_real_query(conn, sql, sdslen(sql));
-        if (ret != 0 && mysql_errno(conn) != 1062) {
-            log_fatal("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
-            usleep(1000 * 1000);
-            continue;
+static void on_job(nw_job_entry *entry, void *privdata) {
+    struct db_connection *db = privdata;
+    struct db_query *query = entry->request;
+    if (is_need_insert_my(db)) {
+        MYSQL *conn = db->mysql;
+        sds sql = query->mysql;
+        log_trace("exec mysql sql: %s", sql);
+        while (true) {
+            int ret = mysql_real_query(conn, sql, sdslen(sql));
+            if (ret != 0 && mysql_errno(conn) != 1062) {
+                log_fatal("exec sql: %s fail: %d %s", sql, mysql_errno(conn), mysql_error(conn));
+                usleep(1000 * 1000);
+                continue;
+            }
+            break;
         }
-        break;
+    }
+    if (is_need_insert_pg(db)) {
+        // TODO add retry? if fail postgresql
+        sds sql = query->postgresql;
+        log_trace("exec postgresql sql: %s", sql);
+        PGresult *res;
+        res = PQexec(db->postgresql, sql);
+        if (!res || PQresultStatus(res) != PGRES_COMMAND_OK) {
+            log_fatal( "Error executing commands: %s\n", PQresultErrorMessage(res));
+        }
+
+        PQclear(res);
     }
 }
 
 static void on_job_cleanup(nw_job_entry *entry)
 {
-    sdsfree(entry->request);
+    struct db_query *query = entry->request;
+    sdsfree(query->mysql);
+    sdsfree(query->postgresql);
+    free(entry->request);
 }
 
 static void on_job_release(void *privdata)
 {
-    mysql_close(privdata);
+    struct db_connection *db = privdata;
+    db_connection_free(db);
 }
 
 static void on_list_free(void *value)
@@ -57,46 +77,103 @@ static void on_list_free(void *value)
     free(log);
 }
 
+sds get_current_operlog_table_name() {
+    time_t now = time(NULL);
+    return get_operlog_table_name(now);
+}
+
+sds get_operlog_table_name(time_t now) {
+    sds result = sdsempty();
+    struct tm *today = localtime(&now);
+    int table_name_len = sizeof("operlog_20190222");
+    char buffer[table_name_len];
+    strftime (buffer, table_name_len, "operlog_%Y%m%d", today);
+    return sdscat(result, buffer);
+}
+
+sds get_partition_condition() {
+    // "('2019-02-22') TO ('2019-02-22')"
+    sds result = sdsempty();
+    int date_len = sizeof("2019-02-22");
+    char today_str[date_len];
+    char nextday_str[date_len];
+
+    time_t now = time(NULL);
+    struct tm *tmp_tm = localtime(&now);
+    strftime(today_str, date_len, "%Y-%m-%d", tmp_tm);
+    tmp_tm->tm_mday = tmp_tm->tm_mday + 1;
+    tmp_tm->tm_isdst = -1;        // don't know if DST is in effect, please determine this for me
+    time_t next = mktime(tmp_tm);
+    tmp_tm = localtime(&next);
+    strftime(nextday_str, date_len, "%F", tmp_tm);
+    result = sdscatprintf(result, "('%s') TO ('%s')", today_str, nextday_str);
+    return result;
+}
+
 static void flush_log(void)
 {
     static sds table_last;
     if (table_last == NULL) {
         table_last = sdsempty();
     }
+    sds table = NULL;
+    table = get_current_operlog_table_name();
 
-    time_t now = time(NULL);
-    struct tm *tm = localtime(&now);
-    sds table = sdsempty();
-    table = sdscatprintf(table, "operlog_%04d%02d%02d", 1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday);
-
+    // CREATE TABLE operlog_20190221 PARTITION of operlog FOR VALUES
+    //    FROM ('2019-02-21') TO ('2019-02-22');
     if (sdscmp(table_last, table) != 0) {
-        sds create_table_sql = sdsempty();
-        create_table_sql = sdscatprintf(create_table_sql, "CREATE TABLE IF NOT EXISTS `%s` like `operlog_example`", table);
-        nw_job_add(job, 0, create_table_sql);
+        sds create_table_mysql = sdsempty();
+        if (use_mysql)
+            create_table_mysql = sdscatprintf(create_table_mysql, "CREATE TABLE IF NOT EXISTS `%s` like `operlog_example`", table);
+
+        sds create_table_pq = sdsempty();
+        if (use_postgresql) {
+            sds cond_str = NULL;
+            cond_str = get_partition_condition();
+            create_table_pq = sdscatprintf(create_table_pq, "CREATE TABLE IF NOT EXISTS \"%s\" PARTITION "
+                                                            "OF operlog FOR VALUES FROM %s ", table, cond_str);
+            sdsfree(cond_str);
+        }
+        struct db_query  *query = db_malloc_query(create_table_mysql, create_table_pq);
+        nw_job_add(job, 0, query);
         table_last = sdscpy(table_last, table);
     }
 
-    sds sql = sdsempty();
-    sql = sdscatprintf(sql, "INSERT INTO `%s` (`id`, `time`, `detail`) VALUES ", table);
+    sds mysql_query = sdsempty();
+    if (use_mysql)
+        mysql_query = sdscatprintf(mysql_query, "INSERT INTO `%s` (`id`, `time`, `detail`) VALUES ", table);
     sdsfree(table);
-
-    size_t count = 0;
+    sds pg_query = sdsempty();
+    if (use_postgresql)
+        pg_query = sdscat(pg_query, "INSERT INTO operlog (id, query, time, query_date) VALUES ");
+    size_t count=0;
     char buf[10240];
     list_node *node;
     list_iter *iter = list_get_iterator(list, LIST_START_HEAD);
     while ((node = list_next(iter)) != NULL) {
         struct operlog *log = node->value;
-        size_t detail_len = strlen(log->detail);
-        mysql_real_escape_string(mysql_conn, buf, log->detail, detail_len);
-        sql = sdscatprintf(sql, "(%"PRIu64", %f, '%s')", log->id, log->create_time, buf);
+        if (use_mysql) {
+            size_t detail_len = strlen(log->detail);
+            mysql_real_escape_string(mysql_conn, buf, log->detail, detail_len);
+            mysql_query = sdscatprintf(mysql_query, "(%"PRIu64", %f, '%s')", log->id, log->create_time, buf);
+        }
+        if (use_postgresql)
+            pg_query = sdscatprintf(pg_query, "(%"PRIu64"::bigint,'%s'::jsonb, to_timestamp(%f), to_timestamp(%f))",
+                log->id, log->detail,  log->create_time,  log->create_time);
         if (list_len(list) > 1) {
-            sql = sdscatprintf(sql, ", ");
+            if (use_mysql)
+                mysql_query = sdscatprintf(mysql_query, ", ");
+            if (use_postgresql)
+                pg_query = sdscatprintf(pg_query, ", ");
         }
         list_del(list, node);
         count++;
+        // TODO query need break into chunks  matchengine/me_dump.c:63
     }
     list_release_iterator(iter);
-    nw_job_add(job, 0, sql);
+    struct db_query  *query = db_malloc_query(mysql_query, pg_query);
+    nw_job_add(job, 0, query);
+
     log_debug("flush oper log count: %zu", count);
 }
 
@@ -109,11 +186,21 @@ static void on_timer(nw_timer *t, void *privdata)
 
 int init_operlog(void)
 {
-    mysql_conn = mysql_init(NULL);
-    if (mysql_conn == NULL)
-        return -__LINE__;
-    if (mysql_options(mysql_conn, MYSQL_SET_CHARSET_NAME, settings.db_log.charset) != 0)
-        return -__LINE__;
+    use_mysql = false;
+    use_postgresql = false;
+    if (is_need_mysql(&settings.db_log)){
+        use_mysql = true;
+    }
+    if (is_need_pgsql(&settings.db_log)){
+        use_postgresql = true;
+    }
+    if (use_mysql) {
+        mysql_conn = mysql_init(NULL);
+        if (mysql_conn == NULL)
+            return -__LINE__;
+        if (mysql_options(mysql_conn, MYSQL_SET_CHARSET_NAME, settings.db_log.charset) != 0)
+            return -__LINE__;
+    }
 
     nw_job_type type;
     memset(&type, 0, sizeof(type));
@@ -145,7 +232,8 @@ int fini_operlog(void)
 
     usleep(100 * 1000);
     nw_job_release(job);
-    mysql_close(mysql_conn);
+    if (use_mysql)
+        mysql_close(mysql_conn);
 
     return 0;
 }

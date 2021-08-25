@@ -42,7 +42,7 @@ static int read_config_from_json(json_t *root)
     }
     ret = load_cfg_redis_sentinel(root, "redis", &settings.redis);
     if (ret < 0) {
-        printf("load kafka deals config fail: %d\n", ret);
+        printf("load redis sentinel config fail: %d\n", ret);
         return -__LINE__;
     }
 
